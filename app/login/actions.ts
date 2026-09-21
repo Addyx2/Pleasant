@@ -46,7 +46,7 @@ export async function loginAction(
   });
 
   const next = String(formData.get("next") ?? "");
-  const fallback = user.role === "STAFF" ? "/my-shifts" : "/dashboard";
+  const fallback = user.role === "STAFF" ? "/workforce" : "/dashboard";
   redirect(next.startsWith("/") ? next : fallback);
 }
 

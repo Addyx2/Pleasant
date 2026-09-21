@@ -10,7 +10,7 @@ import { clientAuthSchema, expensesSchema, signOffSchema } from "@/lib/validatio
 function refreshTimesheetPaths() {
   revalidatePath("/timesheets");
   revalidatePath("/timesheets/sheet");
-  revalidatePath("/my-shifts");
+  revalidatePath("/workforce");
   revalidatePath("/shifts");
   revalidatePath("/dashboard");
 }

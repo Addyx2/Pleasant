@@ -5,7 +5,6 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { nextCutoff, payDayForCutoff, weekdayName } from "@/lib/week";
 import { formatCurrency, formatDate, formatDateTime, formatTime } from "@/lib/utils";
-import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
 import { SignOffForm } from "@/components/SignOffForm";
 import {
@@ -14,21 +13,16 @@ import {
   saveCandidateSignatureAction,
 } from "@/app/(app)/timesheets/actions";
 
-export const metadata = { title: "My shifts" };
 export const dynamic = "force-dynamic";
 
-export default async function MyShiftsPage() {
+export default async function WorkforceHomePage() {
   const user = await requireUser();
   const profile = user.staff;
 
   if (!profile) {
     return (
-      <div className="mx-auto max-w-xl space-y-6">
-        <PageHeader title="My shifts" description="Your rota, timesheets and sign-off." />
-        <EmptyState
-          title="No carer profile linked"
-          description="Your login isn't linked to a carer record yet. Ask your agency manager to link it."
-        />
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-600">
+        Your login isn&apos;t linked to a carer record yet. Ask your agency manager to link it.
       </div>
     );
   }
@@ -72,26 +66,34 @@ export default async function MyShiftsPage() {
   );
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <PageHeader
-        title={`Hi ${profile.firstName}`}
-        description={`${profile.jobTitle} · ${user.agency.name}`}
-      />
-
-      <Card className="border-brand-200 bg-brand-50 p-4 text-sm text-brand-900">
-        Sign off your shifts before{" "}
-        <strong>
-          {weekdayName(user.agency.cutoffWeekday)} {formatTime(cutoff)}
-        </strong>{" "}
-        to be paid on <strong>{formatDate(payDay)}</strong>.
-      </Card>
+    <div className="space-y-5">
+      <div className="rounded-3xl bg-brand-600 p-5 text-white">
+        <p className="text-sm text-brand-100">
+          Sign off your shifts before{" "}
+          <strong className="font-semibold text-white">
+            {weekdayName(user.agency.cutoffWeekday)} · {formatTime(cutoff)}
+          </strong>{" "}
+          to be paid on <strong className="font-semibold text-white">{formatDate(payDay)}</strong>.
+        </p>
+      </div>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
           Upcoming shifts
         </h2>
         {upcoming.length === 0 ? (
-          <EmptyState title="Nothing scheduled" description="Enjoy the time off — new shifts will appear here." />
+          <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center">
+            <p className="text-sm font-medium text-slate-700">Nothing scheduled</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Enjoy the time off — check open shifts to pick up more.
+            </p>
+            <Link
+              href="/workforce/open-shifts"
+              className="mt-4 inline-block rounded-full bg-brand-600 px-5 py-2 text-sm font-semibold text-white"
+            >
+              Browse open shifts
+            </Link>
+          </div>
         ) : (
           upcoming.map((shift) => <ShiftCard key={shift.id} shift={shift} />)
         )}
@@ -99,19 +101,12 @@ export default async function MyShiftsPage() {
 
       {recent.length > 0 ? (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Recent shifts
           </h2>
           {recent.map((shift) => <ShiftCard key={shift.id} shift={shift} />)}
         </section>
       ) : null}
-
-      <Link
-        href={`/timesheets/sheet?staffId=${profile.id}`}
-        className="block rounded-2xl border border-slate-200 bg-white p-4 text-center text-sm font-medium text-brand-700 shadow-sm"
-      >
-        View my weekly timesheet sheet
-      </Link>
     </div>
   );
 }
@@ -148,12 +143,12 @@ function ShiftCard({ shift }: { shift: ShiftWithRelations }) {
       : (shift.site?.name ?? "Location TBC");
 
   return (
-    <Card className="p-4">
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="font-semibold text-slate-900">{shift.title}</p>
-          <p className="mt-0.5 text-sm text-slate-600">{where}</p>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-slate-600">{where}</p>
+          <p className="mt-1 text-xs text-slate-500">
             {formatDate(shift.startAt)} · {formatTime(shift.startAt)} – {formatTime(shift.endAt)}
           </p>
           {shift.isSleepIn ? (
@@ -165,14 +160,14 @@ function ShiftCard({ shift }: { shift: ShiftWithRelations }) {
         <StatusBadge status={ts?.status ?? shift.status} />
       </div>
 
-      <div className="mt-3 flex flex-col gap-2">
+      <div className="mt-4 flex flex-col gap-2">
         {!ts ? (
           <form action={clockInFormAction}>
             <input type="hidden" name="shiftId" value={shift.id} />
             <input type="hidden" name="breakMins" value={shift.breakMins} />
             <button
               type="submit"
-              className="w-full rounded-xl bg-brand-600 px-4 py-3 text-base font-semibold text-white active:bg-brand-700"
+              className="w-full rounded-full bg-brand-600 px-4 py-3 text-base font-semibold text-white active:scale-[0.99]"
             >
               Clock in
             </button>
@@ -184,7 +179,7 @@ function ShiftCard({ shift }: { shift: ShiftWithRelations }) {
             <input type="hidden" name="timesheetId" value={ts.id} />
             <button
               type="submit"
-              className="w-full rounded-xl bg-slate-900 px-4 py-3 text-base font-semibold text-white"
+              className="w-full rounded-full bg-slate-900 px-4 py-3 text-base font-semibold text-white active:scale-[0.99]"
             >
               Clock out
             </button>
@@ -203,11 +198,11 @@ function ShiftCard({ shift }: { shift: ShiftWithRelations }) {
         ) : null}
 
         {ts?.candidateSignedAt ? (
-          <p className="rounded-xl bg-emerald-50 px-4 py-2 text-center text-sm font-medium text-emerald-700">
+          <p className="rounded-full bg-emerald-50 px-4 py-2 text-center text-sm font-medium text-emerald-700">
             Signed off{ts.clientAuthAt ? " · client authorised" : " · awaiting client sign-off"}
           </p>
         ) : null}
       </div>
-    </Card>
+    </div>
   );
 }
