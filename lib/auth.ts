@@ -73,4 +73,10 @@ export async function requireUser() {
   return user;
 }
 
+export async function requireAdmin() {
+  const user = await requireUser();
+  if (user.role !== "ADMIN") redirect("/my-shifts");
+  return user;
+}
+
 export type SessionUser = NonNullable<Awaited<ReturnType<typeof getSessionUser>>>;

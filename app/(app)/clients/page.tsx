@@ -1,4 +1,4 @@
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Card, EmptyState, PageHeader, Td, Th } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
@@ -8,7 +8,7 @@ export const metadata = { title: "Clients" };
 export const dynamic = "force-dynamic";
 
 export default async function ClientsPage() {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const [clients, sites] = await Promise.all([
     prisma.client.findMany({

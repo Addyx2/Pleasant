@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { createClientSchema, createSiteSchema } from "@/lib/validation";
 import type { ActionState } from "@/app/(app)/shifts/actions";
@@ -11,7 +11,7 @@ export async function createClientAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const parsed = createClientSchema.safeParse({
     firstName: formData.get("firstName"),
@@ -51,7 +51,7 @@ export async function createSiteAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const parsed = createSiteSchema.safeParse({
     name: formData.get("name"),

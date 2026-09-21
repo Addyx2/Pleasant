@@ -46,7 +46,8 @@ export async function loginAction(
   });
 
   const next = String(formData.get("next") ?? "");
-  redirect(next.startsWith("/") ? next : "/dashboard");
+  const fallback = user.role === "STAFF" ? "/my-shifts" : "/dashboard";
+  redirect(next.startsWith("/") ? next : fallback);
 }
 
 export async function logoutAction(): Promise<void> {

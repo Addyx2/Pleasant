@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { computeShiftEarnings } from "@/lib/payroll/engine";
 import { addDays, mondayOf, parseISODate, toISODate } from "@/lib/week";
@@ -20,7 +20,7 @@ export default async function WeeklySheetPage({
 }: {
   searchParams: Promise<{ staffId?: string; week?: string }>;
 }) {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const params = await searchParams;
 
   const staffList = await prisma.staffProfile.findMany({

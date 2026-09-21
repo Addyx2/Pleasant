@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Card } from "@/components/ui";
@@ -15,7 +15,7 @@ export default async function PayslipPage({
   params: Promise<{ id: string; payslipId: string }>;
 }) {
   const { id, payslipId } = await params;
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const payslip = await prisma.payslip.findFirst({
     where: { id: payslipId, payrollRunId: id, payrollRun: { agencyId: user.agencyId } },

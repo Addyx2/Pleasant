@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Card, PageHeader, StatCard, Td, Th, buttonClass, subtleButtonClass } from "@/components/ui";
@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PayrollRunPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const run = await prisma.payrollRun.findFirst({
     where: { id, agencyId: user.agencyId },

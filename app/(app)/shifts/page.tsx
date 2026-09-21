@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatCurrency, formatDate, formatTime, shiftDurationMins } from "@/lib/utils";
 import { Card, EmptyState, PageHeader, Td, Th, buttonClass } from "@/components/ui";
@@ -17,7 +17,7 @@ export default async function ShiftsPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const { status } = await searchParams;
   const active = FILTERS.includes((status ?? "ALL") as never) ? (status ?? "ALL") : "ALL";
 

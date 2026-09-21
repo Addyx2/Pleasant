@@ -2,7 +2,7 @@ import Link from "next/link";
 import { endOfDay, startOfDay } from "date-fns";
 import { CalendarClock, ClipboardCheck, PoundSterling, Users } from "lucide-react";
 
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { nextCutoff, payDayForCutoff, weekdayName } from "@/lib/week";
 import { formatCurrency, formatDate, formatDateTime, formatHours, formatTime } from "@/lib/utils";
@@ -13,7 +13,7 @@ export const metadata = { title: "Dashboard" };
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const agencyId = user.agencyId;
 
   const today = new Date();

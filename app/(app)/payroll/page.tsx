@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { addDays, mondayOf, nextCutoff, payDayForCutoff, toISODate, weekdayName } from "@/lib/week";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
@@ -12,7 +12,7 @@ export const metadata = { title: "Payroll" };
 export const dynamic = "force-dynamic";
 
 export default async function PayrollPage() {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const runs = await prisma.payrollRun.findMany({
     where: { agencyId: user.agencyId },

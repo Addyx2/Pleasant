@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import {
   calculatePayslip,
@@ -76,7 +76,7 @@ export async function generatePayrollRunAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const user = await requireUser();
+  const user = await requireAdmin();
 
   const parsed = payrollRunSchema.safeParse({
     periodStart: formData.get("periodStart"),
@@ -290,7 +290,7 @@ export async function generatePayrollRunAction(
 }
 
 export async function setPayrollStatusAction(formData: FormData): Promise<void> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const runId = String(formData.get("runId") ?? "");
   const status = String(formData.get("status") ?? "");
   if (!runId || !["DRAFT", "APPROVED", "FINALISED", "PAID"].includes(status)) return;
@@ -305,7 +305,7 @@ export async function setPayrollStatusAction(formData: FormData): Promise<void> 
 }
 
 export async function deletePayrollRunAction(formData: FormData): Promise<void> {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const runId = String(formData.get("runId") ?? "");
   if (!runId) return;
 
