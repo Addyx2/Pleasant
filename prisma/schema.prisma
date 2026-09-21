@@ -1,0 +1,313 @@
+// Pleasant — shift scheduling and payroll for UK healthcare agencies.
+// Multi-tenant: every operational row is scoped to an Agency.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  STAFF
+}
+
+enum StaffStatus {
+  ACTIVE
+  INACTIVE
+  ON_LEAVE
+}
+
+enum ClientStatus {
+  ACTIVE
+  PAUSED
+  DISCHARGED
+}
+
+enum ShiftStatus {
+  DRAFT
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum TimesheetStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  DISPUTED
+}
+
+enum PayrollStatus {
+  DRAFT
+  APPROVED
+  FINALISED
+  PAID
+}
+
+enum LineType {
+  EARNING
+  DEDUCTION
+  EMPLOYER_COST
+}
+
+enum PayBasis {
+  HOURLY
+  SALARY
+}
+
+model Agency {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  phone       String?
+  email       String?
+  address     String?
+  postcode    String?
+  payrollRef  String? // HMRC PAYE reference, e.g. 123/AB456
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  staff       StaffProfile[]
+  clients     Client[]
+  sites       Site[]
+  shifts      Shift[]
+  timesheets  Timesheet[]
+  payrollRuns PayrollRun[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  agencyId     String
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         Role     @default(MANAGER)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  agency    Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  staff     StaffProfile?
+  approved  Timesheet[]   @relation("TimesheetApprover")
+  createdShifts Shift[]   @relation("ShiftCreator")
+}
+
+model StaffProfile {
+  id          String      @id @default(cuid())
+  agencyId    String
+  userId      String?     @unique
+  firstName   String
+  lastName    String
+  email       String?
+  phone       String?
+  jobTitle    String // e.g. "Care Assistant", "Registered Nurse", "Support Worker"
+  band        String? // e.g. "Band 3", "Senior"
+  status      StaffStatus @default(ACTIVE)
+
+  // Payroll identity
+  niNumber         String? // stored encrypted-at-rest by the database in production
+  taxCode          String  @default("1257L")
+  studentLoanPlan  String? // NONE | PLAN_1 | PLAN_2 | PLAN_4 | PLAN_5 | POSTGRAD
+  payBasis         PayBasis @default(HOURLY)
+
+  // Rates (GBP)
+  baseRate         Decimal  @db.Decimal(8, 2) @default(0)
+  nightRate        Decimal? @db.Decimal(8, 2)
+  weekendRate      Decimal? @db.Decimal(8, 2)
+  bankHolidayRate  Decimal? @db.Decimal(8, 2)
+  holidayAccrualPct Decimal @db.Decimal(5, 2) @default(12.07)
+
+  pensionEnrolled  Boolean  @default(true)
+  pensionEmployeePct Decimal @db.Decimal(4, 2) @default(5)
+  pensionEmployerPct Decimal @db.Decimal(4, 2) @default(3)
+
+  startDate   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  agency     Agency      @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  shifts     Shift[]
+  timesheets Timesheet[]
+  payslips   Payslip[]
+
+  @@index([agencyId, status])
+}
+
+model Client {
+  id         String       @id @default(cuid())
+  agencyId   String
+  firstName  String
+  lastName   String
+  address    String?
+  postcode   String?
+  phone      String?
+  careLevel  String? // e.g. "Low", "Medium", "High", "Complex"
+  notes      String?
+  status     ClientStatus @default(ACTIVE)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  agency Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  shifts Shift[]
+
+  @@index([agencyId, status])
+}
+
+model Site {
+  id        String   @id @default(cuid())
+  agencyId  String
+  name      String
+  address   String?
+  postcode  String?
+  createdAt DateTime @default(now())
+
+  agency Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  shifts Shift[]
+
+  @@index([agencyId])
+}
+
+model Shift {
+  id        String      @id @default(cuid())
+  agencyId  String
+  clientId  String?
+  siteId    String?
+  staffId   String?
+  createdById String?
+
+  title     String // e.g. "Morning care call", "Night shift — Ward 4"
+  role      String // required role for the shift
+  startAt   DateTime
+  endAt     DateTime
+  breakMins Int         @default(0)
+
+  // Charge-out rate to the client (agency revenue). Pay comes from the staff profile.
+  chargeRate Decimal @db.Decimal(8, 2) @default(0)
+
+  status    ShiftStatus @default(DRAFT)
+  notes     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  agency  Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  client  Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  site    Site?         @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  staff   StaffProfile? @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  createdBy User?       @relation("ShiftCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  timesheet Timesheet?
+
+  @@index([agencyId, startAt])
+  @@index([agencyId, status])
+  @@index([staffId, startAt])
+}
+
+model Timesheet {
+  id        String          @id @default(cuid())
+  agencyId  String
+  shiftId   String          @unique
+  staffId   String
+
+  clockIn   DateTime
+  clockOut  DateTime?
+  breakMins Int             @default(0)
+  workedMins Int            @default(0)
+
+  status      TimesheetStatus @default(PENDING)
+  approvedById String?
+  approvedAt   DateTime?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  agency   Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  shift    Shift         @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  staff    StaffProfile  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  approvedBy User?       @relation("TimesheetApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@index([agencyId, status])
+  @@index([staffId, clockIn])
+}
+
+model PayrollRun {
+  id         String        @id @default(cuid())
+  agencyId   String
+  reference  String // e.g. "2026-09-M1"
+  periodStart DateTime
+  periodEnd   DateTime
+  payDate     DateTime
+  taxYear     String // e.g. "2026/27"
+  status      PayrollStatus @default(DRAFT)
+
+  grossTotal   Decimal @db.Decimal(12, 2) @default(0)
+  payeTotal    Decimal @db.Decimal(12, 2) @default(0)
+  niTotal      Decimal @db.Decimal(12, 2) @default(0)
+  pensionTotal Decimal @db.Decimal(12, 2) @default(0)
+  netTotal     Decimal @db.Decimal(12, 2) @default(0)
+  employerNiTotal Decimal @db.Decimal(12, 2) @default(0)
+
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  agency   Agency    @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  payslips Payslip[]
+
+  @@unique([agencyId, reference])
+  @@index([agencyId, status])
+}
+
+model Payslip {
+  id           String   @id @default(cuid())
+  payrollRunId String
+  staffId      String
+  timesheetHours Decimal @db.Decimal(8, 2) @default(0)
+
+  grossPay      Decimal @db.Decimal(12, 2) @default(0)
+  holidayPay    Decimal @db.Decimal(12, 2) @default(0)
+  taxablePay    Decimal @db.Decimal(12, 2) @default(0)
+  paye          Decimal @db.Decimal(12, 2) @default(0)
+  niEmployee    Decimal @db.Decimal(12, 2) @default(0)
+  pensionEmployee Decimal @db.Decimal(12, 2) @default(0)
+  pensionEmployer Decimal @db.Decimal(12, 2) @default(0)
+  studentLoan   Decimal @db.Decimal(12, 2) @default(0)
+  otherDeductions Decimal @db.Decimal(12, 2) @default(0)
+  employerNi    Decimal @db.Decimal(12, 2) @default(0)
+  netPay        Decimal @db.Decimal(12, 2) @default(0)
+
+  taxCode    String
+  niNumber   String?
+  createdAt  DateTime @default(now())
+
+  payrollRun PayrollRun   @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  staff      StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  lines      PayslipLine[]
+
+  @@unique([payrollRunId, staffId])
+  @@index([staffId])
+}
+
+model PayslipLine {
+  id        String   @id @default(cuid())
+  payslipId String
+  type      LineType
+  label     String
+  quantity  Decimal? @db.Decimal(8, 2)
+  rate      Decimal? @db.Decimal(8, 4)
+  amount    Decimal  @db.Decimal(12, 2)
+  sortOrder Int      @default(0)
+
+  payslip Payslip @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+
+  @@index([payslipId])
+}
