@@ -1,9 +1,19 @@
+import type { Metadata, Viewport } from "next";
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth";
 import { WorkforceNav } from "./nav";
 
-export const metadata = { title: "Pleasant · Workforce" };
+export const metadata: Metadata = {
+  title: { default: "Workforce · Pleasant", template: "%s · Pleasant" },
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Pleasant" },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#4f46e5",
+};
 
 export default async function WorkforceLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();

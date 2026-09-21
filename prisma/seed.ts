@@ -209,8 +209,8 @@ async function main() {
     { day: 11, startHour: 8, endHour: 14, staff: daniel.id, client: 0, site: 0, title: "Morning care — Margaret" },
     { day: 12, startHour: 20, endHour: 8, staff: priya.id, client: 2, site: 0, title: "Night shift — Sofia" },
     { day: 13, startHour: 9, endHour: 17, staff: elena.id, client: 1, site: 1, title: "Day support — Arthur (Ltd)" },
-    { day: 15, startHour: 9, endHour: 17, staff: null, client: 1, site: 1, title: "Day support — Arthur" },
-    { day: 16, startHour: 8, endHour: 14, staff: null, client: 0, site: 0, title: "Morning care — Margaret" },
+    { day: Math.min(now.getDate() + 1, 28), startHour: 9, endHour: 17, staff: null, client: 1, site: 1, title: "Day support — Arthur" },
+    { day: Math.min(now.getDate() + 2, 28), startHour: 8, endHour: 14, staff: null, client: 0, site: 0, title: "Morning care — Margaret" },
   ];
 
   const plannedMins = (s: ShiftSeed) => {
@@ -296,6 +296,33 @@ async function main() {
       status: "PENDING",
     },
   });
+
+  // Open-shift marketplace: seed a couple of pending carer requests for demo.
+  const openShifts = await prisma.shift.findMany({
+    where: { agencyId: agency.id, status: "OPEN", staffId: null },
+    orderBy: { startAt: "asc" },
+    take: 2,
+  });
+  if (openShifts.length > 0) {
+    await prisma.shiftRequest.create({
+      data: {
+        agencyId: agency.id,
+        shiftId: openShifts[0].id,
+        staffId: grace.id,
+        message: "Happy to cover — can extend if needed.",
+      },
+    });
+  }
+  if (openShifts.length > 1) {
+    await prisma.shiftRequest.create({
+      data: {
+        agencyId: agency.id,
+        shiftId: openShifts[1].id,
+        staffId: priya.id,
+        message: "I can do this one.",
+      },
+    });
+  }
 
   console.log("Seeded Brightwater Care.");
   console.log("Manager: admin@pleasant.demo / pleasant123");

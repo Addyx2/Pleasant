@@ -6,6 +6,7 @@ import {
   CalendarClock,
   ClipboardCheck,
   FileText,
+  Inbox,
   LayoutDashboard,
   Users,
   UserSquare2,
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
 const ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/shifts", label: "Shifts", icon: CalendarClock },
+  { href: "/shifts/requests", label: "Shift requests", icon: Inbox },
   { href: "/timesheets", label: "Timesheets", icon: ClipboardCheck },
   { href: "/staff", label: "Staff", icon: Users },
   { href: "/clients", label: "Clients", icon: UserSquare2 },
