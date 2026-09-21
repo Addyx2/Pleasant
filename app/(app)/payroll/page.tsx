@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { endOfMonth, startOfMonth } from "date-fns";
 
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { formatCurrency, formatDate, toDateInputValue } from "@/lib/utils";
+import { addDays, mondayOf, nextCutoff, payDayForCutoff, toISODate, weekdayName } from "@/lib/week";
+import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import { Card, EmptyState, PageHeader, Td, Th } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
 import { NewPayrollRunForm } from "./NewPayrollRunForm";
@@ -20,16 +20,26 @@ export default async function PayrollPage() {
     orderBy: { periodEnd: "desc" },
   });
 
-  const now = new Date();
-  const defaultStart = toDateInputValue(startOfMonth(now));
-  const defaultEnd = toDateInputValue(endOfMonth(now));
-  const defaultPayDate = toDateInputValue(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+  // Weekly cycle: Mon–Sun period, Monday 4pm cutoff, Friday pay day.
+  const monday = mondayOf(new Date());
+  const sunday = addDays(monday, 6);
+  const defaultStart = toISODate(monday);
+  const defaultEnd = toISODate(sunday);
+  const defaultPayDate = toISODate(addDays(sunday, 5));
+
+  const cycle = {
+    cutoffWeekday: user.agency.cutoffWeekday,
+    cutoffTime: user.agency.cutoffTime,
+    payWeekday: user.agency.payWeekday,
+  };
+  const cutoff = nextCutoff(cycle);
+  const payDay = payDayForCutoff(cycle, cutoff);
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Payroll"
-        description="Run payroll from approved timesheets and issue compliant payslips."
+        description={`Approved, client-authorised timesheets only. Next cutoff ${weekdayName(user.agency.cutoffWeekday)} ${formatDateTime(cutoff)} for pay day ${formatDate(payDay)}.`}
       />
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -85,6 +95,7 @@ export default async function PayrollPage() {
               defaultStart={defaultStart}
               defaultEnd={defaultEnd}
               defaultPayDate={defaultPayDate}
+              defaultPeriod={user.agency.payFrequency ?? "WEEKLY"}
             />
           </div>
         </Card>

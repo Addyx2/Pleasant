@@ -74,6 +74,11 @@ export default async function StaffPage() {
                   <Td>
                     {member.jobTitle}
                     {member.band ? <span className="text-xs text-slate-500"> · {member.band}</span> : null}
+                    <p className="text-xs text-slate-500">
+                      {(member.engagementType ?? "PAYE") === "LTD"
+                        ? `Ltd · ${member.ltdCompanyName ?? "no company name"}`
+                        : "PAYE"}
+                    </p>
                   </Td>
                   <Td>{formatCurrency(Number(member.baseRate))}</Td>
                   <Td className="text-xs text-slate-600">

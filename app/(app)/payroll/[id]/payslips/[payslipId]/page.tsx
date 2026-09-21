@@ -70,6 +70,13 @@ export default async function PayslipPage({
           </div>
         </div>
 
+        {payslip.taxCode === "LTD" ? (
+          <p className="mt-6 rounded-xl bg-sky-50 px-5 py-3 text-sm text-sky-800">
+            Ltd-company engagement{payslip.staff.ltdCompanyName ? ` · ${payslip.staff.ltdCompanyName}` : ""} —
+            paid gross with no PAYE deductions.
+          </p>
+        ) : null}
+
         <div className="grid gap-4 py-6 sm:grid-cols-3">
           <Field label="Employee" value={`${payslip.staff.firstName} ${payslip.staff.lastName}`} />
           <Field label="Job title" value={payslip.staff.jobTitle} />

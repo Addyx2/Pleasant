@@ -26,6 +26,11 @@ async function main() {
       address: "12 Riverside Way",
       postcode: "BS1 4AB",
       payrollRef: "123/AB45678",
+      payFrequency: "WEEKLY",
+      cutoffWeekday: 1,
+      cutoffTime: "16:00",
+      payWeekday: 5,
+      roundingMins: 15,
     },
   });
 
@@ -55,6 +60,8 @@ async function main() {
     niNumber?: string;
     studentLoanPlan?: string;
     pensionEnrolled: boolean;
+    engagementType?: string;
+    ltdCompanyName?: string;
   }
 
   const staffSeed: StaffSeed[] = [
@@ -105,6 +112,17 @@ async function main() {
       niNumber: "QQ123458E",
       pensionEnrolled: false,
     },
+    {
+      firstName: "Elena",
+      lastName: "Popescu",
+      jobTitle: "Healthcare Assistant",
+      baseRate: 14.0,
+      weekendRate: 16.0,
+      taxCode: "LTD",
+      pensionEnrolled: false,
+      engagementType: "LTD",
+      ltdCompanyName: "Popescu Care Ltd",
+    },
   ];
 
   const staff = [];
@@ -126,6 +144,8 @@ async function main() {
           niNumber: person.niNumber ?? null,
           studentLoanPlan: (person.studentLoanPlan ?? "NONE") as never,
           pensionEnrolled: person.pensionEnrolled,
+          engagementType: person.engagementType ?? "PAYE",
+          ltdCompanyName: person.ltdCompanyName ?? null,
           holidayAccrualPct: 12.07,
           startDate: at(year - 1, 2, 1, 9),
         },
@@ -133,7 +153,20 @@ async function main() {
     );
   }
 
-  const [grace, tunde, priya, daniel] = staff;
+  const [grace, tunde, priya, daniel, elena] = staff;
+
+  // Carer login for the mobile "My shifts" demo.
+  await prisma.user.create({
+    data: {
+      agencyId: agency.id,
+      email: "tunde.adeyemi@brightwatercare.co.uk",
+      passwordHash,
+      firstName: "Tunde",
+      lastName: "Adeyemi",
+      role: "STAFF",
+      staff: { connect: { id: tunde.id } },
+    },
+  });
 
   const sites = await Promise.all(
     [
@@ -159,17 +192,23 @@ async function main() {
     site: number;
     title: string;
     breakMins?: number;
+    isSleepIn?: boolean;
+    sleepInRate?: number;
+    expenses?: number;
+    expenseNotes?: string;
   };
 
   const shiftSeeds: ShiftSeed[] = [
     { day: 3, startHour: 8, endHour: 14, staff: grace.id, client: 0, site: 0, title: "Morning care — Margaret" },
     { day: 4, startHour: 20, endHour: 8, staff: grace.id, client: 2, site: 0, title: "Night shift — Sofia" },
-    { day: 5, startHour: 9, endHour: 17, staff: tunde.id, client: 1, site: 1, title: "Day support — Arthur" },
+    { day: 5, startHour: 9, endHour: 17, staff: tunde.id, client: 1, site: 1, title: "Day support — Arthur", expenses: 12.4, expenseNotes: "Mileage — 28 miles @ 45p" },
+    { day: 6, startHour: 22, endHour: 7, staff: priya.id, client: 2, site: 0, title: "Sleep-in — Sofia", isSleepIn: true, sleepInRate: 45 },
     { day: 8, startHour: 8, endHour: 14, staff: tunde.id, client: 0, site: 0, title: "Morning care — Margaret" },
     { day: 9, startHour: 14, endHour: 22, staff: priya.id, client: 2, site: 1, title: "Afternoon support — Sofia" },
     { day: 10, startHour: 9, endHour: 17, staff: grace.id, client: 1, site: 1, title: "Day support — Arthur" },
     { day: 11, startHour: 8, endHour: 14, staff: daniel.id, client: 0, site: 0, title: "Morning care — Margaret" },
     { day: 12, startHour: 20, endHour: 8, staff: priya.id, client: 2, site: 0, title: "Night shift — Sofia" },
+    { day: 13, startHour: 9, endHour: 17, staff: elena.id, client: 1, site: 1, title: "Day support — Arthur (Ltd)" },
     { day: 15, startHour: 9, endHour: 17, staff: null, client: 1, site: 1, title: "Day support — Arthur" },
     { day: 16, startHour: 8, endHour: 14, staff: null, client: 0, site: 0, title: "Morning care — Margaret" },
   ];
@@ -199,6 +238,8 @@ async function main() {
         endAt,
         breakMins,
         chargeRate: 24.5,
+        isSleepIn: seed.isSleepIn ?? false,
+        sleepInRate: seed.sleepInRate ?? 0,
         status: seed.staff ? "COMPLETED" : "OPEN",
       },
     });
@@ -216,6 +257,12 @@ async function main() {
           breakMins,
           workedMins,
           status: "APPROVED",
+          expenses: seed.expenses ?? 0,
+          expenseNotes: seed.expenseNotes ?? null,
+          candidateSignedAt: startAt,
+          clientAuthName: "J. Whitfield",
+          clientAuthPosition: "Home Manager",
+          clientAuthAt: endAt,
         },
       });
     }
@@ -251,7 +298,8 @@ async function main() {
   });
 
   console.log("Seeded Brightwater Care.");
-  console.log("Sign in with admin@pleasant.demo / pleasant123");
+  console.log("Manager: admin@pleasant.demo / pleasant123");
+  console.log("Carer: tunde.adeyemi@brightwatercare.co.uk / pleasant123");
 }
 
 main()

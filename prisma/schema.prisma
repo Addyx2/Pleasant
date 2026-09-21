@@ -72,6 +72,14 @@ model Agency {
   address     String?
   postcode    String?
   payrollRef  String? // HMRC PAYE reference, e.g. 123/AB456
+
+  // Pay cycle (Local Care Force style: weekly, Monday 4pm cutoff, Friday pay).
+  payFrequency  String @default("WEEKLY") // WEEKLY | FORTNIGHTLY | FOUR_WEEKLY | MONTHLY
+  cutoffWeekday Int    @default(1) // 0 = Sunday … 6 = Saturday (1 = Monday)
+  cutoffTime    String @default("16:00") // 24h "HH:MM"
+  payWeekday    Int    @default(5) // 5 = Friday
+  roundingMins  Int    @default(15) // hours rounded to nearest quarter hour
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -113,6 +121,10 @@ model StaffProfile {
   jobTitle    String // e.g. "Care Assistant", "Registered Nurse", "Support Worker"
   band        String? // e.g. "Band 3", "Senior"
   status      StaffStatus @default(ACTIVE)
+
+  // Engagement — PAYE workers go through payroll; Ltd workers are paid gross.
+  engagementType String  @default("PAYE") // PAYE | LTD
+  ltdCompanyName String?
 
   // Payroll identity
   niNumber         String? // stored encrypted-at-rest by the database in production
@@ -195,6 +207,10 @@ model Shift {
   // Charge-out rate to the client (agency revenue). Pay comes from the staff profile.
   chargeRate Decimal @db.Decimal(8, 2) @default(0)
 
+  // Sleep-in shifts are paid a flat allowance rather than an hourly rate.
+  isSleepIn    Boolean @default(false)
+  sleepInRate  Decimal @db.Decimal(8, 2) @default(0)
+
   status    ShiftStatus @default(DRAFT)
   notes     String?
   createdAt DateTime    @default(now())
@@ -227,6 +243,20 @@ model Timesheet {
   approvedById String?
   approvedAt   DateTime?
   notes        String?
+
+  // Expenses claimed on this timesheet (mileage/travel — non-taxable).
+  expenses     Decimal @db.Decimal(10, 2) @default(0)
+  expenseNotes String?
+
+  // Candidate (carer) e-signature signing off the hours.
+  candidateSignature String?
+  candidateSignedAt  DateTime?
+
+  // Client authorisation (care-home signatory confirming role + hours).
+  clientAuthName      String?
+  clientAuthPosition  String?
+  clientAuthAt        DateTime?
+  clientAuthSignature String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -275,6 +305,7 @@ model Payslip {
 
   grossPay      Decimal @db.Decimal(12, 2) @default(0)
   holidayPay    Decimal @db.Decimal(12, 2) @default(0)
+  expenses      Decimal @db.Decimal(12, 2) @default(0)
   taxablePay    Decimal @db.Decimal(12, 2) @default(0)
   paye          Decimal @db.Decimal(12, 2) @default(0)
   niEmployee    Decimal @db.Decimal(12, 2) @default(0)

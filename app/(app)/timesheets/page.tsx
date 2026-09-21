@@ -36,6 +36,11 @@ export default async function TimesheetsPage({
       <PageHeader
         title="Timesheets"
         description="Review the hours carers have worked and approve them for payroll."
+        action={
+          <Link href="/timesheets/sheet" className={subtleButtonClass}>
+            Weekly sheet view
+          </Link>
+        }
       />
 
       <div className="flex flex-wrap gap-2">
@@ -61,7 +66,7 @@ export default async function TimesheetsPage({
         />
       ) : (
         <Card className="overflow-x-auto">
-          <table className="w-full min-w-[820px]">
+          <table className="w-full min-w-[920px]">
             <thead className="bg-slate-50">
               <tr>
                 <Th>Carer</Th>
@@ -69,6 +74,7 @@ export default async function TimesheetsPage({
                 <Th>Clocked in</Th>
                 <Th>Clocked out</Th>
                 <Th>Worked</Th>
+                <Th>Sign-off</Th>
                 <Th>Status</Th>
                 <Th>Actions</Th>
               </tr>
@@ -96,6 +102,16 @@ export default async function TimesheetsPage({
                   <Td>{ts.clockOut ? formatDateTime(ts.clockOut) : "—"}</Td>
                   <Td className="font-medium">{formatHours(ts.workedMins)}</Td>
                   <Td>
+                    <div className="flex flex-col gap-1 text-xs">
+                      <span className={ts.candidateSignedAt ? "text-emerald-700" : "text-slate-400"}>
+                        {ts.candidateSignedAt ? "✓ Carer signed" : "○ Carer unsigned"}
+                      </span>
+                      <span className={ts.clientAuthAt ? "text-emerald-700" : "text-amber-700"}>
+                        {ts.clientAuthAt ? "✓ Client authorised" : "○ Client pending"}
+                      </span>
+                    </div>
+                  </Td>
+                  <Td>
                     <StatusBadge status={ts.status} />
                   </Td>
                   <Td>
@@ -106,7 +122,7 @@ export default async function TimesheetsPage({
                           <button type="submit" className={subtleButtonClass}>Clock out</button>
                         </form>
                       ) : null}
-                      {ts.status === "PENDING" ? (
+                      {ts.status === "PENDING" && ts.clientAuthAt ? (
                         <>
                           <form action={decideTimesheetAction}>
                             <input type="hidden" name="timesheetId" value={ts.id} />
@@ -119,6 +135,11 @@ export default async function TimesheetsPage({
                             <button type="submit" className={subtleButtonClass}>Reject</button>
                           </form>
                         </>
+                      ) : null}
+                      {ts.status === "PENDING" && !ts.clientAuthAt ? (
+                        <Link href={`/shifts/${ts.shiftId}`} className="text-xs font-medium text-amber-700 hover:underline">
+                          Get client sign-off
+                        </Link>
                       ) : null}
                     </div>
                   </Td>

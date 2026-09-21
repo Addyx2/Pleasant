@@ -27,6 +27,8 @@ export async function createShiftAction(
     endAt: formData.get("endAt"),
     breakMins: formData.get("breakMins") || 0,
     chargeRate: formData.get("chargeRate") || 0,
+    isSleepIn: formData.get("isSleepIn") === "on",
+    sleepInRate: formData.get("sleepInRate") || 0,
     notes: formData.get("notes"),
   });
 
@@ -52,6 +54,8 @@ export async function createShiftAction(
       endAt: data.endAt,
       breakMins: data.breakMins,
       chargeRate: data.chargeRate,
+      isSleepIn: data.isSleepIn,
+      sleepInRate: data.sleepInRate,
       notes: data.notes ?? null,
       status: data.staffId ? "ASSIGNED" : "OPEN",
     },

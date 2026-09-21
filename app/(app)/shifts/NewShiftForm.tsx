@@ -91,6 +91,18 @@ export function NewShiftForm({
         </select>
       </div>
 
+      <div className="flex items-center gap-2 sm:col-span-2">
+        <input id="isSleepIn" name="isSleepIn" type="checkbox" className="h-4 w-4 rounded border-slate-300" />
+        <label htmlFor="isSleepIn" className="text-sm text-slate-700">
+          Sleep-in shift (paid a flat allowance, not hourly)
+        </label>
+      </div>
+
+      <div>
+        <label className={labelClass} htmlFor="sleepInRate">Sleep-in allowance (£)</label>
+        <input id="sleepInRate" name="sleepInRate" type="number" step="0.01" min="0" defaultValue="0" className={inputClass} />
+      </div>
+
       <div className="sm:col-span-2">
         <label className={labelClass} htmlFor="notes">Notes</label>
         <textarea id="notes" name="notes" rows={3} className={inputClass} placeholder="Access details, medication, etc." />

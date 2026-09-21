@@ -12,10 +12,12 @@ export function NewPayrollRunForm({
   defaultStart,
   defaultEnd,
   defaultPayDate,
+  defaultPeriod,
 }: {
   defaultStart: string;
   defaultEnd: string;
   defaultPayDate: string;
+  defaultPeriod: string;
 }) {
   const [state, formAction, pending] = useActionState(generatePayrollRunAction, initialState);
 
@@ -35,7 +37,7 @@ export function NewPayrollRunForm({
       </div>
       <div>
         <label className={labelClass} htmlFor="period">Pay frequency</label>
-        <select id="period" name="period" className={inputClass} defaultValue="MONTHLY">
+        <select id="period" name="period" className={inputClass} defaultValue={defaultPeriod}>
           <option value="WEEKLY">Weekly</option>
           <option value="FORTNIGHTLY">Fortnightly</option>
           <option value="FOUR_WEEKLY">Every 4 weeks</option>

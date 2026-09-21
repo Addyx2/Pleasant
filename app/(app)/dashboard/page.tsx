@@ -4,7 +4,8 @@ import { CalendarClock, ClipboardCheck, PoundSterling, Users } from "lucide-reac
 
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { formatCurrency, formatHours, formatTime } from "@/lib/utils";
+import { nextCutoff, payDayForCutoff, weekdayName } from "@/lib/week";
+import { formatCurrency, formatDate, formatDateTime, formatHours, formatTime } from "@/lib/utils";
 import { Card, EmptyState, PageHeader, StatCard, Td, Th } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
 
@@ -50,6 +51,13 @@ export default async function DashboardPage() {
       <PageHeader
         title={`Good to see you, ${user.firstName}`}
         description="A live view of your agency's rota, approvals and payroll."
+      />
+
+      <CutoffBanner
+        cutoffWeekday={user.agency.cutoffWeekday}
+        cutoffTime={user.agency.cutoffTime}
+        payWeekday={user.agency.payWeekday}
+        pending={pendingTimesheets}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -171,5 +179,33 @@ export default async function DashboardPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+function CutoffBanner({
+  cutoffWeekday,
+  cutoffTime,
+  payWeekday,
+  pending,
+}: {
+  cutoffWeekday: number;
+  cutoffTime: string;
+  payWeekday: number;
+  pending: number;
+}) {
+  const cycle = { cutoffWeekday, cutoffTime, payWeekday };
+  const cutoff = nextCutoff(cycle);
+  const payDay = payDayForCutoff(cycle, cutoff);
+
+  return (
+    <Card className="border-brand-200 bg-brand-50 p-4 text-sm text-brand-900">
+      Timesheets are due <strong>{weekdayName(cutoffWeekday)} {formatDateTime(cutoff)}</strong>{" "}
+      to be paid on <strong>{formatDate(payDay)}</strong>.
+      {pending > 0 ? (
+        <> <strong>{pending}</strong> awaiting sign-off and approval.</>
+      ) : (
+        <> Nothing outstanding.</>
+      )}
+    </Card>
   );
 }

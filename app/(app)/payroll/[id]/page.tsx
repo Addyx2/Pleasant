@@ -87,13 +87,14 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
           </div>
         </div>
 
-        <table className="w-full min-w-[900px]">
+        <table className="w-full min-w-[1000px]">
           <thead className="bg-slate-50">
             <tr>
               <Th>Carer</Th>
               <Th>Hours</Th>
               <Th>Gross</Th>
               <Th>Holiday</Th>
+              <Th>Expenses</Th>
               <Th>PAYE</Th>
               <Th>NI</Th>
               <Th>Pension</Th>
@@ -113,6 +114,7 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
                 <Td>{Number(payslip.timesheetHours).toFixed(2)}</Td>
                 <Td>{formatCurrency(Number(payslip.grossPay))}</Td>
                 <Td>{formatCurrency(Number(payslip.holidayPay))}</Td>
+                <Td>{formatCurrency(Number(payslip.expenses))}</Td>
                 <Td>{formatCurrency(Number(payslip.paye))}</Td>
                 <Td>{formatCurrency(Number(payslip.niEmployee))}</Td>
                 <Td>{formatCurrency(Number(payslip.pensionEmployee))}</Td>

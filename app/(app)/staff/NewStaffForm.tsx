@@ -48,6 +48,17 @@ export function NewStaffForm() {
         <h3 className="text-sm font-semibold text-slate-900">Payroll</h3>
       </div>
       <div>
+        <label className={labelClass} htmlFor="engagementType">Engagement</label>
+        <select id="engagementType" name="engagementType" className={inputClass} defaultValue="PAYE">
+          <option value="PAYE">PAYE (taxed through payroll)</option>
+          <option value="LTD">Ltd company (paid gross)</option>
+        </select>
+      </div>
+      <div>
+        <label className={labelClass} htmlFor="ltdCompanyName">Ltd company name</label>
+        <input id="ltdCompanyName" name="ltdCompanyName" className={inputClass} placeholder="Required for Ltd workers" />
+      </div>
+      <div>
         <label className={labelClass} htmlFor="niNumber">NI number</label>
         <input id="niNumber" name="niNumber" className={inputClass} placeholder="QQ 12 34 56 C" />
       </div>

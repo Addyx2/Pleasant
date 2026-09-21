@@ -190,6 +190,8 @@ export interface PayslipInput {
   taxYear: TaxYear | Date;
   staff: PayslipStaffInput;
   otherDeductions?: number;
+  /** Non-taxable expense reimbursements (mileage/travel) added to net pay. */
+  expenses?: number;
 }
 
 export interface PayslipLineResult {
@@ -203,6 +205,7 @@ export interface PayslipLineResult {
 export interface PayslipResult {
   grossPay: number;
   holidayPay: number;
+  expenses: number;
   taxablePay: number;
   paye: number;
   niEmployee: number;
@@ -255,9 +258,10 @@ export function calculatePayslip(input: PayslipInput): PayslipResult {
   );
 
   const otherDeductions = round2(Math.max(0, input.otherDeductions ?? 0));
+  const expenses = round2(Math.max(0, input.expenses ?? 0));
 
   const netPay = round2(
-    taxablePay - paye - niEmployee - pension.employee - studentLoan - otherDeductions,
+    taxablePay - paye - niEmployee - pension.employee - studentLoan - otherDeductions + expenses,
   );
 
   const employerTotalCost = round2(taxablePay + pension.employer + employerNiValue);
@@ -266,6 +270,9 @@ export function calculatePayslip(input: PayslipInput): PayslipResult {
     { type: "EARNING", label: "Shift earnings", amount: gross },
     ...(holidayPay > 0
       ? [{ type: "EARNING" as const, label: "Holiday pay", rate: staff.holidayAccrualPct, amount: holidayPay }]
+      : []),
+    ...(expenses > 0
+      ? [{ type: "EARNING" as const, label: "Expenses — mileage/travel (non-taxable)", amount: expenses }]
       : []),
     { type: "DEDUCTION", label: `PAYE income tax (${staff.taxCode})`, amount: paye },
     { type: "DEDUCTION", label: "National Insurance (employee)", amount: niEmployee },
@@ -287,6 +294,7 @@ export function calculatePayslip(input: PayslipInput): PayslipResult {
   return {
     grossPay: gross,
     holidayPay,
+    expenses,
     taxablePay,
     paye,
     niEmployee,
@@ -319,6 +327,20 @@ export interface ShiftEarningsInput {
   rates: ShiftRates;
   /** Night window, default 20:00 – 06:00. */
   nightWindow?: { startHour: number; endHour: number };
+  /** Sleep-in shifts pay a flat allowance instead of hourly rates. */
+  isSleepIn?: boolean;
+  sleepInRate?: number;
+  /**
+   * Round paid minutes to the nearest N minutes (agencies typically use 15 —
+   * "enter all hours to the nearest 1/4 hour"). 0 = exact minutes.
+   */
+  roundingMins?: number;
+}
+
+/** Rounds minutes to the nearest increment (e.g. 15 for quarter hours). */
+export function roundMinutes(mins: number, increment: number): number {
+  if (!increment || increment <= 0) return mins;
+  return Math.round(mins / increment) * increment;
 }
 
 export interface ShiftEarningsResult {
@@ -329,7 +351,7 @@ export interface ShiftEarningsResult {
   weekendMins: number;
   bankHolidayMins: number;
   totalEarnings: number;
-  breakdown: { label: string; mins: number; rate: number; amount: number }[];
+  breakdown: { label: string; mins: number; rate?: number; amount: number }[];
 }
 
 type Category = "NORMAL" | "NIGHT" | "WEEKEND" | "BANK_HOLIDAY";
@@ -338,8 +360,31 @@ export function computeShiftEarnings(input: ShiftEarningsInput): ShiftEarningsRe
   const { startAt, endAt, breakMins } = input;
   const night = input.nightWindow ?? { startHour: 20, endHour: 6 };
 
+  // Sleep-in shifts pay a flat allowance, not hourly rates.
+  if (input.isSleepIn && (input.sleepInRate ?? 0) > 0) {
+    const totalMins = Math.max(0, Math.round((endAt.getTime() - startAt.getTime()) / 60000));
+    const paidMins = roundMinutes(
+      Math.max(0, totalMins - Math.max(0, breakMins)),
+      input.roundingMins ?? 0,
+    );
+    const amount = round2(input.sleepInRate ?? 0);
+    return {
+      totalMins,
+      paidMins: Math.round(paidMins),
+      normalMins: 0,
+      nightMins: Math.round(paidMins),
+      weekendMins: 0,
+      bankHolidayMins: 0,
+      totalEarnings: amount,
+      breakdown: [{ label: "Sleep-in allowance (flat)", mins: Math.round(paidMins), amount }],
+    };
+  }
+
   const totalMins = Math.max(0, Math.round((endAt.getTime() - startAt.getTime()) / 60000));
-  const paidMins = Math.max(0, totalMins - Math.max(0, breakMins));
+  const paidMins = roundMinutes(
+    Math.max(0, totalMins - Math.max(0, breakMins)),
+    input.roundingMins ?? 0,
+  );
   const scale = totalMins > 0 ? paidMins / totalMins : 0;
 
   const mins: Record<Category, number> = {

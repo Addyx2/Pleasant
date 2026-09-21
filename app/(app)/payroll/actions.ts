@@ -27,6 +27,51 @@ function defaultReference(periodEnd: Date, period: PayPeriod): string {
   return `${y}-${m}-${suffix[period]}`;
 }
 
+type ShiftBreakdown = { label: string; mins: number; rate?: number; amount: number };
+
+/** Ltd-company workers are paid gross — no PAYE deductions. */
+function ltdPayslip(
+  grossFromShifts: number,
+  expenses: number,
+  breakdown: ShiftBreakdown[],
+): ReturnType<typeof calculatePayslip> {
+  const gross = round2(grossFromShifts);
+  const expenseTotal = round2(expenses);
+  return {
+    grossPay: gross,
+    holidayPay: 0,
+    expenses: expenseTotal,
+    taxablePay: gross,
+    paye: 0,
+    niEmployee: 0,
+    pensionEmployee: 0,
+    pensionEmployer: 0,
+    studentLoan: 0,
+    otherDeductions: 0,
+    employerNi: 0,
+    netPay: round2(gross + expenseTotal),
+    employerTotalCost: gross,
+    lines: [
+      ...breakdown.map((b) => ({
+        type: "EARNING" as const,
+        label: b.label,
+        quantity: b.mins,
+        rate: b.rate,
+        amount: b.amount,
+      })),
+      ...(expenseTotal > 0
+        ? [
+            {
+              type: "EARNING" as const,
+              label: "Expenses — mileage/travel (non-taxable)",
+              amount: expenseTotal,
+            },
+          ]
+        : []),
+    ],
+  };
+}
+
 export async function generatePayrollRunAction(
   _prev: ActionState,
   formData: FormData,
@@ -37,7 +82,7 @@ export async function generatePayrollRunAction(
     periodStart: formData.get("periodStart"),
     periodEnd: formData.get("periodEnd"),
     payDate: formData.get("payDate"),
-    period: formData.get("period") || "MONTHLY",
+    period: formData.get("period") || user.agency.payFrequency || "MONTHLY",
     reference: formData.get("reference"),
   });
 
@@ -49,6 +94,7 @@ export async function generatePayrollRunAction(
   if (periodEnd < periodStart) return { error: "The period end must be after the start" };
 
   const taxYear = taxYearFor(periodEnd);
+  const roundingMins = user.agency.roundingMins ?? 15;
 
   const timesheets = await prisma.timesheet.findMany({
     where: {
@@ -82,8 +128,7 @@ export async function generatePayrollRunAction(
     timesheetHours: number;
     result: ReturnType<typeof calculatePayslip>;
     staff: (typeof timesheets)[number]["staff"];
-    breakdown: { label: string; mins: number; rate: number; amount: number }[];
-    grossFromShifts: number;
+    breakdown: ShiftBreakdown[];
   }[];
 
   let grossTotal = 0;
@@ -95,10 +140,12 @@ export async function generatePayrollRunAction(
 
   for (const [staffId, list] of byStaff) {
     const staff = list[0].staff;
+    const isLtd = (staff.engagementType ?? "PAYE") === "LTD";
 
     let grossFromShifts = 0;
     let paidMins = 0;
-    const breakdownMap = new Map<string, { mins: number; rate: number; amount: number }>();
+    let expenseTotal = 0;
+    const breakdownMap = new Map<string, { mins: number; rate?: number; amount: number }>();
 
     for (const ts of list) {
       const earnings = computeShiftEarnings({
@@ -111,31 +158,47 @@ export async function generatePayrollRunAction(
           weekendRate: staff.weekendRate ? Number(staff.weekendRate) : null,
           bankHolidayRate: staff.bankHolidayRate ? Number(staff.bankHolidayRate) : null,
         },
+        isSleepIn: ts.shift.isSleepIn,
+        sleepInRate: Number(ts.shift.sleepInRate),
+        roundingMins,
       });
       grossFromShifts += earnings.totalEarnings;
       paidMins += earnings.paidMins;
+      expenseTotal += Number(ts.expenses);
 
       for (const line of earnings.breakdown) {
-        const entry = breakdownMap.get(line.label) ?? { mins: 0, rate: line.rate, amount: 0 };
+        const entry = breakdownMap.get(line.label) ?? {
+          mins: 0,
+          rate: line.rate,
+          amount: 0,
+        };
         entry.mins += line.mins;
         entry.amount = round2(entry.amount + line.amount);
         breakdownMap.set(line.label, entry);
       }
     }
 
-    const result = calculatePayslip({
-      grossEarnings: round2(grossFromShifts),
-      period,
-      taxYear,
-      staff: {
-        taxCode: staff.taxCode,
-        studentLoanPlan: (staff.studentLoanPlan ?? "NONE") as StudentLoanPlan,
-        pensionEnrolled: staff.pensionEnrolled,
-        pensionEmployeePct: Number(staff.pensionEmployeePct),
-        pensionEmployerPct: Number(staff.pensionEmployerPct),
-        holidayAccrualPct: Number(staff.holidayAccrualPct),
-      },
-    });
+    const breakdown: ShiftBreakdown[] = [...breakdownMap.entries()].map(([label, v]) => ({
+      label,
+      ...v,
+    }));
+
+    const result = isLtd
+      ? ltdPayslip(grossFromShifts, expenseTotal, breakdown)
+      : calculatePayslip({
+          grossEarnings: round2(grossFromShifts),
+          period,
+          taxYear,
+          staff: {
+            taxCode: staff.taxCode,
+            studentLoanPlan: (staff.studentLoanPlan ?? "NONE") as StudentLoanPlan,
+            pensionEnrolled: staff.pensionEnrolled,
+            pensionEmployeePct: Number(staff.pensionEmployeePct),
+            pensionEmployerPct: Number(staff.pensionEmployerPct),
+            holidayAccrualPct: Number(staff.holidayAccrualPct),
+          },
+          expenses: round2(expenseTotal),
+        });
 
     grossTotal += result.grossPay;
     payeTotal += result.paye;
@@ -149,8 +212,7 @@ export async function generatePayrollRunAction(
       timesheetHours: round2(paidMins / 60),
       result,
       staff,
-      breakdown: [...breakdownMap.entries()].map(([label, v]) => ({ label, ...v })),
-      grossFromShifts: round2(grossFromShifts),
+      breakdown,
     });
   }
 
@@ -175,6 +237,7 @@ export async function generatePayrollRunAction(
 
     for (const item of payslipData) {
       const { result, staff } = item;
+      const isLtd = (staff.engagementType ?? "PAYE") === "LTD";
       await tx.payslip.create({
         data: {
           payrollRunId: created.id,
@@ -182,6 +245,7 @@ export async function generatePayrollRunAction(
           timesheetHours: item.timesheetHours,
           grossPay: result.grossPay,
           holidayPay: result.holidayPay,
+          expenses: result.expenses,
           taxablePay: result.taxablePay,
           paye: result.paye,
           niEmployee: result.niEmployee,
@@ -191,7 +255,7 @@ export async function generatePayrollRunAction(
           otherDeductions: result.otherDeductions,
           employerNi: result.employerNi,
           netPay: result.netPay,
-          taxCode: staff.taxCode,
+          taxCode: isLtd ? "LTD" : staff.taxCode,
           niNumber: staff.niNumber,
           lines: {
             create: [
@@ -199,7 +263,7 @@ export async function generatePayrollRunAction(
                 type: "EARNING" as const,
                 label: b.label,
                 quantity: b.mins,
-                rate: b.rate,
+                rate: b.rate ?? null,
                 amount: b.amount,
                 sortOrder: index,
               })),

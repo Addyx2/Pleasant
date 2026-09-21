@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   FileText,
   LayoutDashboard,
+  Smartphone,
   Users,
   UserSquare2,
 } from "lucide-react";
@@ -15,6 +16,7 @@ import { cn } from "@/lib/utils";
 
 const ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/my-shifts", label: "My shifts", icon: Smartphone },
   { href: "/shifts", label: "Shifts", icon: CalendarClock },
   { href: "/timesheets", label: "Timesheets", icon: ClipboardCheck },
   { href: "/staff", label: "Staff", icon: Users },

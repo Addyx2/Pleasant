@@ -31,6 +31,8 @@ export const createShiftSchema = z.object({
   endAt: z.coerce.date(),
   breakMins: z.coerce.number().int().min(0).max(480).default(0),
   chargeRate: z.coerce.number().min(0).default(0),
+  isSleepIn: z.coerce.boolean().default(false),
+  sleepInRate: z.coerce.number().min(0).default(0),
   notes: optionalString,
 });
 
@@ -57,6 +59,8 @@ export const createStaffSchema = z.object({
   jobTitle: z.string().trim().min(2, "Job title is required"),
   band: optionalString,
   niNumber: optionalString,
+  engagementType: z.enum(["PAYE", "LTD"]).default("PAYE"),
+  ltdCompanyName: optionalString,
   taxCode: z.string().trim().default("1257L"),
   studentLoanPlan: z.enum(studentLoanPlans).default("NONE"),
   baseRate: z.coerce.number().min(0).default(0),
@@ -89,11 +93,27 @@ export const payrollRunSchema = z.object({
   periodStart: z.coerce.date(),
   periodEnd: z.coerce.date(),
   payDate: z.coerce.date(),
-  period: z.enum(["WEEKLY", "FORTNIGHTLY", "FOUR_WEEKLY", "MONTHLY"]).default("MONTHLY"),
+  period: z.enum(["WEEKLY", "FORTNIGHTLY", "FOUR_WEEKLY", "MONTHLY"]).default("WEEKLY"),
   reference: z.string().trim().optional(),
 });
 
 export const loginSchema = z.object({
   email: z.string().trim().email("Enter a valid email"),
   password: z.string().min(1, "Password is required"),
+});
+
+export const signOffSchema = z.object({
+  timesheetId: z.string().min(1),
+  signature: z.string().startsWith("data:image/", "A signature is required"),
+});
+
+export const clientAuthSchema = signOffSchema.extend({
+  name: z.string().trim().min(1, "Signatory name is required"),
+  position: z.string().trim().min(1, "Position is required"),
+});
+
+export const expensesSchema = z.object({
+  timesheetId: z.string().min(1),
+  expenses: z.coerce.number().min(0).max(100000),
+  expenseNotes: z.string().trim().max(500).optional().transform((v) => (v ? v : undefined)),
 });

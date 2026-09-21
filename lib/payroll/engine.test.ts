@@ -7,6 +7,7 @@ import {
   computeShiftEarnings,
   employeeNi,
   parseTaxCode,
+  roundMinutes,
 } from "./engine";
 import { getTaxYearConfig } from "./rates";
 
@@ -124,6 +125,59 @@ test("bank holiday shift uses the bank holiday rate", () => {
   });
   assert.equal(result.bankHolidayMins, 120);
   assert.equal(result.totalEarnings, 40);
+});
+
+test("paid minutes round to the nearest quarter hour", () => {
+  assert.equal(roundMinutes(487, 15), 480);
+  assert.equal(roundMinutes(493, 15), 495);
+  assert.equal(roundMinutes(480, 15), 480);
+  assert.equal(roundMinutes(487, 0), 487);
+
+  const result = computeShiftEarnings({
+    startAt: new Date("2026-09-22T09:00:00"),
+    endAt: new Date("2026-09-22T17:07:00"),
+    breakMins: 0,
+    rates: { baseRate: 10 },
+    roundingMins: 15,
+  });
+  assert.equal(result.paidMins, 480);
+  assert.equal(result.totalEarnings, 80);
+});
+
+test("sleep-in shifts pay a flat allowance", () => {
+  const result = computeShiftEarnings({
+    startAt: new Date("2026-09-26T22:00:00"),
+    endAt: new Date("2026-09-27T06:00:00"),
+    breakMins: 0,
+    rates: { baseRate: 12.71 },
+    isSleepIn: true,
+    sleepInRate: 45,
+  });
+  assert.equal(result.totalEarnings, 45);
+  assert.equal(result.breakdown[0].label, "Sleep-in allowance (flat)");
+});
+
+test("expenses are added to net pay without tax", () => {
+  const result = calculatePayslip({
+    grossEarnings: 1000,
+    period: "WEEKLY",
+    taxYear: "2026/27",
+    staff: {
+      taxCode: "1257L",
+      pensionEnrolled: false,
+      pensionEmployeePct: 0,
+      pensionEmployerPct: 0,
+      holidayAccrualPct: 0,
+    },
+    expenses: 25,
+  });
+  assert.equal(result.expenses, 25);
+  assert.equal(result.taxablePay, 1000);
+  // £1,000/week crosses the higher-rate and UEL thresholds:
+  // PAYE £158.31, NI £58 + £0.67 — expenses still land in net pay untaxed.
+  assert.equal(result.paye, 158.31);
+  assert.equal(result.niEmployee, 58.67);
+  assert.equal(result.netPay, 808.02);
 });
 
 test("unpaid breaks reduce paid minutes", () => {

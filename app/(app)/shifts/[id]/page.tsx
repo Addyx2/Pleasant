@@ -7,8 +7,16 @@ import { computeShiftEarnings } from "@/lib/payroll/engine";
 import { formatCurrency, formatDateTime, formatHours, shiftDurationMins } from "@/lib/utils";
 import { Card, PageHeader, StatCard, Td, Th, buttonClass, inputClass, labelClass, subtleButtonClass } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
+import { SignOffForm } from "@/components/SignOffForm";
 import { assignShiftFormAction, deleteShiftAction, updateShiftStatusAction } from "../actions";
-import { clockInFormAction, clockOutAction, decideTimesheetAction } from "../../timesheets/actions";
+import {
+  clockInFormAction,
+  clockOutAction,
+  decideTimesheetAction,
+  saveCandidateSignatureAction,
+  saveClientAuthAction,
+  saveExpensesAction,
+} from "../../timesheets/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +50,9 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
         weekendRate: shift.staff.weekendRate ? Number(shift.staff.weekendRate) : null,
         bankHolidayRate: shift.staff.bankHolidayRate ? Number(shift.staff.bankHolidayRate) : null,
       },
+      isSleepIn: shift.isSleepIn,
+      sleepInRate: Number(shift.sleepInRate),
+      roundingMins: user.agency.roundingMins ?? 15,
     });
 
   const locked = shift.status === "COMPLETED" || shift.status === "CANCELLED";
@@ -85,7 +96,14 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
             <Detail label="Starts" value={formatDateTime(shift.startAt)} />
             <Detail label="Ends" value={formatDateTime(shift.endAt)} />
             <Detail label="Carer" value={shift.staff ? `${shift.staff.firstName} ${shift.staff.lastName}` : "Unassigned"} />
-            <Detail label="Charge rate" value={`${formatCurrency(Number(shift.chargeRate))}/hr`} />
+            <Detail
+              label="Pay"
+              value={
+                shift.isSleepIn
+                  ? `Sleep-in · ${formatCurrency(Number(shift.sleepInRate))} flat`
+                  : `${formatCurrency(Number(shift.chargeRate))}/hr charge`
+              }
+            />
           </dl>
           {shift.notes ? (
             <p className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">{shift.notes}</p>
@@ -108,7 +126,7 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
                     <tr key={line.label}>
                       <Td>{line.label}</Td>
                       <Td>{(line.mins / 60).toFixed(2)}</Td>
-                      <Td>{formatCurrency(line.rate)}</Td>
+                      <Td>{line.rate !== undefined ? formatCurrency(line.rate) : "flat"}</Td>
                       <Td>{formatCurrency(line.amount)}</Td>
                     </tr>
                   ))}
@@ -167,19 +185,106 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
                   </form>
                 ) : null}
 
+                <div className="border-t border-slate-100 pt-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Carer sign-off
+                  </p>
+                  {shift.timesheet.candidateSignedAt ? (
+                    <p className="mt-1 text-slate-700">
+                      Signed {formatDateTime(shift.timesheet.candidateSignedAt)}
+                    </p>
+                  ) : (
+                    <div className="mt-2">
+                      <SignOffForm
+                        timesheetId={shift.timesheet.id}
+                        mode="candidate"
+                        action={saveCandidateSignatureAction}
+                        buttonLabel="Carer sign-off"
+                        title="Sign off this shift"
+                        subtitle="Confirm the hours on this timesheet are correct."
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-slate-100 pt-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Client authorisation
+                  </p>
+                  {shift.timesheet.clientAuthAt ? (
+                    <p className="mt-1 text-slate-700">
+                      {shift.timesheet.clientAuthName} · {shift.timesheet.clientAuthPosition}
+                      <br />
+                      <span className="text-xs text-slate-500">
+                        Authorised {formatDateTime(shift.timesheet.clientAuthAt)}
+                      </span>
+                    </p>
+                  ) : (
+                    <div className="mt-2">
+                      <SignOffForm
+                        timesheetId={shift.timesheet.id}
+                        mode="client"
+                        action={saveClientAuthAction}
+                        buttonLabel="Client sign-off"
+                        title="Client authorisation"
+                        subtitle="Confirm the role and hours, and approve payment."
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="border-t border-slate-100 pt-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Expenses (mileage/travel)
+                  </p>
+                  {shift.timesheet.expenseNotes ? (
+                    <p className="mt-1 text-xs text-slate-500">{shift.timesheet.expenseNotes}</p>
+                  ) : null}
+                  <form action={saveExpensesAction} className="mt-2 space-y-2">
+                    <input type="hidden" name="timesheetId" value={shift.timesheet.id} />
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1">
+                        <input
+                          name="expenses"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          defaultValue={Number(shift.timesheet.expenses).toFixed(2)}
+                          className={inputClass}
+                          aria-label="Expenses in pounds"
+                        />
+                      </div>
+                      <button type="submit" className={subtleButtonClass}>Save</button>
+                    </div>
+                    <input
+                      name="expenseNotes"
+                      defaultValue={shift.timesheet.expenseNotes ?? ""}
+                      className={inputClass}
+                      placeholder="What was this for? (optional)"
+                      aria-label="Expense notes"
+                    />
+                  </form>
+                </div>
+
                 {shift.timesheet.status === "PENDING" ? (
-                  <div className="flex gap-2">
-                    <form action={decideTimesheetAction}>
-                      <input type="hidden" name="timesheetId" value={shift.timesheet.id} />
-                      <input type="hidden" name="decision" value="APPROVED" />
-                      <button type="submit" className={buttonClass}>Approve</button>
-                    </form>
-                    <form action={decideTimesheetAction}>
-                      <input type="hidden" name="timesheetId" value={shift.timesheet.id} />
-                      <input type="hidden" name="decision" value="REJECTED" />
-                      <button type="submit" className={subtleButtonClass}>Reject</button>
-                    </form>
-                  </div>
+                  shift.timesheet.clientAuthAt ? (
+                    <div className="flex gap-2 border-t border-slate-100 pt-3">
+                      <form action={decideTimesheetAction}>
+                        <input type="hidden" name="timesheetId" value={shift.timesheet.id} />
+                        <input type="hidden" name="decision" value="APPROVED" />
+                        <button type="submit" className={buttonClass}>Approve</button>
+                      </form>
+                      <form action={decideTimesheetAction}>
+                        <input type="hidden" name="timesheetId" value={shift.timesheet.id} />
+                        <input type="hidden" name="decision" value="REJECTED" />
+                        <button type="submit" className={subtleButtonClass}>Reject</button>
+                      </form>
+                    </div>
+                  ) : (
+                    <p className="border-t border-slate-100 pt-3 text-xs text-amber-700">
+                      Needs the client&apos;s sign-off before it can be approved.
+                    </p>
+                  )
                 ) : null}
               </div>
             ) : shift.staffId ? (
