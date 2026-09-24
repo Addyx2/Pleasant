@@ -5,21 +5,22 @@ import {
   Check,
   ClipboardCheck,
   PoundSterling,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-const NAV_ITEMS = ["Dashboard", "Shifts", "Shift requests", "Timesheets", "Staff", "Clients", "Payroll"];
+const NAV_ITEMS = ["Placements", "Open shifts", "Candidates", "Timesheets", "Billing", "Payroll"];
 
-const SHIFT_ROWS = [
-  { title: "Morning care — Margaret R.", time: "08:00 – 11:00", carer: "Ola A.", open: false },
-  { title: "Evening care — James B.", time: "19:00 – 21:00", carer: null, open: true },
-  { title: "Overnight — Ivy Court", time: "22:00 – 06:00", carer: "Tunde A.", open: false },
-  { title: "Day care — Sun House", time: "09:00 – 17:00", carer: "Mariam K.", open: false },
+const REQUEST_ROWS = [
+  { client: "St Andrew's Care Home · Sister cover", time: "18:00 – 22:00", match: "Ola A.", margin: "£23", confirmed: true },
+  { client: "Maple Court · Night cover", time: "22:00 – 06:00", match: null, margin: "Unquoted", confirmed: false },
+  { client: "Springvale · Day shift", time: "09:00 – 17:00", match: "Tunde A.", margin: "£18", confirmed: true },
+  { client: "Hillcrest · Weekend", time: "Sat 08:00 – 14:00", match: "Mariam K.", margin: "£21", confirmed: true },
 ];
 
-const ROTA_ROWS = [
+const PLACEMENT_ROWS = [
   { day: "Mon", morning: "Ola A.", evening: "Tunde A." },
   { day: "Tue", morning: "Open", evening: "Mariam K." },
   { day: "Wed", morning: "Mariam K.", evening: "Open" },
@@ -32,54 +33,41 @@ const APPROVALS = [
   { name: "Mariam K.", hours: "6h 45m" },
 ];
 
-const PROVIDERS = [
-  { name: "Ivy Court", today: "4 visits" },
-  { name: "Sun House", today: "6 visits" },
+const CANDIDATES = [
+  { name: "Ola A.", status: "DBS ✓ · Training ✓" },
+  { name: "Tunde A.", status: "DBS ✓ · Right to work ✓" },
+  { name: "Mariam K.", status: "DBS ✓ · Training ✓" },
 ];
 
 const EDITORIAL = [
   {
     num: "01",
-    eyebrow: "SHIFTS",
+    eyebrow: "MATCH",
     icon: CalendarClock,
-    heading: "Rotas that plan themselves",
-    body: "Build a rota in minutes, match open slots to the right carers, and see gaps at a glance — before they become expensive agency calls.",
+    heading: "Cover without 15 phone calls",
+    body: "A client sends a shift request; Pleasant surfaces the best-available worker from your team and the open-shift marketplace, and you confirm the match in a tap.",
   },
   {
     num: "02",
     eyebrow: "TIMESHEETS",
     icon: ClipboardCheck,
-    heading: "Approvals with a trail",
-    body: "Carers clock in and out against real shifts. Managers approve or dispute hours, with every step recorded for the audit.",
+    heading: "Hours confirmed with a trail",
+    body: "Workers clock in and out against real placements. Bookers and client sites sign off every shift before anything is billed.",
   },
   {
     num: "03",
     eyebrow: "PAYROLL",
     icon: PoundSterling,
-    heading: "UK payroll, done right",
-    body: "PAYE, National Insurance, pensions and holiday pay calculated to current HMRC thresholds — for every run, to the penny.",
+    heading: "Pay and bill from one engine",
+    body: "UK PAYE, NI and pensions calculated for workers while the client bill is built from the same approved hours — with submission to HMRC (RTI) piloted alongside early agencies.",
   },
 ];
 
-const TESTIMONIALS = [
-  {
-    quote:
-      "We stopped matching shifts on WhatsApp. Pleasant keeps the whole rota on one screen.",
-    name: "Office manager",
-    role: "Domiciliary care agency",
-  },
-  {
-    quote:
-      "Approving timesheets used to eat my Friday. Now it's a ten-minute click-through with a full trail.",
-    name: "Operations lead",
-    role: "Home care provider",
-  },
-  {
-    quote:
-      "The payroll engine pays my carers to the penny under UK rules — no more guessing NI and pensions.",
-    name: "Registered manager",
-    role: "Care agency",
-  },
+const TRUST = [
+  { icon: ShieldCheck, title: "GDPR-aligned", body: "Worker and client data handled under UK GDPR rules, isolated per agency." },
+  { icon: ShieldCheck, title: "Encrypted by default", body: "TLS in transit and encryption at rest on managed EU infrastructure." },
+  { icon: ShieldCheck, title: "Full audit trail", body: "Every placement, approval and payroll event is recorded and traceable." },
+  { icon: ShieldCheck, title: "Compliance hooks", body: "DBS, right-to-work and training flags on every worker record and shift." },
 ];
 
 function ProductWindow() {
@@ -92,7 +80,7 @@ function ProductWindow() {
           <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/80" />
         </span>
         <span className="mx-auto rounded-md border border-slate-200 bg-white px-4 py-1 text-[11px] text-slate-500">
-          pleasant.aultrum.co.uk/dashboard
+          pleasant.aultrum.co.uk/placements
         </span>
         <span className="w-12" aria-hidden="true" />
       </div>
@@ -138,13 +126,13 @@ function ProductWindow() {
             </div>
             <div className="flex flex-wrap gap-1.5">
               <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-medium text-slate-600">
-                14 open shifts
+                7 open requests
               </span>
               <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-medium text-slate-600">
-                Pay Fri
+                £1,204 margin today
               </span>
               <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-800">
-                3 to approve
+                3 to bill
               </span>
             </div>
           </div>
@@ -153,7 +141,7 @@ function ProductWindow() {
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/60">
-                  {["Shift", "Time", "Carer", "Status"].map((h) => (
+                  {["Client request", "Time", "Match", "Margin"].map((h) => (
                     <th
                       key={h}
                       className="px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400"
@@ -164,18 +152,18 @@ function ProductWindow() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {SHIFT_ROWS.map((row) => (
-                  <tr key={row.title}>
-                    <td className="px-3 py-2 text-[11px] font-medium text-slate-900">{row.title}</td>
+                {REQUEST_ROWS.map((row) => (
+                  <tr key={row.client}>
+                    <td className="px-3 py-2 text-[11px] font-medium text-slate-900">{row.client}</td>
                     <td className="tabular px-3 py-2 text-[11px] text-slate-500">{row.time}</td>
                     <td className="px-3 py-2">
-                      {row.carer ? (
+                      {row.match ? (
                         <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-700">
-                          {row.carer}
+                          {row.match}
                         </span>
                       ) : (
                         <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-                          Unassigned
+                          Open
                         </span>
                       )}
                     </td>
@@ -183,10 +171,10 @@ function ProductWindow() {
                       <span
                         className={cn(
                           "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                          row.open ? "bg-amber-50 text-amber-800" : "bg-brand-50 text-brand-700",
+                          row.confirmed ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500",
                         )}
                       >
-                        {row.open ? "OPEN" : "SCHEDULED"}
+                        {row.margin}
                       </span>
                     </td>
                   </tr>
@@ -239,16 +227,17 @@ export default function LandingPage() {
         <div className="mx-auto max-w-3xl text-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
             <span className="h-1.5 w-1.5 rounded-full bg-brand-500" aria-hidden="true" />
-            Built for UK healthcare agencies
+            Built for UK healthcare staffing agencies
           </span>
           <h1 className="font-display mt-6 text-5xl font-bold leading-[1.02] tracking-tight text-slate-900 sm:text-6xl lg:text-7xl">
-            Shifts, timesheets, payroll —
-            <br className="hidden sm:block" /> from one calm place.
+            Fill every shift request.
+            <br className="hidden sm:block" />{" "}
+            <span className="text-brand-600">Keep every margin.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-slate-600">
-            Pleasant schedules carers, captures their approved hours, and pays them correctly
-            under UK PAYE, National Insurance and pension rules. No spreadsheets, no
-            back-office scramble.
+            Pleasant matches workers to requests, captures the hours, pays under UK PAYE and bills
+            the client — one loop from shift to invoice, with the margin visible on every
+            placement.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link
@@ -306,16 +295,16 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl px-6 py-20">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="font-display text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-              One calm place for the whole back office.
+              The back office, tuned to placements.
             </h2>
             <p className="mt-4 text-base leading-relaxed text-slate-600">
-              Everything an agency admin does in a day, on one screen — no tabs, no exports,
-              no duplicated effort.
+              Request to match, match to approved hours, hours to pay and bill. One screen, one
+              source of truth, margin at every step.
             </p>
           </div>
 
           <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-            {/* Rota */}
+            {/* Placements */}
             <div className="rounded-xl border border-slate-200 bg-white p-6 transition-colors duration-150 hover:border-slate-300 lg:col-span-3">
               <div className="flex items-center gap-3">
                 <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-600 ring-1 ring-inset ring-black/[0.04]">
@@ -323,13 +312,13 @@ export default function LandingPage() {
                 </span>
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                    Rota
+                    Placements
                   </p>
-                  <p className="text-sm font-semibold text-slate-900">Build rotas in minutes</p>
+                  <p className="text-sm font-semibold text-slate-900">Requests, matched fast</p>
                 </div>
               </div>
               <div className="mt-5 space-y-2">
-                {ROTA_ROWS.map((r) => (
+                {PLACEMENT_ROWS.map((r) => (
                   <div
                     key={r.day}
                     className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2"
@@ -358,7 +347,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Payroll */}
+            {/* Margin */}
             <div className="rounded-xl border border-slate-200 bg-white p-6 transition-colors duration-150 hover:border-slate-300 lg:col-span-1">
               <div className="flex items-center gap-3">
                 <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-600 ring-1 ring-inset ring-black/[0.04]">
@@ -366,17 +355,16 @@ export default function LandingPage() {
                 </span>
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                    Payroll
+                    Margin
                   </p>
-                  <p className="text-sm font-semibold text-slate-900">PAYE, NI & pensions</p>
+                  <p className="text-sm font-semibold text-slate-900">Visible per placement</p>
                 </div>
               </div>
               <div className="mt-5 space-y-2.5 rounded-lg border border-slate-200 p-3">
                 {[
-                  ["Gross", "£2,840.00"],
-                  ["Income Tax", "£342.66"],
-                  ["Employee NI", "£182.40"],
-                  ["Net pay", "£2,314.94"],
+                  ["Client bill", "£4,120.00"],
+                  ["Worker pay", "£2,480.00"],
+                  ["Gross margin", "£1,640.00"],
                 ].map(([k, v]) => (
                   <div key={k} className="flex items-center justify-between">
                     <span className="text-[11px] text-slate-500">{k}</span>
@@ -385,7 +373,7 @@ export default function LandingPage() {
                 ))}
                 <div className="border-t border-slate-100 pt-2">
                   <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700">
-                    Run 47 · PAID
+                    40% margin · This week
                   </span>
                 </div>
               </div>
@@ -425,7 +413,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Clients & staff */}
+            {/* Candidates & compliance */}
             <div className="rounded-xl border border-slate-200 bg-white p-6 transition-colors duration-150 hover:border-slate-300 lg:col-span-2">
               <div className="flex items-center gap-3">
                 <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-50 text-brand-600 ring-1 ring-inset ring-black/[0.04]">
@@ -433,26 +421,25 @@ export default function LandingPage() {
                 </span>
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                    Clients & staff
+                    Candidates
                   </p>
-                  <p className="text-sm font-semibold text-slate-900">One record, always current</p>
+                  <p className="text-sm font-semibold text-slate-900">Miss nothing on a change of shift</p>
                 </div>
               </div>
               <div className="mt-5 space-y-2">
-                {PROVIDERS.map((p) => (
+                {CANDIDATES.map((c) => (
                   <div
-                    key={p.name}
+                    key={c.name}
                     className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2"
                   >
-                    <span className="text-[11px] font-medium text-slate-900">{p.name}</span>
-                    <span className="text-[11px] text-slate-500">
-                      {p.today} <span className="text-slate-300">·</span>{" "}
-                      <span className="text-slate-400">today</span>
+                    <span className="text-[11px] font-medium text-slate-900">{c.name}</span>
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                      {c.status}
                     </span>
                   </div>
                 ))}
                 <div className="rounded-lg border border-slate-200 px-3 py-2">
-                  <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-[10px] font-semibold text-brand-700">
+                  <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold text-amber-800">
                     Night premium +35%
                   </span>
                 </div>
@@ -462,27 +449,64 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials */}
+      {/* Pilot programme */}
       <section className="border-t border-slate-200 bg-slate-50/40">
+        <div className="mx-auto max-w-3xl px-6 py-20 text-center">
+          <span className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand-500" aria-hidden="true" />
+            Pilot programme · Winter 2026
+          </span>
+          <h2 className="font-display mt-6 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+            Launching with a first cohort of staffing agencies.
+          </h2>
+          <p className="mt-4 text-base leading-relaxed text-slate-600">
+            We&apos;re onboarding our first three agencies at founder pricing. Their numbers —
+            requests covered, hours approved, payroll runs closed — get published here as they
+            land. Until then, judge the product on the demo.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <a
+              href="mailto:Wisdom@aultrum.co.uk"
+              className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-5 py-3 text-sm font-semibold text-white shadow-btn transition duration-150 hover:bg-brand-700 active:scale-[0.99]"
+            >
+              Join the pilot <ArrowRight className="h-4 w-4" />
+            </a>
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition duration-150 hover:bg-slate-50 active:scale-[0.99]"
+            >
+              Try the demo
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Security & data */}
+      <section className="border-t border-slate-200">
         <div className="mx-auto max-w-6xl px-6 py-20">
-          <div className="grid gap-5 md:grid-cols-3">
-            {TESTIMONIALS.map((t) => (
-              <figure key={t.name} className="rounded-xl border border-slate-200 bg-white p-6">
-                <blockquote className="text-sm leading-relaxed text-slate-700">
-                  {t.quote}
-                </blockquote>
-                <figcaption className="mt-5 flex items-center gap-3">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-xs font-bold text-brand-700">
-                    {t.name[0]}
-                  </span>
-                  <div className="leading-tight">
-                    <p className="text-sm font-medium text-slate-900">{t.name}</p>
-                    <p className="text-xs text-slate-500">{t.role}</p>
-                  </div>
-                </figcaption>
-              </figure>
+          <h2 className="font-display text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+            Built on trust.
+          </h2>
+          <p className="mt-3 max-w-2xl text-base leading-relaxed text-slate-600">
+            Worker data, client data and wage data deserve the same care in software as they get
+            at an inspection.
+          </p>
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {TRUST.map((t) => (
+              <div
+                key={t.title}
+                className="rounded-xl border border-slate-200 bg-white p-6 transition-colors duration-150 hover:border-slate-300"
+              >
+                <t.icon className="h-5 w-5 text-brand-600" />
+                <h3 className="mt-4 text-sm font-semibold text-slate-900">{t.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">{t.body}</p>
+              </div>
             ))}
           </div>
+          <p className="mt-8 text-xs text-slate-500">
+            Cyber Essentials assessment is scheduled alongside our rollout, and we work with pilot
+            agencies on their HMRC RTI submissions as the payroll loop closes end to end.
+          </p>
         </div>
       </section>
 
@@ -490,11 +514,11 @@ export default function LandingPage() {
       <section className="border-t border-slate-200">
         <div className="mx-auto max-w-3xl px-6 py-24 text-center">
           <h2 className="font-display text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-            Calm back office, happy carers.
+            Run placements from request to payment.
           </h2>
           <p className="mt-4 text-base leading-relaxed text-slate-600">
-            Step into the demo with a prefilled login and feel what one screen for the whole
-            agency is like.
+            Step into the demo with a prefilled login and feel the whole loop — match, approve,
+            pay, bill, margin — on one screen.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link
@@ -532,8 +556,9 @@ export default function LandingPage() {
             </nav>
           </div>
           <p className="mt-6 max-w-3xl text-xs text-slate-500">
-            Payroll figures are estimates based on published HMRC thresholds and must be
-            validated before submission. Pleasant is part of the Aultrum family.
+            Payslips and payroll figures are calculated to current HMRC thresholds. Submission to
+            HMRC (RTI) is being piloted with early agencies, and final liability remains with the
+            agency that files. Pleasant is part of the Aultrum family.
           </p>
         </div>
       </footer>

@@ -14,14 +14,14 @@ import PricingPlans from "@/components/PricingPlans";
 export const metadata: Metadata = {
   title: "Pricing",
   description:
-    "Pricing for Pleasant — workforce management, payroll and billing for UK healthcare agencies, priced per active carer.",
+    "Pricing for Pleasant — shift placement, payroll and client billing for UK healthcare staffing agencies, priced per active carer.",
 };
 
 const ADDONS = [
   {
     icon: Users,
     title: "Active-carer seats",
-    body: "£4 per extra carer/mo on Lightforce, £3 on Midweight. Only carers who worked count.",
+    body: "£4 per extra carer/mo on Pro, £3 on Scale. Only carers who worked count.",
   },
   {
     icon: Bot,
@@ -85,7 +85,7 @@ export default function PricingPage() {
           carer, so you pay for carers who actually worked.
         </p>
         <p className="mt-4 text-sm text-slate-500">
-          Q4 2026 pilots onboarding now with Founder pricing. Ask about onboarding incentives.
+          Pilot programme: onboarding our first three agencies in Q4 2026 at founder pricing.
         </p>
       </section>
 
@@ -117,9 +117,16 @@ export default function PricingPage() {
               <span className="font-semibold text-brand-800">≈ £550–£900/mo</span>
             </div>
             <div className="flex items-center justify-between border-t border-brand-600 px-6 py-4 text-sm">
-              <span className="font-semibold text-slate-900">Pleasant — everything in one</span>
-              <span className="font-semibold text-slate-900">from £149/mo</span>
+              <span className="font-semibold text-slate-900">
+                Pleasant — matching, payroll & billing
+              </span>
+              <span className="font-semibold text-slate-900">from £524/mo</span>
             </div>
+            <p className="border-t border-slate-100 px-6 py-3 text-xs leading-relaxed text-slate-500">
+              Starter (£149/mo) covers rotas and timesheets for teams not billing clients yet. Most
+              staffing CRMs also take a cut per placement; Pleasant is one flat per-active-carer
+              fee.
+            </p>
           </div>
         </div>
 
@@ -158,11 +165,10 @@ export default function PricingPage() {
 
       <section className="mt-24">
         <h2 className="text-left text-2xl font-bold tracking-tight text-slate-900">
-          Add-ons, priced by usage
+          Optional add-ons
         </h2>
         <p className="mt-3 text-left text-sm leading-relaxed text-slate-600">
-          Attach what you need as you grow. Aultrum family products plug straight into your Pleasant
-          account.
+          Aultrum-family products plug into Pleasant as they roll out with the pilot programme.
         </p>
         <div className="mt-8 grid gap-5 sm:grid-cols-2">
           {ADDONS.map((addon) => (
@@ -184,7 +190,8 @@ export default function PricingPage() {
         </h2>
         <p className="mt-4 text-lg leading-relaxed text-slate-600">
           The demo agency is prefilled on the sign-in screen — schedule a shift, approve a timesheet
-          and run a payroll cycle in minutes. Founder pricing is available while departments ramp.
+          and run a payroll cycle in minutes. Founder pricing is available for the first pilot
+          cohort.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link
@@ -197,15 +204,16 @@ export default function PricingPage() {
             href="mailto:Wisdom@aultrum.co.uk"
             className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
-            Talk to us about a Q4 pilot
+            Join the pilot
           </a>
         </div>
       </section>
 
       <footer className="mt-24 border-t border-slate-200 pt-6 text-sm text-slate-500">
         <p>
-          Payroll figures are estimates based on published HMRC thresholds and must be validated
-          before submission. Pleasant is part of the Aultrum family.
+          Payslips and payroll figures are calculated to current HMRC thresholds. Submission to
+          HMRC (RTI) is being piloted with early agencies, and final liability remains with the
+          agency that files. Pleasant is part of the Aultrum family.
         </p>
         <nav className="mt-3 flex items-center gap-4">
           <Link href="/" className="hover:text-slate-700">

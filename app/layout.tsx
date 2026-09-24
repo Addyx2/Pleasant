@@ -19,11 +19,11 @@ const spaceGrotesk = Space_Grotesk({
 
 export const metadata: Metadata = {
   title: {
-    default: "Pleasant — Shifts & payroll for healthcare agencies",
+    default: "Pleasant — Shift staffing & payroll for UK healthcare agencies",
     template: "%s · Pleasant",
   },
   description:
-    "Pleasant is the shift scheduling, timesheet and UK payroll platform built for healthcare agencies.",
+    "Pleasant matches workers to shifts, captures approved hours, pays under UK PAYE and bills the client — one loop from request to payment for healthcare staffing agencies.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
