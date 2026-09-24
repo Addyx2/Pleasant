@@ -13,6 +13,8 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
+    "db:migrate": "prisma migrate deploy",
+    "db:backup": "tsx scripts/backup.ts",
     "db:up": "node scripts/local-db.js start",
     "db:down": "node scripts/local-db.js stop"
   },

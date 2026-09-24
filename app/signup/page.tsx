@@ -1,0 +1,40 @@
+import Link from "next/link";
+
+import { getSessionUser } from "@/lib/auth";
+import OnboardingWizard from "./OnboardingWizard";
+
+export const metadata = { title: "Create your agency" };
+
+export default async function SignupPage() {
+  const user = await getSessionUser();
+
+  return (
+    <main className="flex min-h-screen items-center justify-center px-6 py-16">
+      <div className="w-full max-w-md">
+        <Link href="/" className="flex items-center gap-2">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-lg font-bold text-white">
+            P
+          </span>
+          <span className="text-lg font-semibold tracking-tight">Pleasant</span>
+        </Link>
+
+        <h1 className="mt-8 text-2xl font-semibold tracking-tight">
+          {user ? "Add your carers" : "Get your agency live"}
+        </h1>
+        <p className="mt-1 text-sm text-slate-600">
+          {user
+            ? "Paste your staff list and start scheduling — you can add more later."
+            : "Set up your account first — carers come next. Takes about two minutes."}
+        </p>
+
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <OnboardingWizard key={user ? "staff" : "agency"} startedWithSession={!!user} />
+        </div>
+
+        <p className="mt-4 text-center text-xs text-slate-500">
+          Q4 pilots get Founder pricing and a 1:1 onboarding session.
+        </p>
+      </div>
+    </main>
+  );
+}

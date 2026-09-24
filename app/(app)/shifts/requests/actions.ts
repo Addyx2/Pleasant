@@ -15,21 +15,21 @@ function refresh() {
 }
 
 export async function approveShiftRequestAction(formData: FormData): Promise<void> {
-  await requireAdmin();
+  const user = await requireAdmin();
   const requestId = String(formData.get("requestId") ?? "");
 
   const req = await prisma.shiftRequest.findFirst({
-    where: { id: requestId, status: "PENDING" },
+    where: { id: requestId, status: "PENDING", agencyId: user.agencyId },
   });
   if (!req) redirect("/shifts/requests");
 
   // If the shift was assigned elsewhere in the meantime, decline the request.
   const shiftAlreadyTaken = await prisma.shift.count({
-    where: { id: req.shiftId, NOT: { staffId: null } },
+    where: { id: req.shiftId, agencyId: req.agencyId, NOT: { staffId: null } },
   });
   if (shiftAlreadyTaken > 0) {
     await prisma.shiftRequest.update({
-      where: { id: req.id },
+      where: { id: req.id, agencyId: user.agencyId },
       data: { status: "REJECTED" },
     });
     refresh();
@@ -53,11 +53,11 @@ export async function approveShiftRequestAction(formData: FormData): Promise<voi
 }
 
 export async function rejectShiftRequestAction(formData: FormData): Promise<void> {
-  await requireAdmin();
+  const user = await requireAdmin();
   const requestId = String(formData.get("requestId") ?? "");
 
   await prisma.shiftRequest.updateMany({
-    where: { id: requestId, status: "PENDING" },
+    where: { id: requestId, status: "PENDING", agencyId: user.agencyId },
     data: { status: "REJECTED" },
   });
 

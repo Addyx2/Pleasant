@@ -102,6 +102,14 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+export const onboardingAgencySchema = z.object({
+  agencyName: z.string().trim().min(2, "Agency name is required"),
+  firstName: z.string().trim().min(1, "Your first name is required"),
+  lastName: z.string().trim().min(1, "Your last name is required"),
+  email: z.string().trim().email("Enter a valid work email"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
 export const signOffSchema = z.object({
   timesheetId: z.string().min(1),
   signature: z.string().startsWith("data:image/", "A signature is required"),

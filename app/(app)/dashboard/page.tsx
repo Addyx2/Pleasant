@@ -1,12 +1,18 @@
 import Link from "next/link";
 import { endOfDay, startOfDay } from "date-fns";
-import { CalendarClock, ClipboardCheck, PoundSterling, Users } from "lucide-react";
+import {
+  ArrowUpRight,
+  CalendarClock,
+  ClipboardCheck,
+  PoundSterling,
+  Users,
+} from "lucide-react";
 
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { nextCutoff, payDayForCutoff, weekdayName } from "@/lib/week";
-import { formatCurrency, formatDate, formatDateTime, formatHours, formatTime } from "@/lib/utils";
-import { Card, EmptyState, PageHeader, StatCard, Td, Th } from "@/components/ui";
+import { nextCutoff, payDayForCutoff } from "@/lib/week";
+import { formatCurrency, formatDate, formatHours, formatTime } from "@/lib/utils";
+import { Card, EmptyState, IconTile, StatCard, Td } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
 
 export const metadata = { title: "Dashboard" };
@@ -46,44 +52,89 @@ export default async function DashboardPage() {
       }),
     ]);
 
-  return (
-    <div className="space-y-8">
-      <PageHeader
-        title={`Good to see you, ${user.firstName}`}
-        description="A live view of your agency's rota, approvals and payroll."
-      />
+  const cutoff = nextCutoff({
+    cutoffWeekday: user.agency.cutoffWeekday,
+    cutoffTime: user.agency.cutoffTime,
+    payWeekday: user.agency.payWeekday,
+  });
+  const payDay = payDayForCutoff(
+    {
+      cutoffWeekday: user.agency.cutoffWeekday,
+      cutoffTime: user.agency.cutoffTime,
+      payWeekday: user.agency.payWeekday,
+    },
+    cutoff,
+  );
 
-      <CutoffBanner
-        cutoffWeekday={user.agency.cutoffWeekday}
-        cutoffTime={user.agency.cutoffTime}
-        payWeekday={user.agency.payWeekday}
-        pending={pendingTimesheets}
-      />
+  return (
+    <div className="space-y-6">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+          {formatDate(today)}
+        </p>
+        <h1 className="font-display mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+          Good to see you, {user.firstName}.
+        </h1>
+        <p className="mt-2 text-sm text-slate-500">
+          A live view of {user.agency.name}&apos;s rota, approvals and payroll.
+        </p>
+        <div className="mt-5 flex flex-wrap items-center gap-2 text-xs">
+          <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-600">
+            {shiftsToday} shift{shiftsToday === 1 ? "" : "s"} today
+          </span>
+          <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-600">
+            Pay on {formatDate(payDay)}
+          </span>
+          {pendingTimesheets > 0 ? (
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 font-semibold text-amber-800">
+              {pendingTimesheets} timesheet{pendingTimesheets === 1 ? "" : "s"} to approve
+            </span>
+          ) : null}
+        </div>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Open shifts" value={String(openShifts)} hint="Need a carer assigned" icon={CalendarClock} />
-        <StatCard label="Shifts today" value={String(shiftsToday)} icon={CalendarClock} />
-        <StatCard label="Awaiting approval" value={String(pendingTimesheets)} hint="Timesheets to review" icon={ClipboardCheck} />
-        <StatCard label="Active carers" value={String(activeStaff)} icon={Users} />
+        <StatCard
+          label="Open shifts"
+          value={String(openShifts)}
+          hint="Need a carer assigned"
+          icon={CalendarClock}
+          tone="amber"
+        />
+        <StatCard label="Shifts today" value={String(shiftsToday)} icon={CalendarClock} tone="brand" />
+        <StatCard
+          label="Awaiting approval"
+          value={String(pendingTimesheets)}
+          hint="Timesheets to review"
+          icon={ClipboardCheck}
+          tone="blue"
+        />
+        <StatCard label="Active carers" value={String(activeStaff)} icon={Users} tone="green" />
       </div>
 
       {latestRun ? (
         <Card className="flex flex-wrap items-center justify-between gap-4 p-5">
-          <div className="flex items-center gap-3">
-            <PoundSterling className="h-5 w-5 text-brand-600" />
+          <div className="flex items-center gap-4">
+            <IconTile icon={PoundSterling} tone="brand" />
             <div>
               <p className="text-sm font-semibold text-slate-900">
                 Latest payroll run · {latestRun.reference}
               </p>
-              <p className="text-xs text-slate-500">
-                {formatCurrency(latestRun.netTotal)} net · {formatCurrency(latestRun.grossTotal)} gross
+              <p className="mt-0.5 text-xs text-slate-500">
+                <span className="tabular font-semibold text-slate-700">
+                  {formatCurrency(latestRun.netTotal)} net
+                </span>{" "}
+                · {formatCurrency(latestRun.grossTotal)} gross
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <StatusBadge status={latestRun.status} />
-            <Link href={`/payroll/${latestRun.id}`} className="text-sm font-medium text-brand-700 hover:underline">
-              View run
+            <Link
+              href={`/payroll/${latestRun.id}`}
+              className="inline-flex items-center gap-1 rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-600/15 transition hover:bg-brand-100"
+            >
+              View run <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>
           </div>
         </Card>
@@ -92,9 +143,15 @@ export default async function DashboardPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="overflow-hidden">
           <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-            <h2 className="text-sm font-semibold text-slate-900">Upcoming shifts</h2>
-            <Link href="/shifts" className="text-xs font-medium text-brand-700 hover:underline">
-              View all
+            <div className="flex items-center gap-2.5">
+              <IconTile icon={CalendarClock} tone="brand" className="h-8 w-8" />
+              <h2 className="text-sm font-semibold text-slate-900">Upcoming shifts</h2>
+            </div>
+            <Link
+              href="/shifts"
+              className="text-xs font-semibold text-brand-700 transition hover:text-brand-800"
+            >
+              View all →
             </Link>
           </div>
           {upcoming.length === 0 ? (
@@ -103,32 +160,34 @@ export default async function DashboardPage() {
             </div>
           ) : (
             <table className="w-full">
-              <thead className="bg-slate-50">
-                <tr>
-                  <Th>Shift</Th>
-                  <Th>When</Th>
-                  <Th>Carer</Th>
-                  <Th>Status</Th>
-                </tr>
-              </thead>
               <tbody className="divide-y divide-slate-100">
                 {upcoming.map((shift) => (
-                  <tr key={shift.id}>
+                  <tr key={shift.id} className="transition duration-100 hover:bg-slate-50/70">
                     <Td>
-                      <Link href={`/shifts/${shift.id}`} className="font-medium text-slate-900 hover:underline">
+                      <Link
+                        href={`/shifts/${shift.id}`}
+                        className="font-medium text-slate-900 transition hover:text-brand-700"
+                      >
                         {shift.title}
                       </Link>
-                      <p className="text-xs text-slate-500">
-                        {shift.client ? `${shift.client.firstName} ${shift.client.lastName}` : "No client"}
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {shift.client
+                          ? `${shift.client.firstName} ${shift.client.lastName}`
+                          : "No client"}
                       </p>
                     </Td>
                     <Td>
-                      <p>{formatTime(shift.startAt)} – {formatTime(shift.endAt)}</p>
-                      <p className="text-xs text-slate-500">{shift.startAt.toDateString()}</p>
+                      <p className="tabular">{formatTime(shift.startAt)} – {formatTime(shift.endAt)}</p>
+                      <p className="mt-0.5 text-xs text-slate-500">{shift.startAt.toDateString()}</p>
                     </Td>
                     <Td>
-                      {shift.staff ? `${shift.staff.firstName} ${shift.staff.lastName}` : (
-                        <span className="text-amber-700">Unassigned</span>
+                      {shift.staff ? (
+                        `${shift.staff.firstName} ${shift.staff.lastName}`
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-inset ring-amber-600/15">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden="true" />
+                          Unassigned
+                        </span>
                       )}
                     </Td>
                     <Td>
@@ -143,9 +202,15 @@ export default async function DashboardPage() {
 
         <Card className="overflow-hidden">
           <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-            <h2 className="text-sm font-semibold text-slate-900">Timesheets to approve</h2>
-            <Link href="/timesheets" className="text-xs font-medium text-brand-700 hover:underline">
-              Review
+            <div className="flex items-center gap-2.5">
+              <IconTile icon={ClipboardCheck} tone="blue" className="h-8 w-8" />
+              <h2 className="text-sm font-semibold text-slate-900">Timesheets to approve</h2>
+            </div>
+            <Link
+              href="/timesheets"
+              className="text-xs font-semibold text-brand-700 transition hover:text-brand-800"
+            >
+              Review →
             </Link>
           </div>
           {approvals.length === 0 ? (
@@ -154,23 +219,26 @@ export default async function DashboardPage() {
             </div>
           ) : (
             <table className="w-full">
-              <thead className="bg-slate-50">
-                <tr>
-                  <Th>Carer</Th>
-                  <Th>Shift</Th>
-                  <Th>Hours</Th>
-                </tr>
-              </thead>
               <tbody className="divide-y divide-slate-100">
                 {approvals.map((ts) => (
-                  <tr key={ts.id}>
+                  <tr key={ts.id} className="transition duration-100 hover:bg-slate-50/70">
                     <Td>
                       <span className="font-medium text-slate-900">
                         {ts.staff.firstName} {ts.staff.lastName}
                       </span>
+                      <p className="mt-0.5 text-xs text-slate-500">{ts.shift.title}</p>
                     </Td>
-                    <Td>{ts.shift.title}</Td>
-                    <Td>{formatHours(ts.workedMins)}</Td>
+                    <Td>
+                      <p className="tabular text-sm font-semibold text-slate-900">
+                        {formatHours(ts.workedMins)}
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {formatDate(ts.clockIn)}
+                      </p>
+                    </Td>
+                    <Td>
+                      <StatusBadge status={ts.status} />
+                    </Td>
                   </tr>
                 ))}
               </tbody>
@@ -179,33 +247,5 @@ export default async function DashboardPage() {
         </Card>
       </div>
     </div>
-  );
-}
-
-function CutoffBanner({
-  cutoffWeekday,
-  cutoffTime,
-  payWeekday,
-  pending,
-}: {
-  cutoffWeekday: number;
-  cutoffTime: string;
-  payWeekday: number;
-  pending: number;
-}) {
-  const cycle = { cutoffWeekday, cutoffTime, payWeekday };
-  const cutoff = nextCutoff(cycle);
-  const payDay = payDayForCutoff(cycle, cutoff);
-
-  return (
-    <Card className="border-brand-200 bg-brand-50 p-4 text-sm text-brand-900">
-      Timesheets are due <strong>{weekdayName(cutoffWeekday)} {formatDateTime(cutoff)}</strong>{" "}
-      to be paid on <strong>{formatDate(payDay)}</strong>.
-      {pending > 0 ? (
-        <> <strong>{pending}</strong> awaiting sign-off and approval.</>
-      ) : (
-        <> Nothing outstanding.</>
-      )}
-    </Card>
   );
 }

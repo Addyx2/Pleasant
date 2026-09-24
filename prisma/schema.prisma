@@ -109,6 +109,8 @@ model User {
   lastName     String
   role         Role     @default(MANAGER)
   lastLoginAt  DateTime?
+  resetTokenHash String?
+  resetTokenExpAt DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

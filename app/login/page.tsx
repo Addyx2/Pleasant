@@ -33,6 +33,15 @@ export default async function LoginPage({
         <p className="mt-4 text-center text-xs text-slate-500">
           Demo: admin@pleasant.demo · pleasant123
         </p>
+        <div className="mt-2 flex items-center justify-center gap-4 text-sm">
+          <Link href="/reset" className="font-medium text-brand-700 hover:text-brand-800">
+            Forgot password?
+          </Link>
+          <span className="text-slate-300">·</span>
+          <Link href="/signup" className="font-medium text-brand-700 hover:text-brand-800">
+            New agency? Create your account →
+          </Link>
+        </div>
       </div>
     </main>
   );

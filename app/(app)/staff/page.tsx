@@ -95,17 +95,22 @@ export default async function StaffPage() {
                     <StatusBadge status={member.status} />
                   </Td>
                   <Td>
-                    <form action={setStaffStatusAction}>
-                      <input type="hidden" name="staffId" value={member.id} />
-                      <input
-                        type="hidden"
-                        name="status"
-                        value={member.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"}
-                      />
-                      <button type="submit" className={subtleButtonClass}>
-                        {member.status === "ACTIVE" ? "Deactivate" : "Activate"}
-                      </button>
-                    </form>
+                    <div className="flex items-center gap-2">
+                      <Link href={`/staff/invite/${member.id}`} className={subtleButtonClass}>
+                        Invite
+                      </Link>
+                      <form action={setStaffStatusAction}>
+                        <input type="hidden" name="staffId" value={member.id} />
+                        <input
+                          type="hidden"
+                          name="status"
+                          value={member.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"}
+                        />
+                        <button type="submit" className={subtleButtonClass}>
+                          {member.status === "ACTIVE" ? "Deactivate" : "Activate"}
+                        </button>
+                      </form>
+                    </div>
                   </Td>
                 </tr>
               ))}

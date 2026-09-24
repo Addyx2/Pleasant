@@ -3,6 +3,7 @@ import { LogOut } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { nextCutoff, payDayForCutoff, weekdayName } from "@/lib/week";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
+import { InstallAppButton } from "@/components/InstallAppButton";
 import { logoutAction } from "@/app/login/actions";
 
 export const metadata = { title: "Profile" };
@@ -55,6 +56,8 @@ export default async function WorkforceProfilePage() {
           {profile.band ? ` · ${profile.band}` : ""}
         </p>
       </div>
+
+      <InstallAppButton />
 
       <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Your rates</h2>

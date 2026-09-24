@@ -11,6 +11,7 @@ import {
   clockInFormAction,
   clockOutAction,
   saveCandidateSignatureAction,
+  saveClientAuthAction,
 } from "@/app/(app)/timesheets/actions";
 
 export const dynamic = "force-dynamic";
@@ -197,9 +198,25 @@ function ShiftCard({ shift }: { shift: ShiftWithRelations }) {
           />
         ) : null}
 
-        {ts?.candidateSignedAt ? (
+        {ts?.candidateSignedAt && !ts.clientAuthAt ? (
+          <div className="space-y-2">
+            <p className="rounded-full bg-amber-50 px-4 py-2 text-center text-sm font-medium text-amber-800">
+              You&apos;ve signed off — now get your client&apos;s signature
+            </p>
+            <SignOffForm
+              timesheetId={ts.id}
+              mode="client"
+              action={saveClientAuthAction}
+              buttonLabel="Get client&apos;s signature"
+              title="Client sign-off"
+              subtitle={`${shift.title} · ${formatDateTime(shift.startAt)} · ${where}`}
+            />
+          </div>
+        ) : null}
+
+        {ts?.candidateSignedAt && ts?.clientAuthAt ? (
           <p className="rounded-full bg-emerald-50 px-4 py-2 text-center text-sm font-medium text-emerald-700">
-            Signed off{ts.clientAuthAt ? " · client authorised" : " · awaiting client sign-off"}
+            Signed off · client authorised
           </p>
         ) : null}
       </div>
