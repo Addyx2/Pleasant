@@ -59,6 +59,13 @@ enum PayrollStatus {
   PAID
 }
 
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  VOID
+}
+
 enum LineType {
   EARNING
   DEDUCTION
@@ -98,6 +105,7 @@ model Agency {
   timesheets  Timesheet[]
   payrollRuns PayrollRun[]
   shiftRequests ShiftRequest[]
+  invoices    Invoice[]
 }
 
 model User {
@@ -163,6 +171,7 @@ model StaffProfile {
   timesheets Timesheet[]
   payslips   Payslip[]
   shiftRequests ShiftRequest[]
+  invoiceLines InvoiceLine[]
 
   @@index([agencyId, status])
 }
@@ -183,6 +192,7 @@ model Client {
 
   agency Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   shifts Shift[]
+  invoices Invoice[]
 
   @@index([agencyId, status])
 }
@@ -234,6 +244,7 @@ model Shift {
   createdBy User?       @relation("ShiftCreator", fields: [createdById], references: [id], onDelete: SetNull)
   timesheet Timesheet?
   shiftRequests ShiftRequest[]
+  invoiceLines InvoiceLine[]
 
   @@index([agencyId, startAt])
   @@index([agencyId, status])
@@ -296,6 +307,7 @@ model Timesheet {
   shift    Shift         @relation(fields: [shiftId], references: [id], onDelete: Cascade)
   staff    StaffProfile  @relation(fields: [staffId], references: [id], onDelete: Cascade)
   approvedBy User?       @relation("TimesheetApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  invoiceLines InvoiceLine[]
 
   @@index([agencyId, status])
   @@index([staffId, clockIn])
@@ -373,4 +385,60 @@ model PayslipLine {
   payslip Payslip @relation(fields: [payslipId], references: [id], onDelete: Cascade)
 
   @@index([payslipId])
+}
+
+model Invoice {
+  id          String   @id @default(cuid())
+  agencyId    String
+  clientId    String
+  reference   String
+  periodStart DateTime
+  periodEnd   DateTime
+  issueDate   DateTime?
+  dueDate     DateTime?
+  status      InvoiceStatus @default(DRAFT)
+
+  hoursTotal  Decimal @db.Decimal(10, 2) @default(0)
+  chargeTotal Decimal @db.Decimal(12, 2) @default(0)
+  payTotal    Decimal @db.Decimal(12, 2) @default(0)
+  marginTotal Decimal @db.Decimal(12, 2) @default(0)
+  vatRatePct  Decimal @db.Decimal(5, 2) @default(0)
+  vatTotal    Decimal @db.Decimal(12, 2) @default(0)
+  grandTotal  Decimal @db.Decimal(12, 2) @default(0)
+
+  notes    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  lines  InvoiceLine[]
+
+  @@unique([agencyId, reference])
+  @@index([agencyId, status])
+  @@index([clientId, periodStart])
+}
+
+model InvoiceLine {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  timesheetId String?
+  shiftId     String?
+  staffId     String
+
+  date       DateTime
+  title      String
+  hours      Decimal @db.Decimal(8, 2)
+  chargeRate Decimal @db.Decimal(8, 2) @default(0)
+  chargeAmount Decimal @db.Decimal(12, 2)
+  payAmount    Decimal @db.Decimal(12, 2)
+  marginAmount Decimal @db.Decimal(12, 2)
+
+  invoice   Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  timesheet Timesheet?    @relation(fields: [timesheetId], references: [id], onDelete: SetNull)
+  shift     Shift?        @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  staff     StaffProfile  @relation(fields: [staffId], references: [id], onDelete: Restrict)
+
+  @@index([invoiceId])
+  @@index([staffId, date])
 }

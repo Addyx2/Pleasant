@@ -8,6 +8,7 @@ import {
   FileText,
   Inbox,
   LayoutDashboard,
+  Receipt,
   Users,
   UserSquare2,
 } from "lucide-react";
@@ -21,6 +22,7 @@ const ITEMS = [
   { href: "/timesheets", label: "Timesheets", icon: ClipboardCheck },
   { href: "/staff", label: "Staff", icon: Users },
   { href: "/clients", label: "Clients", icon: UserSquare2 },
+  { href: "/billing", label: "Billing", icon: Receipt },
   { href: "/payroll", label: "Payroll", icon: FileText },
 ];
 

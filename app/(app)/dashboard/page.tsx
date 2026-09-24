@@ -5,6 +5,7 @@ import {
   CalendarClock,
   ClipboardCheck,
   PoundSterling,
+  Receipt,
   Users,
 } from "lucide-react";
 
@@ -26,7 +27,7 @@ export default async function DashboardPage() {
   const dayStart = startOfDay(today);
   const dayEnd = endOfDay(today);
 
-  const [openShifts, shiftsToday, pendingTimesheets, activeStaff, upcoming, approvals, latestRun] =
+  const [openShifts, shiftsToday, pendingTimesheets, activeStaff, upcoming, approvals, latestRun, billing] =
     await Promise.all([
       prisma.shift.count({ where: { agencyId, status: "OPEN" } }),
       prisma.shift.count({
@@ -49,6 +50,11 @@ export default async function DashboardPage() {
       prisma.payrollRun.findFirst({
         where: { agencyId },
         orderBy: { createdAt: "desc" },
+      }),
+      prisma.invoice.aggregate({
+        where: { agencyId, status: { in: ["ISSUED", "PAID"] } },
+        _sum: { chargeTotal: true, marginTotal: true },
+        _count: true,
       }),
     ]);
 
@@ -76,7 +82,7 @@ export default async function DashboardPage() {
           Good to see you, {user.firstName}.
         </h1>
         <p className="mt-2 text-sm text-slate-500">
-          A live view of {user.agency.name}&apos;s rota, approvals and payroll.
+          A live view of {user.agency.name}&apos;s rota, approvals, billing and payroll.
         </p>
         <div className="mt-5 flex flex-wrap items-center gap-2 text-xs">
           <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-600">
@@ -135,6 +141,35 @@ export default async function DashboardPage() {
               className="inline-flex items-center gap-1 rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-600/15 transition hover:bg-brand-100"
             >
               View run <ArrowUpRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </Card>
+      ) : null}
+
+      {billing._count > 0 ? (
+        <Card className="flex flex-wrap items-center justify-between gap-4 p-5">
+          <div className="flex items-center gap-4">
+            <IconTile icon={Receipt} tone="blue" />
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Client billing</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                <span className="tabular font-semibold text-slate-700">
+                  {formatCurrency(Number(billing._sum.chargeTotal ?? 0))} billed
+                </span>{" "}
+                ·{" "}
+                <span className="tabular font-semibold text-emerald-600">
+                  {formatCurrency(Number(billing._sum.marginTotal ?? 0))} margin
+                </span>{" "}
+                · {billing._count} invoice{billing._count === 1 ? "" : "s"}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/billing"
+              className="inline-flex items-center gap-1 rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-600/15 transition hover:bg-brand-100"
+            >
+              View billing <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>
           </div>
         </Card>
