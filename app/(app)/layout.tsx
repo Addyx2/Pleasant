@@ -1,6 +1,7 @@
 import { LogOut } from "lucide-react";
-
+import { MobileHeader } from "@/components/MobileHeader";
 import { AppNav } from "@/components/AppNav";
+import { ConsultCliDock } from "@/components/ConsultCliDock";
 import { logoutAction } from "@/app/login/actions";
 import { requireUser } from "@/lib/auth";
 import { initials } from "@/lib/utils";
@@ -9,7 +10,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await requireUser();
 
   return (
-    <div className="product-canvas min-h-screen">
+    <div className="product-canvas min-h-screen pb-16">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-slate-200 bg-white px-4 py-6 lg:flex">
         <div className="flex items-center gap-3 px-2">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-b from-brand-500 to-brand-700 text-base font-bold text-white shadow-btn">
@@ -23,7 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         </div>
 
-        <div className="mt-8 flex-1">
+        <div className="mt-6 flex-1">
           <AppNav />
         </div>
 
@@ -52,21 +53,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </aside>
 
       <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/85 px-4 py-3 backdrop-blur lg:hidden">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">
-              P
-            </span>
-            <div className="leading-tight">
-              <p className="font-display text-sm font-bold tracking-tight text-slate-900">
-                Pleasant
-              </p>
-              <p className="truncate text-xs text-slate-500">{user.agency.name}</p>
-            </div>
-          </div>
-        </header>
-        <main className="mx-auto w-full max-w-6xl px-5 py-8 lg:px-10">{children}</main>
+        <MobileHeader user={user} />
+        <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-10 lg:py-8">{children}</main>
       </div>
+
+      <ConsultCliDock />
     </div>
   );
 }

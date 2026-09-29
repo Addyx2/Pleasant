@@ -3,62 +3,123 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  CalendarClock,
-  ClipboardCheck,
-  FileText,
-  Inbox,
-  LayoutDashboard,
+  Bot,
+  Terminal,
+  Play,
+  FileCode2,
   Users,
-  UserSquare2,
+  Clock,
+  Banknote,
+  UserPlus,
+  MessageSquare,
+  CalendarClock,
+  Building2,
+  BarChart3,
+  CheckCircle2,
+  AlertTriangle,
+  LayoutDashboard,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-const ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/shifts", label: "Shifts", icon: CalendarClock },
-  { href: "/shifts/requests", label: "Shift requests", icon: Inbox },
-  { href: "/timesheets", label: "Timesheets", icon: ClipboardCheck },
-  { href: "/staff", label: "Staff", icon: Users },
-  { href: "/clients", label: "Clients", icon: UserSquare2 },
-  { href: "/payroll", label: "Payroll", icon: FileText },
+const CATEGORIES = [
+  {
+    title: "AGENTS",
+    items: [
+      { href: "/agents/pushbots", label: "Pushbots", icon: Bot },
+      { href: "/agents/consult", label: "Consult (CLI)", icon: Terminal },
+      { href: "/agents/runners", label: "Runners", icon: Play },
+      { href: "/agents/logs", label: "Logs", icon: FileCode2 },
+    ],
+  },
+  {
+    title: "WORKFORCE",
+    items: [
+      { href: "/staff", label: "Workers", icon: Users },
+      { href: "/timesheets", label: "Timesheets", icon: Clock },
+      { href: "/payroll", label: "Payroll", icon: Banknote },
+      { href: "/workforce/recruitment", label: "Recruitment", icon: UserPlus },
+      { href: "/workforce/chatbox", label: "Chatbox", icon: MessageSquare },
+    ],
+  },
+  {
+    title: "SHIFTS",
+    items: [
+      { href: "/shifts", label: "All Shifts", icon: CalendarClock },
+      { href: "/shifts/unattended", label: "Unattended 🚨", icon: AlertTriangle },
+    ],
+  },
+  {
+    title: "CLIENTPOINT",
+    items: [
+      { href: "/clients", label: "Clientpoint CRM", icon: Building2 },
+      { href: "/shifts/requests", label: "Shift Requests", icon: CheckCircle2 },
+    ],
+  },
+  {
+    title: "OVERSIGHT",
+    items: [
+      { href: "/oversight", label: "Oversight Analytics", icon: BarChart3 },
+    ],
+  },
 ];
 
 export function AppNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-col gap-1">
-      {ITEMS.map((item) => {
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition duration-150",
-              active
-                ? "bg-brand-50 text-brand-800 ring-1 ring-inset ring-brand-600/10"
-                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
-            )}
-          >
-            <span
-              className={cn(
-                "absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-brand-500 transition-opacity duration-150",
-                active ? "opacity-100" : "opacity-0",
-              )}
-              aria-hidden="true"
-            />
-            <item.icon
-              className={cn(
-                "h-4 w-4 transition-colors duration-150",
-                active ? "text-brand-600" : "text-slate-400 group-hover:text-slate-600",
-              )}
-            />
-            {item.label}
-          </Link>
-        );
-      })}
+    <nav className="flex flex-col gap-5 overflow-y-auto max-h-[calc(100vh-220px)] pr-1">
+      <Link
+        href="/dashboard"
+        className={cn(
+          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition",
+          pathname === "/dashboard"
+            ? "bg-brand-50 text-brand-800 ring-1 ring-inset ring-brand-600/10 font-bold"
+            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+        )}
+      >
+        <LayoutDashboard className="h-4 w-4 text-brand-600" />
+        Dashboard
+      </Link>
+
+      {CATEGORIES.map((cat) => (
+        <div key={cat.title} className="space-y-1">
+          <p className="px-3 text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+            {cat.title}
+          </p>
+          {cat.items.map((item) => {
+            const active = pathname === item.href || (item.href !== "/shifts" && pathname.startsWith(`${item.href}`));
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                prefetch={false}
+                className={cn(
+                  "group relative flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-xs font-medium transition duration-150",
+                  active
+                    ? "bg-brand-50 text-brand-900 font-semibold ring-1 ring-inset ring-brand-600/10"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                )}
+              >
+                <span
+                  className={cn(
+                    "absolute left-0 top-1/2 h-3.5 w-0.5 -translate-y-1/2 rounded-full bg-brand-500 transition-opacity duration-150",
+                    active ? "opacity-100" : "opacity-0"
+                  )}
+                  aria-hidden="true"
+                />
+                <item.icon
+                  className={cn(
+                    "h-3.5 w-3.5 transition-colors duration-150",
+                    active ? "text-brand-600" : "text-slate-400 group-hover:text-slate-600"
+                  )}
+                />
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      ))}
     </nav>
   );
 }
