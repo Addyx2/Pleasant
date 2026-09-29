@@ -1,188 +1,216 @@
-"use client";
+import { Building2, Clock, FileText, ShieldCheck, UserPlus } from "lucide-react";
+import { endOfDay, startOfDay } from "date-fns";
 
-import React, { useState, use } from "react";
-import { ShieldCheck, CalendarClock, Building2, CheckCircle2, FileText, Send, UserCheck, Clock } from "lucide-react";
-// In a real app, these would be imported from the server actions file:
-// import { signOffTimesheet, requestShifts } from "@/lib/clientpoint/actions";
+import { prisma } from "@/lib/db";
+import { validatePleasantLink } from "@/lib/clientpoint/pleasant-link";
+import { formatDate, formatHours, formatTime } from "@/lib/utils";
+import { Card } from "@/components/ui";
+import { RequestStaffForm } from "@/components/clientpoint/RequestStaffForm";
+import { SignOffForm } from "@/components/clientpoint/SignOffForm";
 
-export default function PleasantLinkPortal({ params }: { params: Promise<{ token: string }> }) {
-  const { token } = use(params);
-  const [activeTab, setActiveTab] = useState<"overview" | "request" | "timesheets">("overview");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const clientName = "Metro Health";
+export const dynamic = "force-dynamic";
 
-  // Mock Request State
-  const [requestRole, setRequestRole] = useState("Registered Nurse (RN)");
-  const [requestDate, setRequestDate] = useState("");
+export default async function PleasantLinkPortal({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
 
-  const handleRequestSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    // await requestShifts(params.token, requestRole, new Date(requestDate), ...);
-    setTimeout(() => {
-      alert(`Shift requested for ${requestRole}! Pushbots are triaging now.`);
-      setIsSubmitting(false);
-      setActiveTab("overview");
-    }, 1000);
-  };
+  let link;
+  try {
+    link = await validatePleasantLink(token);
+  } catch (e) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
+        <Card className="max-w-md p-8 text-center">
+          <ShieldCheck className="mx-auto h-10 w-10 text-slate-300" />
+          <h1 className="font-display mt-4 text-xl font-bold text-slate-900">Link not available</h1>
+          <p className="mt-2 text-sm text-slate-500">
+            {e instanceof Error ? e.message : "This secure link is invalid or has expired."}
+            <br />
+            Please contact your agency for a new one.
+          </p>
+        </Card>
+      </div>
+    );
+  }
 
-  const handleSignOff = async (id: string) => {
-    // await signOffTimesheet(params.token, id, "Site Manager", "Manager");
-    alert(`Timesheet ${id} digitally signed off! Invoice generated.`);
-  };
+  const { client, agency } = link;
+  const today = new Date();
+  const dayStart = startOfDay(today);
+  const dayEnd = endOfDay(today);
+
+  const [pending, onSite, onSiteCount, recentLedger] = await Promise.all([
+    prisma.timesheet.findMany({
+      where: { agencyId: agency.id, status: "PENDING", shift: { clientId: client.id } },
+      include: { shift: true, staff: true },
+      orderBy: { clockIn: "asc" },
+      take: 15,
+    }),
+    prisma.shift.findMany({
+      where: { agencyId: agency.id, clientId: client.id, startAt: { gte: dayStart, lte: dayEnd }, status: { in: ["ASSIGNED", "IN_PROGRESS"] } },
+      include: { staff: true },
+      orderBy: { startAt: "asc" },
+    }),
+    prisma.shift.count({
+      where: { agencyId: agency.id, clientId: client.id, startAt: { gte: dayStart, lte: dayEnd }, status: { not: "CANCELLED" } },
+    }),
+    prisma.shift.findMany({
+      where: { agencyId: agency.id, clientId: client.id, status: "COMPLETED" },
+      include: { staff: true },
+      orderBy: { startAt: "desc" },
+      take: 6,
+    }),
+  ]);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <header className="bg-white border-b border-slate-200 py-4 px-6 flex items-center justify-between shadow-sm sticky top-0 z-10">
-        <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab("overview")}>
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-brand-600 to-brand-800 shadow-md">
-            <Building2 className="h-5 w-5 text-white" />
+    <div className="min-h-screen bg-slate-50">
+      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 px-6 py-4 shadow-sm backdrop-blur">
+        <div className="mx-auto flex max-w-4xl items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-brand-600 to-brand-800">
+              <Building2 className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-base font-bold tracking-tight text-slate-900">{client.firstName} {client.lastName}</h1>
+              <p className="text-xs text-slate-500">via {agency.name} · Pleasant Link</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">Clientpoint Portal</h1>
-            <p className="text-xs text-slate-500 font-medium">{clientName}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100">
-          <ShieldCheck className="h-4 w-4 text-emerald-600" />
-          <span className="text-xs font-semibold text-emerald-700 hidden sm:inline">Pleasant Link Secure</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+            <ShieldCheck className="h-3.5 w-3.5" /> Secure portal
+          </span>
         </div>
       </header>
 
-      <main className="flex-1 max-w-4xl w-full mx-auto p-6 space-y-8">
-        
-        {/* Navigation Tabs */}
-        <div className="flex gap-2 p-1 bg-slate-200/50 rounded-lg w-full sm:w-max">
-          <button 
-            onClick={() => setActiveTab("overview")}
-            className={`px-4 py-2 text-sm font-semibold rounded-md transition ${activeTab === "overview" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}
-          >
-            Live Overview
-          </button>
-          <button 
-            onClick={() => setActiveTab("timesheets")}
-            className={`px-4 py-2 text-sm font-semibold rounded-md transition ${activeTab === "timesheets" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}
-          >
-            Pending Sign-offs (2)
-          </button>
-          <button 
-            onClick={() => setActiveTab("request")}
-            className={`px-4 py-2 text-sm font-semibold rounded-md transition ${activeTab === "request" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}
-          >
-            Request Staff
-          </button>
+      <main className="mx-auto max-w-4xl space-y-6 p-6">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                <Clock className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-500">On site today</p>
+                <p className="text-2xl font-bold text-slate-900">{onSiteCount}</p>
+              </div>
+            </div>
+          </Card>
+          <Card className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                <FileText className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-500">Pending sign-offs</p>
+                <p className="text-2xl font-bold text-slate-900">{pending.length}</p>
+              </div>
+            </div>
+          </Card>
+          <Card className="p-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-100 text-brand-700">
+                <UserPlus className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-500">Request staff</p>
+                <p className="text-xs text-slate-500">New shift opens instantly</p>
+              </div>
+            </div>
+          </Card>
         </div>
 
-        {activeTab === "overview" && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900">Welcome back, Site Manager.</h2>
-              <p className="text-slate-500 mt-1">Here is your live facility coverage for today.</p>
-            </div>
-            
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-              <div className="p-6">
-                <ul className="space-y-4">
-                  <li className="flex items-center justify-between p-4 rounded-xl border border-emerald-100 bg-emerald-50/50">
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center font-bold text-emerald-700">JD</div>
-                      <div>
-                        <p className="font-bold text-slate-900">John Doe (RN)</p>
-                        <p className="text-sm text-slate-500">ICU Ward 3 • 08:00 - 16:00</p>
-                      </div>
-                    </div>
-                    <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
-                      On Site Now
-                    </span>
-                  </li>
-                </ul>
-              </div>
-            </div>
+        <Card>
+          <div className="flex items-center gap-2.5 border-b border-slate-200 px-5 py-4">
+            <Clock className="h-4 w-4 text-brand-600" />
+            <h2 className="text-sm font-semibold text-slate-900">On site today</h2>
           </div>
-        )}
-
-        {activeTab === "timesheets" && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-              <CheckCircle2 className="h-6 w-6 text-brand-600" />
-              Timesheets Requiring Sign-off
-            </h2>
-            <div className="space-y-4">
-              {[
-                { id: "TS-1042", name: "Sarah Adams", role: "Care Assistant", date: "Sep 28, 2026", hours: "12 hrs" },
-                { id: "TS-1043", name: "Marcus Cole", role: "Security Officer", date: "Sep 28, 2026", hours: "8 hrs" },
-              ].map((ts) => (
-                <div key={ts.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-4">
-                    <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600"><UserCheck className="h-5 w-5" /></div>
+          <div className="p-5">
+            {onSite.length === 0 ? (
+              <p className="text-sm text-slate-500">No shifts scheduled for your site today.</p>
+            ) : (
+              <ul className="space-y-3">
+                {onSite.map((shift) => (
+                  <li key={shift.id} className="flex items-center justify-between gap-3 text-sm">
                     <div>
-                      <p className="font-bold text-slate-900">{ts.name} <span className="text-sm font-normal text-slate-500">({ts.role})</span></p>
-                      <p className="text-sm text-slate-500 flex items-center gap-1 mt-1">
-                        <Clock className="h-3.5 w-3.5" /> {ts.date} • {ts.hours} tracked
+                      <p className="font-medium text-slate-900">{shift.title}</p>
+                      <p className="text-xs text-slate-500">
+                        {formatTime(shift.startAt)} – {formatTime(shift.endAt)}
+                        {shift.staff ? ` · ${shift.staff.firstName} ${shift.staff.lastName}` : " · unassigned"}
                       </p>
                     </div>
-                  </div>
-                  <button onClick={() => handleSignOff(ts.id)} className="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition w-full sm:w-auto">
-                    Approve & Sign Off
-                  </button>
-                </div>
-              ))}
-            </div>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+                      {shift.status === "IN_PROGRESS" ? "On shift" : "Assigned"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-        )}
+        </Card>
 
-        {activeTab === "request" && (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="px-6 py-5 border-b border-slate-200 bg-slate-50">
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <CalendarClock className="h-5 w-5 text-blue-600" />
-                Submit New Staffing Request
-              </h2>
-            </div>
-            <form onSubmit={handleRequestSubmit} className="p-6 space-y-5">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Required Role</label>
-                  <select 
-                    value={requestRole} onChange={(e) => setRequestRole(e.target.value)}
-                    className="w-full rounded-lg border-slate-300 py-2.5 px-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 bg-white border"
-                  >
-                    <option>Registered Nurse (RN)</option>
-                    <option>Care Assistant</option>
-                    <option>Support Worker</option>
-                    <option>Security Officer</option>
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">Start Date/Time</label>
-                    <input type="datetime-local" className="w-full rounded-lg border-slate-300 py-2 px-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 bg-white border" required />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">End Date/Time</label>
-                    <input type="datetime-local" className="w-full rounded-lg border-slate-300 py-2 px-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 bg-white border" required />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Site / Location Details</label>
-                  <input type="text" placeholder="e.g. ICU Ward 3, North Building" className="w-full rounded-lg border-slate-300 py-2 px-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 bg-white border" />
-                </div>
-              </div>
-              <button 
-                type="submit" disabled={isSubmitting}
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition disabled:opacity-50"
-              >
-                {isSubmitting ? "Processing..." : "Submit Request & Trigger Pushbots"}
-                {!isSubmitting && <Send className="h-4 w-4" />}
-              </button>
-            </form>
+        <Card>
+          <div className="flex items-center gap-2.5 border-b border-slate-200 px-5 py-4">
+            <FileText className="h-4 w-4 text-amber-600" />
+            <h2 className="text-sm font-semibold text-slate-900">Approve timesheets</h2>
           </div>
-        )}
+          <div className="divide-y divide-slate-100">
+            {pending.length === 0 ? (
+              <p className="p-5 text-sm text-slate-500">Nothing waiting for your sign-off. Timesheets appear here once a shift is done.</p>
+            ) : (
+              pending.map((ts) => (
+                <div key={ts.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                  <SignOffForm
+                    token={token}
+                    timesheetId={ts.id}
+                    clientName={`${client.firstName} ${client.lastName}`}
+                    staffName={`${ts.staff.firstName} ${ts.staff.lastName}`}
+                    roleTitle={ts.shift.title}
+                    dateLabel={formatDate(ts.clockIn)}
+                    hoursLabel={formatHours(ts.workedMins)}
+                  />
+                </div>
+              ))
+            )}
+          </div>
+        </Card>
 
+        <Card>
+          <div className="flex items-center gap-2.5 border-b border-slate-200 px-5 py-4">
+            <UserPlus className="h-4 w-4 text-brand-600" />
+            <h2 className="text-sm font-semibold text-slate-900">Request staff</h2>
+          </div>
+          <div className="p-5">
+            <p className="mb-4 text-sm text-slate-500">
+              Submit a staffing order for a new shift. Your agency manager sees it as an open shift
+              and Pushbot triage can start broadcasting to available carers.
+            </p>
+            <RequestStaffForm token={token} />
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center gap-2.5 border-b border-slate-200 px-5 py-4">
+            <ShieldCheck className="h-4 w-4 text-emerald-600" />
+            <h2 className="text-sm font-semibold text-slate-900">Recent work ledger</h2>
+          </div>
+          <div className="p-5">
+            {recentLedger.length === 0 ? (
+              <p className="text-sm text-slate-500">Completed shifts will appear here as a proof-of-work record.</p>
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {recentLedger.map((shift) => (
+                  <li key={shift.id} className="flex items-center justify-between gap-3">
+                    <span className="font-medium text-slate-800">{shift.title}</span>
+                    <span className="text-xs text-slate-500">
+                      {formatDate(shift.startAt)} · {shift.staff ? `${shift.staff.firstName} ${shift.staff.lastName}` : "—"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </Card>
       </main>
-      <footer className="py-6 text-center text-xs text-slate-500">
-        Powered by Aultrum / Pleasant Super Platform • Token: {token.slice(0, 8)}...
+
+      <footer className="py-6 text-center text-xs text-slate-400">
+        Powered by Pleasant — {agency.name}. This link expires in 24 hours.
       </footer>
     </div>
   );

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { initiatePushbotTriage } from "@/lib/pushbots/triage";
 import { createShiftSchema } from "@/lib/validation";
 
 export interface ActionState {
@@ -93,7 +94,8 @@ export async function updateShiftStatusAction(formData: FormData): Promise<void>
   const shiftId = String(formData.get("shiftId") ?? "");
   const status = String(formData.get("status") ?? "");
 
-  const allowed = ["DRAFT", "OPEN", "ASSIGNED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"];
+  const allowed = ["DRAFT", "OPEN", "ASSIGNED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW", "UNATTENDED"];
+
   if (!shiftId || !allowed.includes(status)) return;
 
   await prisma.shift.updateMany({
@@ -102,6 +104,23 @@ export async function updateShiftStatusAction(formData: FormData): Promise<void>
   });
 
   revalidatePath("/shifts");
+  revalidatePath(`/shifts/${shiftId}`);
+  revalidatePath("/shifts/unattended");
+  revalidatePath("/dashboard");
+}
+
+export async function triageShiftAction(formData: FormData): Promise<void> {
+  const user = await requireAdmin();
+  const shiftId = String(formData.get("shiftId") ?? "");
+  if (!shiftId || !user) return;
+
+  const shift = await prisma.shift.findFirst({
+    where: { id: shiftId, agencyId: user.agencyId },
+  });
+  if (!shift || (shift.status !== "OPEN" && shift.status !== "UNATTENDED")) return;
+
+  await initiatePushbotTriage(shiftId, user.id);
+  revalidatePath("/shifts/unattended");
   revalidatePath(`/shifts/${shiftId}`);
   revalidatePath("/dashboard");
 }

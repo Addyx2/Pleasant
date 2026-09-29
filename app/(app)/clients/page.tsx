@@ -2,6 +2,7 @@ import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Card, EmptyState, PageHeader, Td, Th } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
+import { GenerateLinkButton } from "@/components/clientpoint/GenerateLinkButton";
 import { NewClientForm, NewSiteForm } from "./Forms";
 
 export const metadata = { title: "Clients" };
@@ -41,6 +42,7 @@ export default async function ClientsPage() {
                   <Th>Postcode</Th>
                   <Th>Shifts</Th>
                   <Th>Status</Th>
+                  <Th>Pleasant Link</Th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -57,6 +59,9 @@ export default async function ClientsPage() {
                     <Td>{client._count.shifts}</Td>
                     <Td>
                       <StatusBadge status={client.status} />
+                    </Td>
+                    <Td>
+                      <GenerateLinkButton clientId={client.id} clientName={`${client.firstName} ${client.lastName}`} />
                     </Td>
                   </tr>
                 ))}

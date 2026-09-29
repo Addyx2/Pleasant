@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { generatePleasantLink } from "@/lib/clientpoint/pleasant-link";
 import { createClientSchema, createSiteSchema } from "@/lib/validation";
 import type { ActionState } from "@/app/(app)/shifts/actions";
 
@@ -75,4 +76,20 @@ export async function createSiteAction(
 
   revalidatePath("/clients");
   return { success: "Site added" };
+}
+
+export async function createPleasantLinkAction(clientId: string): Promise<ActionState & { link?: string }> {
+  const user = await requireAdmin();
+
+  const client = await prisma.client.findFirst({
+    where: { id: clientId, agencyId: user.agencyId },
+  });
+  if (!client) return { error: "Client not found" };
+
+  const token = await generatePleasantLink(user.agencyId, client.id);
+
+  return {
+    success: "Link created — valid for 24 hours",
+    link: `/pleasant-link/${token.token}`,
+  };
 }
