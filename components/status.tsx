@@ -19,6 +19,8 @@ const MAP: Record<string, { tone: Parameters<typeof Badge>[0]["tone"]; label: st
   DISPUTED: { tone: "red", label: "Disputed" },
   FINALISED: { tone: "brand", label: "Finalised" },
   PAID: { tone: "green", label: "Paid" },
+  ISSUED: { tone: "brand", label: "Issued" },
+  VOID: { tone: "slate", label: "Void" },
 };
 
 export function StatusBadge({ status }: { status: string }) {

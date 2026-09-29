@@ -97,6 +97,15 @@ export const payrollRunSchema = z.object({
   reference: z.string().trim().optional(),
 });
 
+export const createInvoiceSchema = z.object({
+  clientId: z.string().min(1, "Choose a client to bill"),
+  periodStart: z.coerce.date(),
+  periodEnd: z.coerce.date(),
+  dueDate: z.coerce.date(),
+  vatRatePct: z.coerce.number().min(0).max(20).default(0),
+  reference: z.string().trim().optional(),
+});
+
 export const loginSchema = z.object({
   email: z.string().trim().email("Enter a valid email"),
   password: z.string().min(1, "Password is required"),

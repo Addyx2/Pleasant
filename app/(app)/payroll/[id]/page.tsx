@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Download, FileText } from "lucide-react";
 
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { Card, PageHeader, StatCard, Td, Th, buttonClass, subtleButtonClass } from "@/components/ui";
+import { Card, IconTile, PageHeader, StatCard, Td, Th, buttonClass, subtleButtonClass } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
 import { deletePayrollRunAction, setPayrollStatusAction } from "../actions";
 
@@ -56,6 +57,40 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
         <StatCard label="Total employer cost" value={formatCurrency(employerCost)} />
       </div>
 
+      {run.status !== "DRAFT" ? (
+        <Card className="p-5">
+          <div className="flex items-center gap-2.5">
+            <IconTile icon={FileText} tone="brand" className="h-8 w-8" />
+            <h2 className="text-sm font-semibold text-slate-900">Payday checklist · {run.reference}</h2>
+          </div>
+          <ol className="mt-4 space-y-2.5 text-sm text-slate-700">
+            <li className="flex items-start gap-3">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">
+                ✓
+              </span>
+              <span>
+                Run closed — {run.payslips.length} payslip{run.payslips.length === 1 ? "" : "s"} frozen at final amounts.
+              </span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-400">2</span>
+              <span>
+                Download the RTI file (above) and file it — or send it to your accountant —
+                before paying. Continued on the HMRC gateway by you or your accountant.
+              </span>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold ${run.status === "PAID" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"}`}>
+                {run.status === "PAID" ? "✓" : "3"}
+              </span>
+              <span>
+                Pay carers by {formatDate(run.payDate)} and mark the run as paid.
+              </span>
+            </li>
+          </ol>
+        </Card>
+      ) : null}
+
       <Card className="overflow-x-auto">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
           <h2 className="text-sm font-semibold text-slate-900">
@@ -86,6 +121,19 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
             ) : null}
           </div>
         </div>
+
+        {run.status !== "DRAFT" ? (
+          <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-5 py-4">
+            <Link href={`/payroll/${run.id}/export`} className={subtleButtonClass}>
+              <Download className="h-4 w-4" /> Download RTI file (FPS-ready CSV)
+            </Link>
+            <p className="max-w-md text-xs text-slate-500">
+              Accountant-friendly Full Payment Submission file covering every PAYE carer on
+              this run. Ltd-company engagements are paid gross and excluded. File it — or hand
+              it to your accountant — before you pay.
+            </p>
+          </div>
+        ) : null}
 
         <table className="w-full min-w-[1000px]">
           <thead className="bg-slate-50">
