@@ -3,18 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Bot,
-  Terminal,
-  Play,
-  FileCode2,
   Users,
   Clock,
   Banknote,
   UserPlus,
-  MessageSquare,
   CalendarClock,
   Building2,
-  BarChart3,
   CheckCircle2,
   AlertTriangle,
   LayoutDashboard,
@@ -24,42 +18,26 @@ import { cn } from "@/lib/utils";
 
 const CATEGORIES = [
   {
-    title: "AGENTS",
-    items: [
-      { href: "/agents/pushbots", label: "Pushbots", icon: Bot },
-      { href: "/agents/consult", label: "Consult (CLI)", icon: Terminal },
-      { href: "/agents/runners", label: "Runners", icon: Play },
-      { href: "/agents/logs", label: "Logs", icon: FileCode2 },
-    ],
-  },
-  {
     title: "WORKFORCE",
     items: [
       { href: "/staff", label: "Workers", icon: Users },
       { href: "/timesheets", label: "Timesheets", icon: Clock },
       { href: "/payroll", label: "Payroll", icon: Banknote },
       { href: "/workforce/recruitment", label: "Recruitment", icon: UserPlus },
-      { href: "/workforce/chatbox", label: "Chatbox", icon: MessageSquare },
     ],
   },
   {
     title: "SHIFTS",
     items: [
       { href: "/shifts", label: "All Shifts", icon: CalendarClock },
-      { href: "/shifts/unattended", label: "Unattended 🚨", icon: AlertTriangle },
+      { href: "/shifts/unattended", label: "Unattended", icon: AlertTriangle },
     ],
   },
   {
     title: "CLIENTPOINT",
     items: [
-      { href: "/clients", label: "Clientpoint CRM", icon: Building2 },
+      { href: "/clients", label: "Clients", icon: Building2 },
       { href: "/shifts/requests", label: "Shift Requests", icon: CheckCircle2 },
-    ],
-  },
-  {
-    title: "OVERSIGHT",
-    items: [
-      { href: "/oversight", label: "Oversight Analytics", icon: BarChart3 },
     ],
   },
 ];
@@ -70,16 +48,16 @@ export function AppNav() {
   return (
     <nav className="flex flex-col gap-5 overflow-y-auto max-h-[calc(100vh-220px)] pr-1">
       <Link
-        href="/dashboard"
+        href="/oversight"
         className={cn(
           "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition",
-          pathname === "/dashboard"
+          pathname === "/oversight"
             ? "bg-brand-50 text-brand-800 ring-1 ring-inset ring-brand-600/10 font-bold"
             : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
         )}
       >
         <LayoutDashboard className="h-4 w-4 text-brand-600" />
-        Dashboard
+        Oversight
       </Link>
 
       {CATEGORIES.map((cat) => (

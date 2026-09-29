@@ -1,165 +1,465 @@
-import React from "react";
-import { BarChart3, TrendingUp, Users, ShieldAlert, Bot, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Suspense } from "react";
+import Link from "next/link";
+import { endOfDay, startOfDay } from "date-fns";
+import {
+  Activity,
+  AlertTriangle,
+  ArrowUpRight,
+  CalendarClock,
+  ClipboardCheck,
+  PoundSterling,
+  Receipt,
+  Users,
+} from "lucide-react";
 
-export const metadata = {
-  title: "Oversight Analytics | Pleasant",
-};
+import { requireAdmin } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { nextCutoff, payDayForCutoff } from "@/lib/week";
+import {
+  formatCurrency,
+  formatDate,
+  formatDateTime,
+  formatHours,
+  formatTime,
+} from "@/lib/utils";
+import { Card, EmptyState, IconTile, SkeletonCard, SkeletonTable, StatCard, Td } from "@/components/ui";
+import { StatusBadge } from "@/components/status";
 
-export default function OversightPage() {
+export const metadata = { title: "Oversight" };
+export const dynamic = "force-dynamic";
+
+function headerCopy() {
+  return {
+    greeting: "Oversight",
+    description: "A live view of the rota, approvals, billing and payroll.",
+  };
+}
+
+async function OversightHeader({ user }: { user: Awaited<ReturnType<typeof requireAdmin>> }) {
+  const today = new Date();
+  const dayStart = startOfDay(today);
+  const dayEnd = endOfDay(today);
+
+  const [shiftsToday, pendingTimesheets, unattended] = await Promise.all([
+    prisma.shift.count({
+      where: { agencyId: user.agencyId, startAt: { gte: dayStart, lte: dayEnd }, status: { not: "CANCELLED" } },
+    }),
+    prisma.timesheet.count({ where: { agencyId: user.agencyId, status: "PENDING" } }),
+    prisma.shift.count({ where: { agencyId: user.agencyId, status: "UNATTENDED" } }),
+  ]);
+
+  const cutoff = nextCutoff({
+    cutoffWeekday: user.agency.cutoffWeekday,
+    cutoffTime: user.agency.cutoffTime,
+    payWeekday: user.agency.payWeekday,
+  });
+  const payDay = payDayForCutoff(
+    {
+      cutoffWeekday: user.agency.cutoffWeekday,
+      cutoffTime: user.agency.cutoffTime,
+      payWeekday: user.agency.payWeekday,
+    },
+    cutoff,
+  );
+
+  const copy = headerCopy();
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <BarChart3 className="h-6 w-6 text-brand-600" />
-            Oversight Analytics
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Platform performance, Pushbot triage metrics, and financial risk monitoring.
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <select className="rounded-lg border-slate-300 py-2 pl-3 pr-8 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500">
-            <option>Last 7 Days</option>
-            <option>Last 30 Days</option>
-            <option>This Month</option>
-          </select>
-          <button className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-700">
-            Export Report
-          </button>
-        </div>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-slate-500">Pushbot Fill Rate</p>
-            <Bot className="h-5 w-5 text-emerald-500" />
-          </div>
-          <p className="mt-2 text-3xl font-bold text-slate-900">92.4%</p>
-          <p className="mt-1 flex items-center text-xs text-emerald-600 font-medium">
-            <TrendingUp className="mr-1 h-3 w-3" />
-            +4.2% from last week
-          </p>
-        </div>
-        
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-slate-500">Avg Time to Fill</p>
-            <ClockIcon className="h-5 w-5 text-blue-500" />
-          </div>
-          <p className="mt-2 text-3xl font-bold text-slate-900">4m 12s</p>
-          <p className="mt-1 flex items-center text-xs text-emerald-600 font-medium">
-            <TrendingUp className="mr-1 h-3 w-3" />
-            -1m 45s faster
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-slate-500">Client Confidence (Avg)</p>
-            <CheckCircle2 className="h-5 w-5 text-purple-500" />
-          </div>
-          <p className="mt-2 text-3xl font-bold text-slate-900">4.8/5.0</p>
-          <p className="mt-1 flex items-center text-xs text-slate-500">
-            Across 14 active clients
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-red-100 bg-red-50 p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-red-800">Unattended Shifts</p>
-            <ShieldAlert className="h-5 w-5 text-red-600" />
-          </div>
-          <p className="mt-2 text-3xl font-bold text-red-900">3</p>
-          <p className="mt-1 flex items-center text-xs text-red-700 font-medium">
-            Requires immediate attention
-          </p>
-        </div>
-      </div>
-
-      {/* Analytics Panels */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 px-6 py-4">
-            <h3 className="font-semibold text-slate-900">Pushbot Channel Performance</h3>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-600">WhatsApp Offers Sent</span>
-                <span className="text-sm font-bold text-slate-900">1,240</span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-2">
-                <div className="bg-emerald-500 h-2 rounded-full" style={{ width: "85%" }}></div>
-              </div>
-              
-              <div className="flex items-center justify-between pt-2">
-                <span className="text-sm font-medium text-slate-600">SMS Fallback Offers</span>
-                <span className="text-sm font-bold text-slate-900">312</span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-2">
-                <div className="bg-blue-500 h-2 rounded-full" style={{ width: "25%" }}></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 px-6 py-4">
-            <h3 className="font-semibold text-slate-900">Financial Risk: Overtime Warnings</h3>
-          </div>
-          <div className="p-0">
-            <ul className="divide-y divide-slate-100">
-              <li className="flex items-center justify-between p-4 hover:bg-slate-50 transition">
-                <div>
-                  <p className="font-medium text-slate-900">Sarah Jenkins (RN)</p>
-                  <p className="text-xs text-slate-500">Currently at 38 hours this week</p>
-                </div>
-                <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
-                  Risk
-                </span>
-              </li>
-              <li className="flex items-center justify-between p-4 hover:bg-slate-50 transition">
-                <div>
-                  <p className="font-medium text-slate-900">Marcus Cole (Security)</p>
-                  <p className="text-xs text-slate-500">Currently at 41 hours this week</p>
-                </div>
-                <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800">
-                  Overtime
-                </span>
-              </li>
-            </ul>
-            <div className="border-t border-slate-200 p-4">
-              <a href="#" className="flex items-center text-sm font-medium text-brand-600 hover:text-brand-700">
-                View all workforce risks <ArrowRight className="ml-1 h-4 w-4" />
-              </a>
-            </div>
-          </div>
-        </div>
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+        {formatDate(today)}
+      </p>
+      <h1 className="font-display mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+        {copy.greeting}, {user.firstName}.
+      </h1>
+      <p className="mt-2 text-sm text-slate-500">
+        {user.agency.name} · {copy.description}
+      </p>
+      <div className="mt-5 flex flex-wrap items-center gap-2 text-xs">
+        <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-600">
+          {shiftsToday} shift{shiftsToday === 1 ? "" : "s"} today
+        </span>
+        <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-600">
+          Pay on {formatDate(payDay)}
+        </span>
+        {pendingTimesheets > 0 ? (
+          <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 font-semibold text-amber-800">
+            {pendingTimesheets} timesheet{pendingTimesheets === 1 ? "" : "s"} to approve
+          </span>
+        ) : null}
+        {unattended > 0 ? (
+          <Link href="/shifts/unattended">
+            <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 font-semibold text-red-800">
+              {unattended} unattended shift{unattended === 1 ? "" : "s"} — needs a carer
+            </span>
+          </Link>
+        ) : null}
       </div>
     </div>
   );
 }
 
-// Simple clock icon component to avoid missing import
-function ClockIcon(props: React.SVGProps<SVGSVGElement>) {
+async function AsyncStatCards({ agencyId }: { agencyId: string }) {
+  const today = new Date();
+  const dayStart = startOfDay(today);
+  const dayEnd = endOfDay(today);
+
+  const [openShifts, shiftsToday, pendingTimesheets, activeStaff] = await Promise.all([
+    prisma.shift.count({ where: { agencyId, status: "OPEN" } }),
+    prisma.shift.count({
+      where: { agencyId, startAt: { gte: dayStart, lte: dayEnd }, status: { not: "CANCELLED" } },
+    }),
+    prisma.timesheet.count({ where: { agencyId, status: "PENDING" } }),
+    prisma.staffProfile.count({ where: { agencyId, status: "ACTIVE" } }),
+  ]);
+
   return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <StatCard
+        label="Open shifts"
+        value={String(openShifts)}
+        hint="Need a carer assigned"
+        icon={CalendarClock}
+        tone="amber"
+      />
+      <StatCard label="Shifts today" value={String(shiftsToday)} icon={CalendarClock} tone="brand" />
+      <StatCard
+        label="Awaiting approval"
+        value={String(pendingTimesheets)}
+        hint="Timesheets to review"
+        icon={ClipboardCheck}
+        tone="blue"
+      />
+      <StatCard label="Active carers" value={String(activeStaff)} icon={Users} tone="green" />
+    </div>
+  );
+}
+
+async function AsyncUnattendedAlert({ agencyId }: { agencyId: string }) {
+  const unattended = await prisma.shift.findMany({
+    where: { agencyId, status: "UNATTENDED" },
+    include: { client: true },
+    orderBy: { updatedAt: "asc" },
+    take: 5,
+  });
+
+  if (unattended.length === 0) return null;
+
+  return (
+    <Card className="border-red-200 bg-red-50/60">
+      <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <IconTile icon={AlertTriangle} tone="red" />
+          <div>
+            <p className="text-sm font-semibold text-red-900">
+              {unattended.length} unattended shift{unattended.length === 1 ? "" : "s"} need a carer now
+            </p>
+            <p className="mt-0.5 text-xs text-red-700">
+              {unattended
+                .map((s) => (s.client ? `${s.client.firstName} ${s.client.lastName}` : "Unassigned"))
+                .join(" · ")}
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/shifts/unattended"
+          className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700"
+        >
+          Open triage queue <ArrowUpRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
+    </Card>
+  );
+}
+
+async function AsyncLatestPayroll({ agencyId }: { agencyId: string }) {
+  const latestRun = await prisma.payrollRun.findFirst({
+    where: { agencyId },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (!latestRun) return null;
+
+  return (
+    <Card className="flex flex-wrap items-center justify-between gap-4 p-5">
+      <div className="flex items-center gap-4">
+        <IconTile icon={PoundSterling} tone="brand" />
+        <div>
+          <p className="text-sm font-semibold text-slate-900">
+            Latest payroll run · {latestRun.reference}
+          </p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            <span className="tabular font-semibold text-slate-700">
+              {formatCurrency(latestRun.netTotal)} net
+            </span>{" "}
+            · {formatCurrency(latestRun.grossTotal)} gross
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <StatusBadge status={latestRun.status} />
+        <Link
+          href={`/payroll/${latestRun.id}`}
+          className="inline-flex items-center gap-1 rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-600/15 transition hover:bg-brand-100"
+        >
+          View run <ArrowUpRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
+    </Card>
+  );
+}
+
+async function AsyncBilling({ agencyId }: { agencyId: string }) {
+  const billing = await prisma.invoice.aggregate({
+    where: { agencyId, status: { in: ["ISSUED", "PAID"] } },
+    _sum: { chargeTotal: true, marginTotal: true },
+    _count: true,
+  });
+
+  if (billing._count === 0) return null;
+
+  return (
+    <Card className="flex flex-wrap items-center justify-between gap-4 p-5">
+      <div className="flex items-center gap-4">
+        <IconTile icon={Receipt} tone="blue" />
+        <div>
+          <p className="text-sm font-semibold text-slate-900">Client billing</p>
+          <p className="mt-0.5 text-xs text-slate-500">
+            <span className="tabular font-semibold text-slate-700">
+              {formatCurrency(Number(billing._sum.chargeTotal ?? 0))} billed
+            </span>{" "}
+            ·{" "}
+            <span className="tabular font-semibold text-emerald-600">
+              {formatCurrency(Number(billing._sum.marginTotal ?? 0))} margin
+            </span>{" "}
+            · {billing._count} invoice{billing._count === 1 ? "" : "s"}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <Link
+          href="/billing"
+          className="inline-flex items-center gap-1 rounded-lg bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-600/15 transition hover:bg-brand-100"
+        >
+          View billing <ArrowUpRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
+    </Card>
+  );
+}
+
+async function AsyncUpcomingShifts({ agencyId }: { agencyId: string }) {
+  const today = new Date();
+  const upcoming = await prisma.shift.findMany({
+    where: { agencyId, startAt: { gte: today }, status: { not: "CANCELLED" } },
+    include: { client: true, staff: true },
+    orderBy: { startAt: "asc" },
+    take: 6,
+  });
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+        <div className="flex items-center gap-2.5">
+          <IconTile icon={CalendarClock} tone="brand" className="h-8 w-8" />
+          <h2 className="text-sm font-semibold text-slate-900">Upcoming shifts</h2>
+        </div>
+        <Link
+          href="/shifts"
+          className="text-xs font-semibold text-brand-700 transition hover:text-brand-800"
+        >
+          View all →
+        </Link>
+      </div>
+      {upcoming.length === 0 ? (
+        <div className="p-5">
+          <EmptyState title="No upcoming shifts" description="Create a shift to fill your rota." />
+        </div>
+      ) : (
+        <table className="w-full">
+          <tbody className="divide-y divide-slate-100">
+            {upcoming.map((shift) => (
+              <tr key={shift.id} className="transition duration-100 hover:bg-slate-50/70">
+                <Td>
+                  <Link
+                    href={`/shifts/${shift.id}`}
+                    className="font-medium text-slate-900 transition hover:text-brand-700"
+                  >
+                    {shift.title}
+                  </Link>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {shift.client
+                      ? `${shift.client.firstName} ${shift.client.lastName}`
+                      : "No client"}
+                  </p>
+                </Td>
+                <Td>
+                  <p className="tabular">{formatTime(shift.startAt)} – {formatTime(shift.endAt)}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">{shift.startAt.toDateString()}</p>
+                </Td>
+                <Td>
+                  {shift.staff ? (
+                    `${shift.staff.firstName} ${shift.staff.lastName}`
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 ring-1 ring-inset ring-amber-600/15">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden="true" />
+                      Unassigned
+                    </span>
+                  )}
+                </Td>
+                <Td>
+                  <StatusBadge status={shift.status} />
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Card>
+  );
+}
+
+async function AsyncTimesheetApprovals({ agencyId }: { agencyId: string }) {
+  const approvals = await prisma.timesheet.findMany({
+    where: { agencyId, status: "PENDING" },
+    include: { staff: true, shift: true },
+    orderBy: { clockIn: "asc" },
+    take: 5,
+  });
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+        <div className="flex items-center gap-2.5">
+          <IconTile icon={ClipboardCheck} tone="blue" className="h-8 w-8" />
+          <h2 className="text-sm font-semibold text-slate-900">Timesheets to approve</h2>
+        </div>
+        <Link
+          href="/timesheets"
+          className="text-xs font-semibold text-brand-700 transition hover:text-brand-800"
+        >
+          Review →
+        </Link>
+      </div>
+      {approvals.length === 0 ? (
+        <div className="p-5">
+          <EmptyState title="Nothing to approve" description="All timesheets are up to date." />
+        </div>
+      ) : (
+        <table className="w-full">
+          <tbody className="divide-y divide-slate-100">
+            {approvals.map((ts) => (
+              <tr key={ts.id} className="transition duration-100 hover:bg-slate-50/70">
+                <Td>
+                  <span className="font-medium text-slate-900">
+                    {ts.staff.firstName} {ts.staff.lastName}
+                  </span>
+                  <p className="mt-0.5 text-xs text-slate-500">{ts.shift.title}</p>
+                </Td>
+                <Td>
+                  <p className="tabular text-sm font-semibold text-slate-900">
+                    {formatHours(ts.workedMins)}
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {formatDate(ts.clockIn)}
+                  </p>
+                </Td>
+                <Td>
+                  <StatusBadge status={ts.status} />
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Card>
+  );
+}
+
+async function AsyncAgentActivity({ agencyId }: { agencyId: string }) {
+  const events = await prisma.agentLog.findMany({
+    where: { agencyId },
+    orderBy: { createdAt: "desc" },
+    take: 8,
+  });
+
+  if (events.length === 0) return null;
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex items-center gap-2.5 border-b border-slate-200 px-5 py-4">
+        <IconTile icon={Activity} tone="slate" className="h-8 w-8" />
+        <div>
+          <h2 className="text-sm font-semibold text-slate-900">Automation activity</h2>
+          <p className="text-xs text-slate-500">Audited events from the platform.</p>
+        </div>
+      </div>
+      <div className="divide-y divide-slate-100">
+        {events.map((event) => (
+          <div key={event.id} className="flex items-start gap-3 px-5 py-3">
+            <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm text-slate-800">
+                <span className="font-semibold text-slate-900">{event.agentName}</span> · {event.action}
+                {event.details ? <span className="text-slate-500"> — {event.details}</span> : null}
+              </p>
+              <p className="mt-0.5 text-xs text-slate-400">{formatDateTime(event.createdAt)}</p>
+            </div>
+            <StatusBadge status={event.status} />
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+export default async function OversightPage() {
+  const user = await requireAdmin();
+
+  return (
+    <div className="space-y-6">
+      <OversightHeader user={user} />
+
+      <Suspense
+        fallback={
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+        }
+      >
+        <AsyncStatCards agencyId={user.agencyId} />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <AsyncUnattendedAlert agencyId={user.agencyId} />
+      </Suspense>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Suspense fallback={null}>
+          <AsyncLatestPayroll agencyId={user.agencyId} />
+        </Suspense>
+
+        <Suspense fallback={null}>
+          <AsyncBilling agencyId={user.agencyId} />
+        </Suspense>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Suspense fallback={<SkeletonTable rows={4} />}>
+          <AsyncUpcomingShifts agencyId={user.agencyId} />
+        </Suspense>
+
+        <Suspense fallback={<SkeletonTable rows={4} />}>
+          <AsyncTimesheetApprovals agencyId={user.agencyId} />
+        </Suspense>
+      </div>
+
+      <Suspense fallback={null}>
+        <AsyncAgentActivity agencyId={user.agencyId} />
+      </Suspense>
+    </div>
   );
 }

@@ -1,7 +1,6 @@
 import { LogOut } from "lucide-react";
 import { MobileHeader } from "@/components/MobileHeader";
 import { AppNav } from "@/components/AppNav";
-import { ConsultCliDock } from "@/components/ConsultCliDock";
 import { logoutAction } from "@/app/login/actions";
 import { requireUser } from "@/lib/auth";
 import { initials } from "@/lib/utils";
@@ -56,8 +55,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <MobileHeader user={user} />
         <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-10 lg:py-8">{children}</main>
       </div>
-
-      <ConsultCliDock />
     </div>
   );
 }

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import {
-  Bot,
   Calculator,
   ClipboardCheck,
   PhoneCall,
@@ -22,11 +21,6 @@ const ADDONS = [
     icon: Users,
     title: "Active-carer seats",
     body: "£4 per extra carer/mo on Pro, £3 on Scale. Only carers who worked count.",
-  },
-  {
-    icon: Bot,
-    title: "Agent Runner",
-    body: "From £149/mo per runner, metered runs. Covers shifts, negotiates via the marketplace, preps the payroll run.",
   },
   {
     icon: Trophy,
@@ -142,12 +136,12 @@ export default function PricingPage() {
           <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <Calculator className="h-6 w-6 text-brand-600" />
             <h3 className="mt-4 text-base font-semibold text-slate-900">
-              One filled shift without a phone call
+              A shift that bills itself
             </h3>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              An Agent Runner covers an absence by messaging the best-fit carers from the
-              marketplace, confirms it on the rota and writes the hours straight into the payroll
-              run — the margin appears the moment the clock-in lands.
+              The loop runs on a check-in: a carer clocks in on their phone, the shift marks itself
+              in progress, the approved timesheet flows straight into the payroll run and the client
+              bill — so the margin is visible the moment the clock-in lands.
             </p>
           </div>
           <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

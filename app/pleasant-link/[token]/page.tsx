@@ -179,7 +179,7 @@ export default async function PleasantLinkPortal({ params }: { params: Promise<{
           <div className="p-5">
             <p className="mb-4 text-sm text-slate-500">
               Submit a staffing order for a new shift. Your agency manager sees it as an open shift
-              and Pushbot triage can start broadcasting to available carers.
+              ready to be matched with the next available carer.
             </p>
             <RequestStaffForm token={token} />
           </div>

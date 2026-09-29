@@ -98,7 +98,7 @@ export function RequestStaffForm({ token }: RequestStaffFormProps) {
       </button>
       {state.success ? (
         <p className="text-sm font-medium text-emerald-700">
-          Request sent — the shift is now open and Pushbot triage can pick it up.
+          Request sent — the shift is now open and triage can pick it up.
         </p>
       ) : null}
       {state.message ? <p className="text-sm font-medium text-red-600">{state.message}</p> : null}

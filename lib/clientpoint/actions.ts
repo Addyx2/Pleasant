@@ -62,7 +62,7 @@ export async function requestShifts(token: string, role: string, startAt: Date, 
   try {
     const linkSession = await validatePleasantLink(token);
 
-    // Creates an OPEN shift ready for Pushbot Triage
+    // Creates an OPEN shift ready for triage
     const shift = await prisma.shift.create({
       data: {
         agencyId: linkSession.agencyId,

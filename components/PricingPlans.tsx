@@ -58,7 +58,7 @@ const PLANS: Plan[] = [
     cta: { label: "Start with the demo", href: "/login", variant: "primary" },
     features: [
       "Everything in Pro",
-      "Placement tracking & AI shift matching",
+      "Placement tracking & shift matching",
       "Expanded automations",
       "Xero / QuickBooks sync",
       "Priority support & dedicated CSM",
@@ -75,7 +75,7 @@ const PLANS: Plan[] = [
       "Everything in Scale",
       "HR suite: records, policies, onboarding",
       "Multi-branch / multi-agency",
-      "Unlimited automations & Agent Runners",
+      "Unlimited automations",
       "SLA, API, SSO, dedicated account team",
     ],
   },
