@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, use } from "react";
 import { ShieldCheck, CalendarClock, Building2, CheckCircle2, FileText, Send, UserCheck, Clock } from "lucide-react";
 // In a real app, these would be imported from the server actions file:
 // import { signOffTimesheet, requestShifts } from "@/lib/clientpoint/actions";
 
-export default function PleasantLinkPortal({ params }: { params: { token: string } }) {
+export default function PleasantLinkPortal({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = use(params);
   const [activeTab, setActiveTab] = useState<"overview" | "request" | "timesheets">("overview");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const clientName = "Metro Health";
@@ -181,7 +182,7 @@ export default function PleasantLinkPortal({ params }: { params: { token: string
 
       </main>
       <footer className="py-6 text-center text-xs text-slate-500">
-        Powered by Aultrum / Pleasant Super Platform • Token: {params.token.slice(0, 8)}...
+        Powered by Aultrum / Pleasant Super Platform • Token: {token.slice(0, 8)}...
       </footer>
     </div>
   );
