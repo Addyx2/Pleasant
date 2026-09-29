@@ -1,10 +1,11 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { endOfDay, startOfDay } from "date-fns";
+import { differenceInCalendarDays, endOfDay, startOfDay } from "date-fns";
 import {
   Activity,
   AlertTriangle,
   ArrowUpRight,
+  Banknote,
   CalendarClock,
   ClipboardCheck,
   PoundSterling,
@@ -24,6 +25,7 @@ import {
 } from "@/lib/utils";
 import { Card, EmptyState, IconTile, SkeletonCard, SkeletonTable, StatCard, Td } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
+import { setInvoiceStatusAction } from "@/app/(app)/billing/actions";
 
 export const metadata = { title: "Oversight" };
 export const dynamic = "force-dynamic";
@@ -248,6 +250,141 @@ async function AsyncBilling({ agencyId }: { agencyId: string }) {
   );
 }
 
+interface AgingBuckets {
+  current: number;
+  d0_30: number;
+  d31_60: number;
+  d60: number;
+}
+
+function bucketLabel(bucket: keyof AgingBuckets): string {
+  switch (bucket) {
+    case "current":
+      return "Not yet due";
+    case "d0_30":
+      return "1–30d";
+    case "d31_60":
+      return "31–60d";
+    case "d60":
+      return "60d+";
+  }
+}
+
+async function AsyncReceivables({ agencyId }: { agencyId: string }) {
+  const unpaid = await prisma.invoice.findMany({
+    where: { agencyId, status: "ISSUED" },
+    include: { client: true },
+    orderBy: { dueDate: "asc" },
+    take: 100,
+  });
+
+  if (unpaid.length === 0) return null;
+
+  const today = startOfDay(new Date());
+  const buckets: AgingBuckets = { current: 0, d0_30: 0, d31_60: 0, d60: 0 };
+  let outstanding = 0;
+  let overdueCount = 0;
+
+  const rows = unpaid.map((invoice) => {
+    const due = startOfDay(invoice.dueDate ?? invoice.issueDate ?? invoice.periodEnd);
+    const overdueDays = differenceInCalendarDays(today, due);
+    const amount = Number(invoice.grandTotal);
+    outstanding += amount;
+    const bucket: keyof AgingBuckets = overdueDays <= 0 ? "current" : overdueDays <= 30 ? "d0_30" : overdueDays <= 60 ? "d31_60" : "d60";
+    buckets[bucket] += amount;
+    if (overdueDays > 0) overdueCount += 1;
+    return { invoice, overdueDays, amount };
+  });
+
+  const hasOverdue = overdueCount > 0;
+
+  return (
+    <Card className={hasOverdue ? "overflow-hidden border-red-200" : "overflow-hidden"}>
+      <div className={`flex items-center justify-between border-b px-5 py-4 ${hasOverdue ? "border-red-100" : "border-slate-200"}`}>
+        <div className="flex items-center gap-2.5">
+          <IconTile icon={Banknote} tone={hasOverdue ? "red" : "blue"} className="h-8 w-8" />
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">Accounts receivable</h2>
+            <p className="text-xs text-slate-500">
+              {unpaid.length} open invoice{unpaid.length === 1 ? "" : "s"} ·{" "}
+              <span className={`font-semibold ${hasOverdue ? "text-red-700" : "text-slate-700"}`}>
+                {formatCurrency(outstanding)}
+              </span>{" "}
+              outstanding
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/billing"
+          className="text-xs font-semibold text-brand-700 transition hover:text-brand-800"
+        >
+          Billing →
+        </Link>
+      </div>
+
+      <div className="flex flex-wrap gap-2 border-b border-slate-100 px-5 py-3">
+        {(Object.keys(buckets) as Array<keyof AgingBuckets>).map((key) => (
+          <span
+            key={key}
+            className={
+              key === "current"
+                ? "rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600 ring-1 ring-inset ring-slate-200"
+                : "rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-200"
+            }
+          >
+            {bucketLabel(key)}: {formatCurrency(buckets[key])}
+          </span>
+        ))}
+      </div>
+
+      <table className="w-full">
+        <tbody className="divide-y divide-slate-100">
+          {rows.map(({ invoice, overdueDays, amount }) => (
+            <tr key={invoice.id} className="transition duration-100 hover:bg-slate-50/70">
+              <Td>
+                <Link
+                  href={`/billing/${invoice.id}`}
+                  className="font-medium text-slate-900 transition hover:text-brand-700"
+                >
+                  {invoice.reference}
+                </Link>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {invoice.client.firstName} {invoice.client.lastName}
+                </p>
+              </Td>
+              <Td>
+                <p className="tabular text-sm text-slate-700">{formatDate(invoice.dueDate ?? invoice.issueDate ?? invoice.periodEnd)}</p>
+                <p className={`mt-0.5 text-xs font-medium ${overdueDays > 0 ? "text-red-600" : "text-slate-400"}`}>
+                  {overdueDays > 0
+                    ? `${overdueDays} day${overdueDays === 1 ? "" : "s"} overdue`
+                    : overdueDays === 0
+                      ? "Due today"
+                      : `Due in ${Math.abs(overdueDays)}d`}
+                </p>
+              </Td>
+              <Td>
+                <span className="tabular text-sm font-semibold text-slate-900">{formatCurrency(amount)}</span>
+              </Td>
+              <Td>
+                <form action={setInvoiceStatusAction}>
+                  <input type="hidden" name="invoiceId" value={invoice.id} />
+                  <input type="hidden" name="status" value="PAID" />
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/15 transition hover:bg-emerald-100"
+                  >
+                    Mark paid
+                  </button>
+                </form>
+              </Td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Card>
+  );
+}
+
 async function AsyncUpcomingShifts({ agencyId }: { agencyId: string }) {
   const today = new Date();
   const upcoming = await prisma.shift.findMany({
@@ -446,6 +583,10 @@ export default async function OversightPage() {
           <AsyncBilling agencyId={user.agencyId} />
         </Suspense>
       </div>
+
+      <Suspense fallback={null}>
+        <AsyncReceivables agencyId={user.agencyId} />
+      </Suspense>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Suspense fallback={<SkeletonTable rows={4} />}>
