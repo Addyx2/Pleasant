@@ -660,6 +660,7 @@ model Invoice {
   periodEnd   DateTime
   issueDate   DateTime?
   dueDate     DateTime?
+  paidAt      DateTime?
   status      InvoiceStatus @default(DRAFT)
 
   hoursTotal  Decimal @db.Decimal(10, 2) @default(0)

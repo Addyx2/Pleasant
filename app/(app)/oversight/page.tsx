@@ -10,10 +10,12 @@ import {
   ClipboardCheck,
   PoundSterling,
   Receipt,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 
 import { requireAdmin } from "@/lib/auth";
+import { asLedgerRow, creditBandTone, creditHealth, type HomeCreditHealth } from "@/lib/credit";
 import { prisma } from "@/lib/db";
 import { nextCutoff, payDayForCutoff } from "@/lib/week";
 import {
@@ -270,15 +272,69 @@ function bucketLabel(bucket: keyof AgingBuckets): string {
   }
 }
 
+function CreditBadge({ health }: { health: HomeCreditHealth }) {
+  const tones = {
+    emerald: "bg-emerald-50 text-emerald-700 ring-emerald-600/15",
+    blue: "bg-blue-50 text-blue-700 ring-blue-600/15",
+    amber: "bg-amber-50 text-amber-800 ring-amber-600/20",
+    red: "bg-red-50 text-red-700 ring-red-600/15",
+  } as const;
+  const tone = creditBandTone(health.band);
+  return (
+    <span
+      title={`Home ${health.band} · ${health.detail}`}
+      className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ring-1 ring-inset ${tones[tone]}`}
+    >
+      {health.band}
+    </span>
+  );
+}
+
 async function AsyncReceivables({ agencyId }: { agencyId: string }) {
-  const unpaid = await prisma.invoice.findMany({
-    where: { agencyId, status: "ISSUED" },
-    include: { client: true },
-    orderBy: { dueDate: "asc" },
-    take: 100,
-  });
+  const [unpaid, ledger] = await Promise.all([
+    prisma.invoice.findMany({
+      where: { agencyId, status: "ISSUED" },
+      include: {
+        client: true,
+        lines: { include: { timesheet: { select: { clientAuthAt: true } } } },
+      },
+      orderBy: { dueDate: "asc" },
+      take: 100,
+    }),
+    prisma.invoice.findMany({
+      where: { agencyId, status: { in: ["ISSUED", "PAID"] } },
+      select: {
+        id: true,
+        clientId: true,
+        status: true,
+        issueDate: true,
+        dueDate: true,
+        paidAt: true,
+        grandTotal: true,
+      },
+    }),
+  ]);
 
   if (unpaid.length === 0) return null;
+
+  const ledgerByClient = new Map<string, ReturnType<typeof asLedgerRow>[]>();
+  for (const row of ledger) {
+    const list = ledgerByClient.get(row.clientId) ?? [];
+    list.push(asLedgerRow(row));
+    ledgerByClient.set(row.clientId, list);
+  }
+  const healthByClient = new Map<string, HomeCreditHealth>();
+  for (const [clientId, rows] of ledgerByClient) {
+    healthByClient.set(clientId, creditHealth(rows));
+  }
+
+  let totalLines = 0;
+  let signedLines = 0;
+  for (const invoice of unpaid) {
+    totalLines += invoice.lines.length;
+    signedLines += invoice.lines.filter((l) => l.timesheet?.clientAuthAt).length;
+  }
+  const signedCoveragePct = totalLines > 0 ? Math.round((signedLines / totalLines) * 100) : 0;
 
   const today = startOfDay(new Date());
   const buckets: AgingBuckets = { current: 0, d0_30: 0, d31_60: 0, d60: 0 };
@@ -312,6 +368,19 @@ async function AsyncReceivables({ agencyId }: { agencyId: string }) {
               </span>{" "}
               outstanding
             </p>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Funding ready when invoices carry client sign-off —{" "}
+              <span
+                className={
+                  signedCoveragePct === 100
+                    ? "font-semibold text-emerald-700"
+                    : "font-semibold text-amber-700"
+                }
+              >
+                {signedCoveragePct}%
+              </span>{" "}
+              of open lines signed by the home
+            </p>
           </div>
         </div>
         <Link
@@ -335,50 +404,72 @@ async function AsyncReceivables({ agencyId }: { agencyId: string }) {
             {bucketLabel(key)}: {formatCurrency(buckets[key])}
           </span>
         ))}
+        <span
+          title="Share of open invoice lines with a recorded client sign-off via Pleasant Link"
+          className={
+            signedCoveragePct === 100
+              ? "rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/15"
+              : "rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 ring-1 ring-inset ring-amber-600/20"
+          }
+        >
+          {signedCoveragePct}% client-signed
+        </span>
       </div>
 
       <table className="w-full">
         <tbody className="divide-y divide-slate-100">
-          {rows.map(({ invoice, overdueDays, amount }) => (
-            <tr key={invoice.id} className="transition duration-100 hover:bg-slate-50/70">
-              <Td>
-                <Link
-                  href={`/billing/${invoice.id}`}
-                  className="font-medium text-slate-900 transition hover:text-brand-700"
-                >
-                  {invoice.reference}
-                </Link>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  {invoice.client.firstName} {invoice.client.lastName}
-                </p>
-              </Td>
-              <Td>
-                <p className="tabular text-sm text-slate-700">{formatDate(invoice.dueDate ?? invoice.issueDate ?? invoice.periodEnd)}</p>
-                <p className={`mt-0.5 text-xs font-medium ${overdueDays > 0 ? "text-red-600" : "text-slate-400"}`}>
-                  {overdueDays > 0
-                    ? `${overdueDays} day${overdueDays === 1 ? "" : "s"} overdue`
-                    : overdueDays === 0
-                      ? "Due today"
-                      : `Due in ${Math.abs(overdueDays)}d`}
-                </p>
-              </Td>
-              <Td>
-                <span className="tabular text-sm font-semibold text-slate-900">{formatCurrency(amount)}</span>
-              </Td>
-              <Td>
-                <form action={setInvoiceStatusAction}>
-                  <input type="hidden" name="invoiceId" value={invoice.id} />
-                  <input type="hidden" name="status" value="PAID" />
-                  <button
-                    type="submit"
-                    className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/15 transition hover:bg-emerald-100"
+          {rows.map(({ invoice, overdueDays, amount }) => {
+            const health = healthByClient.get(invoice.clientId);
+            return (
+              <tr key={invoice.id} className="transition duration-100 hover:bg-slate-50/70">
+                <Td>
+                  <div className="flex items-center gap-2.5">
+                    <Link
+                      href={`/billing/${invoice.id}`}
+                      className="font-medium text-slate-900 transition hover:text-brand-700"
+                    >
+                      {invoice.reference}
+                    </Link>
+                    {health ? <CreditBadge health={health} /> : null}
+                  </div>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {invoice.client.firstName} {invoice.client.lastName}
+                  </p>
+                  <Link
+                    href={`/billing-pack/${invoice.id}`}
+                    className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-brand-700 transition hover:text-brand-800"
                   >
-                    Mark paid
-                  </button>
-                </form>
-              </Td>
-            </tr>
-          ))}
+                    <ShieldCheck className="h-3.5 w-3.5" /> Lender pack
+                  </Link>
+                </Td>
+                <Td>
+                  <p className="tabular text-sm text-slate-700">{formatDate(invoice.dueDate ?? invoice.issueDate ?? invoice.periodEnd)}</p>
+                  <p className={`mt-0.5 text-xs font-medium ${overdueDays > 0 ? "text-red-600" : "text-slate-400"}`}>
+                    {overdueDays > 0
+                      ? `${overdueDays} day${overdueDays === 1 ? "" : "s"} overdue`
+                      : overdueDays === 0
+                        ? "Due today"
+                        : `Due in ${Math.abs(overdueDays)}d`}
+                  </p>
+                </Td>
+                <Td>
+                  <span className="tabular text-sm font-semibold text-slate-900">{formatCurrency(amount)}</span>
+                </Td>
+                <Td>
+                  <form action={setInvoiceStatusAction}>
+                    <input type="hidden" name="invoiceId" value={invoice.id} />
+                    <input type="hidden" name="status" value="PAID" />
+                    <button
+                      type="submit"
+                      className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/15 transition hover:bg-emerald-100"
+                    >
+                      Mark paid
+                    </button>
+                  </form>
+                </Td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </Card>

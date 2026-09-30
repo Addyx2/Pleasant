@@ -160,6 +160,7 @@ export async function setInvoiceStatusAction(formData: FormData): Promise<void> 
     data: {
       status: status as never,
       ...(status === "ISSUED" ? { issueDate: new Date() } : {}),
+      paidAt: status === "PAID" ? new Date() : null,
     },
   });
 
