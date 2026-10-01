@@ -12,6 +12,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   LayoutDashboard,
+  Headset,
+  Sparkles,
+  Puzzle,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -38,6 +41,14 @@ const CATEGORIES = [
     items: [
       { href: "/clients", label: "Clients", icon: Building2 },
       { href: "/shifts/requests", label: "Shift Requests", icon: CheckCircle2 },
+    ],
+  },
+  {
+    title: "ADDONS SUITE",
+    items: [
+      { href: "/addons/gateway", label: "Gateway", icon: Headset },
+      { href: "/addons/peak", label: "Peak", icon: Sparkles },
+      { href: "/addons", label: "All Add-ons", icon: Puzzle },
     ],
   },
 ];
