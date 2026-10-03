@@ -71,6 +71,12 @@ export const createStaffSchema = z.object({
   pensionEnrolled: z.coerce.boolean().default(true),
   pensionEmployeePct: z.coerce.number().min(0).max(100).default(5),
   pensionEmployerPct: z.coerce.number().min(0).max(100).default(3),
+  bankName: optionalString,
+  accountName: optionalString,
+  sortCode: optionalString,
+  bankAcct: optionalString,
+  dbsNumber: optionalString,
+  dbsExpiry: z.string().trim().optional().transform((v) => (v ? new Date(v) : undefined)),
 });
 
 export const createClientSchema = z.object({
@@ -79,6 +85,9 @@ export const createClientSchema = z.object({
   address: optionalString,
   postcode: optionalString,
   phone: optionalString,
+  email: z.string().trim().email().optional().or(z.literal("")).transform((v) => (v ? v : undefined)),
+  companyName: optionalString,
+  vatNumber: optionalString,
   careLevel: optionalString,
   notes: optionalString,
 });

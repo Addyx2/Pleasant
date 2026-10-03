@@ -98,9 +98,11 @@ export async function updateShiftStatusAction(formData: FormData): Promise<void>
 
   if (!shiftId || !allowed.includes(status)) return;
 
+  const unassignStatuses = ["DRAFT", "OPEN", "UNATTENDED"];
+
   await prisma.shift.updateMany({
     where: { id: shiftId, agencyId: user.agencyId },
-    data: { status: status as never },
+    data: unassignStatuses.includes(status) ? { status: status as never, staffId: null } : { status: status as never },
   });
 
   revalidatePath("/shifts");

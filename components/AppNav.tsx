@@ -7,14 +7,17 @@ import {
   Clock,
   Banknote,
   UserPlus,
+  Plus,
   CalendarClock,
   Building2,
   CheckCircle2,
   AlertTriangle,
   LayoutDashboard,
-  Headset,
-  Sparkles,
-  Puzzle,
+  Send,
+  Repeat,
+  ShieldCheck,
+  FileUp,
+  Settings,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -30,10 +33,19 @@ const CATEGORIES = [
     ],
   },
   {
-    title: "SHIFTS",
+    title: "SHIFTS & DISPATCH",
     items: [
       { href: "/shifts", label: "All Shifts", icon: CalendarClock },
+      { href: "/rota", label: "Recurring Rota", icon: Repeat },
+      { href: "/dispatch", label: "Dispatch", icon: Send },
       { href: "/shifts/unattended", label: "Unattended", icon: AlertTriangle },
+    ],
+  },
+  {
+    title: "COMPLIANCE",
+    items: [
+      { href: "/compliance", label: "Certificates", icon: ShieldCheck },
+      { href: "/import", label: "Import Data", icon: FileUp },
     ],
   },
   {
@@ -43,12 +55,11 @@ const CATEGORIES = [
       { href: "/shifts/requests", label: "Shift Requests", icon: CheckCircle2 },
     ],
   },
-  {
+{
     title: "ADDONS SUITE",
     items: [
-      { href: "/addons/gateway", label: "Gateway", icon: Headset },
-      { href: "/addons/peak", label: "Peak", icon: Sparkles },
-      { href: "/addons", label: "All Add-ons", icon: Puzzle },
+      { href: "/addons", label: "Add-ons", icon: Plus },
+      { href: "/settings", label: "Agency Settings", icon: Settings },
     ],
   },
 ];
@@ -112,3 +123,4 @@ export function AppNav() {
     </nav>
   );
 }
+

@@ -41,9 +41,17 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
           <div className="flex items-center gap-3">
             <StatusBadge status={invoice.status} />
             {invoice.status === "ISSUED" || invoice.status === "PAID" ? (
-              <Link href={`/billing-pack/${invoice.id}`} className={buttonClass}>
-                Lender pack
-              </Link>
+              <>
+                <Link href={`/invoice/${invoice.id}`} className={buttonClass}>
+                  Printable invoice
+                </Link>
+                <Link
+                  href={`/billing-pack/${invoice.id}`}
+                  className="text-sm font-medium text-brand-700 hover:underline"
+                >
+                  Lender pack
+                </Link>
+              </>
             ) : null}
             <Link href="/billing" className="text-sm font-medium text-brand-700 hover:underline">
               Back to billing

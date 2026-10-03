@@ -118,6 +118,40 @@ export function NewStaffForm() {
         <input id="pensionEmployerPct" name="pensionEmployerPct" type="number" step="0.1" min="0" defaultValue="3" className={inputClass} />
       </div>
 
+      <div className="sm:col-span-2 mt-2 border-t border-slate-100 pt-4">
+        <h3 className="text-sm font-semibold text-slate-900">Bank details (BACS)</h3>
+        <p className="text-xs text-slate-500">Used for the bank-payments file each pay run.</p>
+      </div>
+      <div>
+        <label className={labelClass} htmlFor="accountName">Account name</label>
+        <input id="accountName" name="accountName" className={inputClass} />
+      </div>
+      <div>
+        <label className={labelClass} htmlFor="bankName">Bank name</label>
+        <input id="bankName" name="bankName" className={inputClass} />
+      </div>
+      <div>
+        <label className={labelClass} htmlFor="sortCode">Sort code</label>
+        <input id="sortCode" name="sortCode" className={inputClass} placeholder="20-00-00" />
+      </div>
+      <div>
+        <label className={labelClass} htmlFor="bankAcct">Account number</label>
+        <input id="bankAcct" name="bankAcct" className={inputClass} placeholder="8 digits" />
+      </div>
+
+      <div className="sm:col-span-2 mt-2 border-t border-slate-100 pt-4">
+        <h3 className="text-sm font-semibold text-slate-900">Compliance</h3>
+        <p className="text-xs text-slate-500">DBS record — care homes require this on file.</p>
+      </div>
+      <div>
+        <label className={labelClass} htmlFor="dbsNumber">DBS certificate number</label>
+        <input id="dbsNumber" name="dbsNumber" className={inputClass} />
+      </div>
+      <div>
+        <label className={labelClass} htmlFor="dbsExpiry">DBS issue / update date</label>
+        <input id="dbsExpiry" name="dbsExpiry" type="date" className={inputClass} />
+      </div>
+
       {state.error ? (
         <p className="sm:col-span-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{state.error}</p>
       ) : null}

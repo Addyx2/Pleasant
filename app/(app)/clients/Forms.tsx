@@ -45,6 +45,18 @@ export function NewClientForm() {
           <input id="postcode" name="postcode" className={inputClass} />
         </div>
         <div>
+          <label className={labelClass} htmlFor="email">Billing email</label>
+          <input id="email" name="email" type="email" className={inputClass} />
+        </div>
+        <div>
+          <label className={labelClass} htmlFor="companyName">Company / home name</label>
+          <input id="companyName" name="companyName" className={inputClass} placeholder="Meadow View Care Home" />
+        </div>
+        <div>
+          <label className={labelClass} htmlFor="vatNumber">VAT number</label>
+          <input id="vatNumber" name="vatNumber" className={inputClass} />
+        </div>
+        <div>
           <label className={labelClass} htmlFor="notes">Notes</label>
           <input id="notes" name="notes" className={inputClass} />
         </div>

@@ -33,6 +33,12 @@ export async function createStaffAction(
     pensionEnrolled: formData.get("pensionEnrolled") === "on",
     pensionEmployeePct: formData.get("pensionEmployeePct") || 5,
     pensionEmployerPct: formData.get("pensionEmployerPct") || 3,
+    bankName: formData.get("bankName"),
+    accountName: formData.get("accountName"),
+    sortCode: formData.get("sortCode"),
+    bankAcct: formData.get("bankAcct"),
+    dbsNumber: formData.get("dbsNumber"),
+    dbsExpiry: formData.get("dbsExpiry"),
   });
 
   if (!parsed.success) {
@@ -63,6 +69,12 @@ export async function createStaffAction(
       pensionEnrolled: data.pensionEnrolled,
       pensionEmployeePct: data.pensionEmployeePct,
       pensionEmployerPct: data.pensionEmployerPct,
+      bankName: data.bankName ?? null,
+      accountName: data.accountName ?? null,
+      sortCode: data.sortCode ?? null,
+      bankAcct: data.bankAcct ?? null,
+      dbsNumber: data.dbsNumber ?? null,
+      dbsExpiry: data.dbsExpiry ?? null,
       status: "ACTIVE",
     },
   });

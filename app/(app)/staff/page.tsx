@@ -64,9 +64,12 @@ export default async function StaffPage() {
                         {initials(member.firstName, member.lastName)}
                       </span>
                       <div>
-                        <p className="font-medium text-slate-900">
+                        <Link
+                          href={`/staff/${member.id}`}
+                          className="font-medium text-slate-900 hover:underline"
+                        >
                           {member.firstName} {member.lastName}
-                        </p>
+                        </Link>
                         <p className="text-xs text-slate-500">{member.email ?? member.phone ?? "—"}</p>
                       </div>
                     </div>
@@ -96,6 +99,9 @@ export default async function StaffPage() {
                   </Td>
                   <Td>
                     <div className="flex items-center gap-2">
+                      <Link href={`/staff/${member.id}`} className={subtleButtonClass}>
+                        Details
+                      </Link>
                       <Link href={`/staff/invite/${member.id}`} className={subtleButtonClass}>
                         Invite
                       </Link>

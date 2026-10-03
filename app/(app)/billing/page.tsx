@@ -59,6 +59,11 @@ export default async function BillingPage() {
       <PageHeader
         title="Billing & margins"
         description="Invoices are built from approved, client-authorised timesheets at each shift's charge-out rate."
+        action={
+          <Link href="/billing/xero" className="text-sm font-medium text-brand-700 hover:underline">
+            Export for Xero →
+          </Link>
+        }
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

@@ -46,6 +46,12 @@ enum ShiftRequestStatus {
   WITHDRAWN
 }
 
+enum ShiftOfferStatus {
+  OFFERED
+  ACCEPTED
+  DECLINED
+}
+
 enum TimesheetStatus {
   PENDING
   APPROVED
@@ -60,17 +66,22 @@ enum PayrollStatus {
   PAID
 }
 
-enum InvoiceStatus {
-  DRAFT
-  ISSUED
-  PAID
-  VOID
+enum AddonKey {
+  GATEWAY
+  PEAK
 }
 
 enum LineType {
   EARNING
   DEDUCTION
   EMPLOYER_COST
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  VOID
 }
 
 enum PayBasis {
@@ -87,6 +98,14 @@ model Agency {
   address     String?
   postcode    String?
   payrollRef  String? // HMRC PAYE reference, e.g. 123/AB456
+  companyNo   String? // Companies House number, printed on invoices
+  vatNumber   String? // VAT registration number, printed on invoices
+  invoiceEmail String? // default from-address for outgoing invoices
+
+  // BACS originator identity, used on the STD18 payment file.
+  bankSortCode   String?
+  bankAccount    String?
+  bankAccountName String?
 
   // Pay cycle (Local Care Force style: weekly, Monday 4pm cutoff, Friday pay).
   payFrequency  String @default("WEEKLY") // WEEKLY | FORTNIGHTLY | FOUR_WEEKLY | MONTHLY
@@ -121,7 +140,10 @@ model Agency {
   onboardingForms OnboardingForm[]
 
   invoices    Invoice[]
-
+  rotaTemplates RotaTemplate[]
+  shiftOffers   ShiftOffer[]
+  importSessions ImportSession[]
+  agencyAddons   AgencyAddon[]
 }
 
 model User {
@@ -180,6 +202,16 @@ model StaffProfile {
   pensionEmployeePct Decimal @db.Decimal(4, 2) @default(5)
   pensionEmployerPct Decimal @db.Decimal(4, 2) @default(3)
 
+  // Bank details (BACS payment files)
+  bankName    String?
+  accountName String?
+  sortCode    String?
+  bankAcct    String?
+
+  // Compliance — disclosure & barring (care homes require it on file)
+  dbsNumber String?
+  dbsExpiry DateTime?
+
   startDate   DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -199,6 +231,8 @@ model StaffProfile {
   rightToWork   RightToWork?
   trainingRecords TrainingRecord[]
   onboardingForms OnboardingForm[]
+  shiftOffers    ShiftOffer[]
+  rotaTemplateLines RotaTemplateLine[]
 
   invoiceLines InvoiceLine[]
 
@@ -214,6 +248,9 @@ model Client {
   address    String?
   postcode   String?
   phone      String?
+  email      String?
+  companyName String?
+  vatNumber  String?
   careLevel  String? // e.g. "Low", "Medium", "High", "Complex"
   notes      String?
   status     ClientStatus @default(ACTIVE)
@@ -228,6 +265,7 @@ model Client {
   confidenceRating ClientConfidenceRating?
 
   invoices Invoice[]
+  rotaTemplateLines RotaTemplateLine[]
 
 
   @@index([agencyId, status])
@@ -241,8 +279,9 @@ model Site {
   postcode  String?
   createdAt DateTime @default(now())
 
-  agency Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  agency Agency          @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   shifts Shift[]
+  rotaTemplateLines RotaTemplateLine[]
 
   @@index([agencyId])
 }
@@ -280,6 +319,7 @@ model Shift {
   createdBy User?       @relation("ShiftCreator", fields: [createdById], references: [id], onDelete: SetNull)
   timesheet Timesheet?
   shiftRequests ShiftRequest[]
+  shiftOffers ShiftOffer[]
 
   comments ShiftComment[]
   complaints ClientComplaint[]
@@ -707,4 +747,101 @@ model InvoiceLine {
   @@index([invoiceId])
   @@index([staffId, date])
 }
+
+model RotaTemplate {
+  id        String   @id @default(cuid())
+  agencyId  String
+  title     String
+  notes     String?
+  createdAt DateTime @default(now())
+
+  agency Agency          @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  lines  RotaTemplateLine[]
+
+  @@index([agencyId])
+}
+
+model RotaTemplateLine {
+  id          String @id @default(cuid())
+  templateId  String
+  weekday     Int // 0 = Sunday … 6 = Saturday (ISO-like for calendar rendering)
+  role        String
+  title       String
+  startMins   Int // minutes since midnight
+  endMins     Int
+  breakMins   Int @default(0)
+  isSleepIn   Boolean @default(false)
+  sleepInRate Decimal @db.Decimal(8, 2) @default(0)
+  chargeRate  Decimal @db.Decimal(8, 2) @default(0)
+  clientId    String?
+  staffId     String?
+  siteId      String?
+
+  template RotaTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  client   Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  staff    StaffProfile? @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  site     Site?         @relation(fields: [siteId], references: [id], onDelete: SetNull)
+
+  @@index([templateId])
+}
+
+model ShiftOffer {
+  id          String           @id @default(cuid())
+  agencyId    String
+  shiftId     String
+  staffId     String
+  status      ShiftOfferStatus @default(OFFERED)
+  offeredAt   DateTime         @default(now())
+  respondedAt DateTime?
+  note        String?
+
+  agency Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  shift  Shift         @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  staff  StaffProfile  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([shiftId, staffId])
+  @@index([staffId, status])
+  @@index([agencyId, status])
+}
+
+// -----------------------------------------------------------------------------
+// CSV IMPORT (migration from spreadsheets and legacy systems)
+// -----------------------------------------------------------------------------
+
+model ImportSession {
+  id          String   @id @default(cuid())
+  agencyId    String
+  kind        String // CLIENTS | WORKERS | SHIFTS
+  headers     String // JSON array of column headers
+  payload     String // raw CSV text as uploaded
+  totalRows   Int      @default(0)
+  createdRows Int      @default(0)
+  skippedRows Int      @default(0)
+  status      String   @default("PENDING") // PENDING | COMPLETED
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId, createdAt])
+}
+
+model AgencyAddon {
+  id          String    @id @default(cuid())
+  agencyId    String
+  key         AddonKey
+  installed   Boolean   @default(false)
+  active      Boolean   @default(true) // purchased/entitled
+  expiresAt   DateTime?
+  installedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@unique([agencyId, key])
+  @@index([agencyId])
+}
+
+
 
