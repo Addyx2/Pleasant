@@ -37,7 +37,26 @@ export async function loginAction(
   });
 
   const store = await cookies();
-  store.set(SESSION_COOKIE, createSessionToken(user.id), {
+  const fullUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    include: { agency: true, staff: true },
+  });
+  if (!fullUser) return { error: "Account not found" };
+  const token = createSessionToken({
+    userId: fullUser.id,
+    agencyId: fullUser.agencyId,
+    role: fullUser.role as "ADMIN" | "STAFF",
+    staffId: fullUser.staff?.id ?? null,
+    firstName: fullUser.firstName,
+    lastName: fullUser.lastName,
+    email: fullUser.email,
+    agencyName: fullUser.agency?.name ?? "",
+    roundingMins: fullUser.agency?.roundingMins ?? null,
+    cutoffWeekday: fullUser.agency?.cutoffWeekday != null ? String(fullUser.agency.cutoffWeekday) : null,
+    cutoffTime: fullUser.agency?.cutoffTime ?? null,
+    payWeekday: fullUser.agency?.payWeekday != null ? String(fullUser.agency.payWeekday) : null,
+  });
+  store.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

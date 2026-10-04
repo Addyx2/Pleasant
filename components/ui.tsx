@@ -211,6 +211,31 @@ export function SkeletonTable({ rows = 5 }: { rows?: number }) {
   );
 }
 
+export function PageSkeleton({
+  cards = 3,
+  rows = 6,
+}: {
+  cards?: number;
+  rows?: number;
+}) {
+  return (
+    <div className="space-y-6" aria-busy="true" aria-live="polite">
+      <div className="space-y-2">
+        <Skeleton className="h-7 w-56" />
+        <Skeleton className="h-4 w-80 max-w-full" />
+      </div>
+      {cards > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: cards }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      ) : null}
+      <SkeletonTable rows={rows} />
+    </div>
+  );
+}
+
 export function Th({ children, className }: { children?: React.ReactNode; className?: string }) {
   return (
     <th
