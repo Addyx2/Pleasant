@@ -84,40 +84,7 @@ export async function createAgencyAction(
   });
 
   const store = await cookies();
-  const fullUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    include: { agency: true, staff: true },
-  });
-  const token = fullUser
-    ? createSessionToken({
-        userId: fullUser.id,
-        agencyId: fullUser.agencyId,
-        role: fullUser.role as "ADMIN" | "STAFF",
-        staffId: fullUser.staff?.id ?? null,
-        firstName: fullUser.firstName,
-        lastName: fullUser.lastName,
-        email: fullUser.email,
-        agencyName: fullUser.agency?.name ?? "",
-        roundingMins: fullUser.agency?.roundingMins ?? null,
-        cutoffWeekday: fullUser.agency?.cutoffWeekday != null ? String(fullUser.agency.cutoffWeekday) : null,
-        cutoffTime: fullUser.agency?.cutoffTime ?? null,
-        payWeekday: fullUser.agency?.payWeekday != null ? String(fullUser.agency.payWeekday) : null,
-      })
-    : createSessionToken({
-        userId: user.id,
-        agencyId: user.agencyId,
-        role: user.role as "ADMIN" | "STAFF",
-        staffId: null,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        agencyName: "",
-        roundingMins: null,
-        cutoffWeekday: null,
-        cutoffTime: null,
-        payWeekday: null,
-      });
-  store.set(SESSION_COOKIE, token, {
+  store.set(SESSION_COOKIE, createSessionToken(user.id), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
