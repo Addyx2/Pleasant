@@ -62,10 +62,24 @@ test("validateRecord rejects an unreadable shift date", () => {
   );
 });
 
-test("validateRecord rejects an end time before the start", () => {
+test("validateRecord accepts an overnight shift measured across midnight", () => {
   assert.equal(
     validateRecord("shifts", record(["Date", "Start", "End"], ["09/03/2026", "22:00", "07:00"])),
-    "End time must be after the start time (overnight shifts aren't supported by import)",
+    null,
+  );
+});
+
+test("validateRecord rejects identical start and end times", () => {
+  assert.match(
+    validateRecord("shifts", record(["Date", "Start", "End"], ["09/03/2026", "22:00", "22:00"])) ?? "",
+    /cannot be identical/,
+  );
+});
+
+test("validateRecord rejects an overnight shift longer than 16 hours", () => {
+  assert.match(
+    validateRecord("shifts", record(["Date", "Start", "End"], ["09/03/2026", "14:00", "07:00"])) ?? "",
+    /longer than 16 hours/,
   );
 });
 

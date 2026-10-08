@@ -48,6 +48,13 @@ export default async function ImportPage({
           </p>
         </Card>
       ) : null}
+      {result === "failed" ? (
+        <Card className="border-red-200 bg-red-50 p-5">
+          <p className="text-sm font-semibold text-red-900">
+            The import failed and was rolled back — nothing was saved. Fix the file and upload it again.
+          </p>
+        </Card>
+      ) : null}
 
       <Card className="p-5">
         <div className="mb-5 flex items-center gap-2.5">

@@ -71,8 +71,16 @@ test("lineEndFor rolls overnight shifts to the next day", () => {
 
 test("isValidLine requires a role, title and a positive duration", () => {
   assert.ok(isValidLine({ startMins: 420, endMins: 900, role: "Care Assistant", title: "Day shift" }));
-  assert.ok(!isValidLine({ startMins: 900, endMins: 420, role: "Care Assistant", title: "Day shift" }));
   assert.ok(!isValidLine({ startMins: 420, endMins: 420, role: "Care Assistant", title: "Day shift" }));
+});
+
+test("isValidLine accepts overnight shifts measured across midnight", () => {
+  assert.ok(isValidLine({ startMins: 22 * 60, endMins: 7 * 60, role: "Night", title: "Night shift" }));
+  assert.ok(isValidLine({ startMins: 900, endMins: 420, role: "Night", title: "Night shift" }));
+});
+
+test("isValidLine rejects an overnight shift longer than 16 hours", () => {
+  assert.ok(!isValidLine({ startMins: 8 * 60, endMins: 7 * 60, role: "Night", title: "Night shift" }));
 });
 
 test("isValidLine rejects blank role or title", () => {

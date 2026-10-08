@@ -147,8 +147,12 @@ export function validateRecord(kind: ImportKind, record: Record<string, string>)
   const endMins = parseTimeToMinutes(endRaw);
   if (startMins === null) return `Start time "${startRaw}" is not readable (use HH:MM)`;
   if (endMins === null) return `End time "${endRaw}" is not readable (use HH:MM)`;
-  if (endMins <= startMins) return "End time must be after the start time (overnight shifts aren't supported by import)";
-  if (endMins - startMins > 16 * 60) return "Shift is longer than 16 hours — check the times";
+  if (startMins === endMins) return "Start and end times cannot be identical";
+  // An end time before the start time means the shift runs into the next day
+  // (shiftEnd rolls it forward), so measure it across midnight.
+  const duration =
+    endMins > startMins ? endMins - startMins : endMins + 24 * 60 - startMins;
+  if (duration > 16 * 60) return "Shift is longer than 16 hours — check the times";
 
   return null;
 }
@@ -213,5 +217,7 @@ export function toShiftDraft(record: Record<string, string>): ShiftDraft | null 
 export function shiftEnd(draft: ShiftDraft): Date {
   const end = new Date(draft.date);
   end.setHours(Math.floor(draft.endMins / 60), draft.endMins % 60, 0, 0);
+  // Overnight shift: end clock time is not after the start, so roll to tomorrow.
+  if (end <= draft.date) end.setDate(end.getDate() + 1);
   return end;
 }

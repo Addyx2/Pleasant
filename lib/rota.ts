@@ -56,7 +56,12 @@ export function buildWeek(start: Date): WeekDate {
 
 export function isValidLine(line: Pick<RotaLineInput, "startMins" | "endMins" | "role" | "title">): boolean {
   if (!line.role?.trim() || !line.title?.trim()) return false;
-  const duration = line.endMins - line.startMins;
+  // An end clock earlier than the start means the shift runs into the next
+  // day (lineEndFor rolls it forward), so measure it across midnight.
+  const duration =
+    line.endMins > line.startMins
+      ? line.endMins - line.startMins
+      : line.endMins + 24 * 60 - line.startMins;
   if (duration <= 0) return false;
   if (duration > 16 * 60) return false;
   return true;

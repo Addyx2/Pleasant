@@ -94,146 +94,157 @@ export async function commitImportAction(formData: FormData): Promise<void> {
 
   let created = 0;
   let skipped = 0;
-  const problems: string[] = [];
 
-  for (const row of parsed.rows) {
-    const headers = parsed.headers;
-    const record: Record<string, string> = {};
-    headers.forEach((header, index) => {
-      record[header.toLowerCase().replace(/[^a-z0-9]/g, "")] = (row[index] ?? "").trim();
-    });
-
-    const problem = validateRecord(kind, record);
-    if (problem) {
-      skipped += 1;
-      if (problems.length < 5) problems.push(problem);
-      continue;
-    }
-
-    try {
-      if (kind === "clients") {
-        const draft = toClientDraft(record);
-        const existing = await prisma.client.findFirst({
-          where: { agencyId: user.agencyId, firstName: draft.firstName, lastName: draft.lastName },
-          select: { id: true },
-        });
-        if (existing) {
-          skipped += 1;
-          continue;
-        }
-        await prisma.client.create({
-          data: {
-            agencyId: user.agencyId,
-            firstName: draft.firstName,
-            lastName: draft.lastName,
-            email: draft.email,
-            phone: draft.phone,
-            address: draft.address,
-            postcode: draft.postcode,
-            careLevel: draft.careLevel,
-            companyName: draft.companyName,
-            vatNumber: draft.vatNumber,
-            status: "ACTIVE",
-          },
-        });
-        created += 1;
-      } else if (kind === "workers") {
-        const draft = toWorkerDraft(record);
-        const existing = await prisma.staffProfile.findFirst({
-          where: { agencyId: user.agencyId, firstName: draft.firstName, lastName: draft.lastName },
-          select: { id: true },
-        });
-        if (existing) {
-          skipped += 1;
-          continue;
-        }
-        await prisma.staffProfile.create({
-          data: {
-            agencyId: user.agencyId,
-            firstName: draft.firstName,
-            lastName: draft.lastName,
-            email: draft.email,
-            phone: draft.phone,
-            jobTitle: draft.jobTitle,
-            niNumber: draft.niNumber,
-            baseRate: draft.baseRate,
-            engagementType: draft.engagementType,
-            bankName: draft.bankName,
-            accountName: draft.accountName,
-            sortCode: draft.sortCode ? normalizeSortCode(draft.sortCode) || null : null,
-            bankAcct: draft.bankAcct ? normalizeAccount(draft.bankAcct) || null : null,
-            dbsNumber: draft.dbsNumber,
-            dbsExpiry: draft.dbsExpiry,
-            status: "ACTIVE",
-          },
-        });
-        created += 1;
-      } else {
-        const draft = toShiftDraft(record);
-        if (!draft) {
-          skipped += 1;
-          continue;
-        }
-
-        const client = draft.clientName
-          ? await findByName(prisma.client, user.agencyId, draft.clientName)
-          : null;
-        const staffMember = draft.staffName
-          ? await findByName(prisma.staffProfile, user.agencyId, draft.staffName)
-          : null;
-        const site = draft.siteName
-          ? await prisma.site.findFirst({
-              where: { agencyId: user.agencyId, name: draft.siteName },
-              select: { id: true },
-            })
-          : null;
-
-        const startAt = draft.date;
-        const endAt = shiftEnd(draft);
-
-        // Don't double-book a carer who is already on shift at that time.
-        if (staffMember) {
-          const clash = await prisma.shift.findFirst({
-            where: {
-              agencyId: user.agencyId,
-              staffId: staffMember.id,
-              status: { notIn: ["CANCELLED"] },
-              startAt: { lt: endAt },
-              endAt: { gt: startAt },
-            },
-            select: { id: true },
+  let failed = false;
+  try {
+    // Every row and the session update commit together: a failure part way
+    // through rolls the whole import back rather than leaving it half applied.
+    await prisma.$transaction(
+      async (tx) => {
+        for (const row of parsed.rows) {
+          const headers = parsed.headers;
+          const record: Record<string, string> = {};
+          headers.forEach((header, index) => {
+            record[header.toLowerCase().replace(/[^a-z0-9]/g, "")] = (row[index] ?? "").trim();
           });
-          if (clash) {
+
+          if (validateRecord(kind, record)) {
             skipped += 1;
             continue;
           }
+
+          if (kind === "clients") {
+            const draft = toClientDraft(record);
+            const existing = await tx.client.findFirst({
+              where: { agencyId: user.agencyId, firstName: draft.firstName, lastName: draft.lastName },
+              select: { id: true },
+            });
+            if (existing) {
+              skipped += 1;
+              continue;
+            }
+            await tx.client.create({
+              data: {
+                agencyId: user.agencyId,
+                firstName: draft.firstName,
+                lastName: draft.lastName,
+                email: draft.email,
+                phone: draft.phone,
+                address: draft.address,
+                postcode: draft.postcode,
+                careLevel: draft.careLevel,
+                companyName: draft.companyName,
+                vatNumber: draft.vatNumber,
+                status: "ACTIVE",
+              },
+            });
+            created += 1;
+          } else if (kind === "workers") {
+            const draft = toWorkerDraft(record);
+            const existing = await tx.staffProfile.findFirst({
+              where: { agencyId: user.agencyId, firstName: draft.firstName, lastName: draft.lastName },
+              select: { id: true },
+            });
+            if (existing) {
+              skipped += 1;
+              continue;
+            }
+            await tx.staffProfile.create({
+              data: {
+                agencyId: user.agencyId,
+                firstName: draft.firstName,
+                lastName: draft.lastName,
+                email: draft.email,
+                phone: draft.phone,
+                jobTitle: draft.jobTitle,
+                niNumber: draft.niNumber,
+                baseRate: draft.baseRate,
+                engagementType: draft.engagementType,
+                bankName: draft.bankName,
+                accountName: draft.accountName,
+                sortCode: draft.sortCode ? normalizeSortCode(draft.sortCode) || null : null,
+                bankAcct: draft.bankAcct ? normalizeAccount(draft.bankAcct) || null : null,
+                dbsNumber: draft.dbsNumber,
+                dbsExpiry: draft.dbsExpiry,
+                status: "ACTIVE",
+              },
+            });
+            created += 1;
+          } else {
+            const draft = toShiftDraft(record);
+            if (!draft) {
+              skipped += 1;
+              continue;
+            }
+
+            const client = draft.clientName
+              ? await findByName(tx.client, user.agencyId, draft.clientName)
+              : null;
+            const staffMember = draft.staffName
+              ? await findByName(tx.staffProfile, user.agencyId, draft.staffName)
+              : null;
+            const site = draft.siteName
+              ? await tx.site.findFirst({
+                  where: { agencyId: user.agencyId, name: draft.siteName },
+                  select: { id: true },
+                })
+              : null;
+
+            const startAt = draft.date;
+            const endAt = shiftEnd(draft);
+
+            // Don't double-book a carer who is already on shift at that time.
+            if (staffMember) {
+              const clash = await tx.shift.findFirst({
+                where: {
+                  agencyId: user.agencyId,
+                  staffId: staffMember.id,
+                  status: { notIn: ["CANCELLED"] },
+                  startAt: { lt: endAt },
+                  endAt: { gt: startAt },
+                },
+                select: { id: true },
+              });
+              if (clash) {
+                skipped += 1;
+                continue;
+              }
+            }
+
+            await tx.shift.create({
+              data: {
+                agencyId: user.agencyId,
+                clientId: client?.id ?? null,
+                siteId: site?.id ?? null,
+                staffId: staffMember?.id ?? null,
+                title: draft.title,
+                role: draft.role,
+                startAt,
+                endAt,
+                status: staffMember ? "ASSIGNED" : "OPEN",
+              },
+            });
+            created += 1;
+          }
         }
 
-        await prisma.shift.create({
-          data: {
-            agencyId: user.agencyId,
-            clientId: client?.id ?? null,
-            siteId: site?.id ?? null,
-            staffId: staffMember?.id ?? null,
-            title: draft.title,
-            role: draft.role,
-            startAt,
-            endAt,
-            status: staffMember ? "ASSIGNED" : "OPEN",
-          },
+        await tx.importSession.update({
+          where: { id: session.id },
+          data: { status: "COMPLETED", createdRows: created, skippedRows: skipped, completedAt: new Date() },
         });
-        created += 1;
-      }
-    } catch {
-      skipped += 1;
-      if (problems.length < 5) problems.push("row could not be saved");
-    }
+      },
+      { timeout: 120_000 },
+    );
+  } catch {
+    // The transaction rolled back, so nothing from this import was saved.
+    // redirect() throws, so it must be called outside this try/catch.
+    failed = true;
   }
 
-  await prisma.importSession.update({
-    where: { id: session.id },
-    data: { status: "COMPLETED", createdRows: created, skippedRows: skipped, completedAt: new Date() },
-  });
+  if (failed) {
+    revalidatePath("/import");
+    redirect(`/import?session=${session.id}&result=failed`);
+  }
 
   revalidatePath("/import");
   revalidatePath("/clients");
