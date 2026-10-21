@@ -35,10 +35,10 @@ const CATEGORIES = [
   {
     title: "SHIFTS & DISPATCH",
     items: [
-      { href: "/shifts", label: "All Shifts", icon: CalendarClock },
-      { href: "/rota", label: "Recurring Rota", icon: Repeat },
+      { href: "/shifts", label: "Shifts", icon: CalendarClock },
+      { href: "/shifts/calendar", label: "Calendar", icon: CalendarClock },
+      { href: "/rota", label: "Recurring", icon: Repeat },
       { href: "/dispatch", label: "Dispatch", icon: Send },
-      { href: "/shifts/unattended", label: "Unattended", icon: AlertTriangle },
     ],
   },
   {

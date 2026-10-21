@@ -13,7 +13,7 @@ import {
   generateRotaWeekAction,
 } from "./actions";
 
-export const metadata = { title: "Recurring rota | Pleasant" };
+export const metadata = { title: "Recurring | Pleasant" };
 export const dynamic = "force-dynamic";
 
 const WEEKDAYS = [
@@ -69,7 +69,7 @@ export default async function RotaPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Recurring rota"
+        title="Recurring"
         description="Describe your usual week once, then generate it whenever you need it. Lines below the cutoff are skipped so every shift still gets paid."
       />
 
