@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Card, PageHeader } from "@/components/ui";
 import { InviteForm } from "./InviteForm";
@@ -13,7 +13,7 @@ export default async function InviteStaffPage({
 }: {
   params: Promise<{ staffId: string }>;
 }) {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const { staffId } = await params;
 
   const staff = await prisma.staffProfile.findFirst({

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { LogOut, Menu, X } from "lucide-react";
+import { LogOut, Menu, Search, X } from "lucide-react";
 
 import { AppNav } from "./AppNav";
+import { openCommandPalette } from "./CommandPalette";
 import { logoutAction } from "@/app/login/actions";
+import { ROLE_LABELS, type AppRole } from "@/lib/permissions";
 import { initials } from "@/lib/utils";
 
 interface MobileHeaderProps {
@@ -29,21 +31,29 @@ export function MobileHeader({ user }: MobileHeaderProps) {
             P
           </span>
           <div className="leading-tight">
-            <p className="font-display text-sm font-bold tracking-tight text-slate-900">
-              Pleasant
-            </p>
+            <p className="font-display text-sm font-bold tracking-tight text-slate-900">Pleasant</p>
             <p className="truncate text-xs text-slate-500 max-w-[160px]">{user.agency.name}</p>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setIsOpen(true)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95"
-          aria-label="Open navigation menu"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={openCommandPalette}
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95"
+            aria-label="Search"
+          >
+            <Search className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 active:scale-95"
+            aria-label="Open navigation menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        </div>
       </header>
 
       {/* Mobile Drawer Overlay & Sliding Panel */}
@@ -64,12 +74,15 @@ export function MobileHeader({ user }: MobileHeaderProps) {
                 </span>
                 <div>
                   <p className="font-display text-sm font-bold text-slate-900">Pleasant</p>
-                  <p className="truncate text-xs text-slate-500 max-w-[140px]">{user.agency.name}</p>
+                  <p className="truncate text-xs text-slate-500 max-w-[140px]">
+                    {user.agency.name}
+                  </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
+                aria-label="Close navigation menu"
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800"
               >
                 <X className="h-5 w-5" />
@@ -77,7 +90,7 @@ export function MobileHeader({ user }: MobileHeaderProps) {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4" onClick={() => setIsOpen(false)}>
-              <AppNav />
+              <AppNav role={user.role} />
             </div>
 
             <div className="border-t border-slate-200 p-4 space-y-3">
@@ -89,7 +102,9 @@ export function MobileHeader({ user }: MobileHeaderProps) {
                   <p className="truncate text-sm font-medium text-slate-900">
                     {user.firstName} {user.lastName}
                   </p>
-                  <p className="truncate text-xs text-slate-500">{user.role.toLowerCase()}</p>
+                  <p className="truncate text-xs text-slate-500">
+                    {ROLE_LABELS[user.role as AppRole] ?? user.role}
+                  </p>
                 </div>
               </div>
 

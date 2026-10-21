@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Plus } from "lucide-react";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { isValidBankDetails } from "@/lib/payroll/bacs";
 import { expiryLabel, expiryState } from "@/lib/compliance";
@@ -16,7 +16,7 @@ import {
   saveRightToWorkAction,
 } from "@/app/(app)/compliance/actions";
 
-export const metadata = { title: "Carer | Pleasant" };
+export const metadata = { title: "Carer" };
 export const dynamic = "force-dynamic";
 
 function isoDate(value: Date | null | undefined): string {
@@ -26,7 +26,7 @@ function isoDate(value: Date | null | undefined): string {
 
 export default async function StaffDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const user = await requireAdmin();
+  const user = await requireOps();
   const now = new Date();
 
   const member = await prisma.staffProfile.findFirst({

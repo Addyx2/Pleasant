@@ -144,6 +144,7 @@ model Agency {
   shiftOffers   ShiftOffer[]
   importSessions ImportSession[]
   agencyAddons   AgencyAddon[]
+  auditEvents    AuditEvent[]
 }
 
 model User {
@@ -155,6 +156,14 @@ model User {
   lastName     String
   role         Role     @default(MANAGER)
   lastLoginAt  DateTime?
+  // Bumped to revoke every outstanding session (password change, role change,
+  // removal, "sign out everywhere"). Embedded in the signed session token.
+  sessionVersion Int     @default(0)
+  // Brute-force throttling: consecutive failed sign-ins and the lockout window.
+  failedLoginCount Int   @default(0)
+  lockedUntil  DateTime?
+  // Null while active; set when an admin removes the user's access.
+  deactivatedAt DateTime?
   resetTokenHash String?
   resetTokenExpAt DateTime?
   createdAt    DateTime @default(now())
@@ -167,6 +176,7 @@ model User {
   shiftComments ShiftComment[]
   verifiedRightToWork RightToWork[] @relation("RightToWorkVerifier")
   reviewedForms OnboardingForm[] @relation("FormReviewer")
+  auditEvents AuditEvent[]
 }
 
 model StaffProfile {
@@ -845,3 +855,26 @@ model AgencyAddon {
 
 
 
+
+// Append-only trail of security-relevant and money-moving actions. Never
+// updated or deleted by the app; actor details are denormalised so the trail
+// survives the actor's removal.
+model AuditEvent {
+  id         String   @id @default(cuid())
+  agencyId   String
+  actorId    String?
+  actorEmail String?
+  action     String // dotted verb, e.g. "payroll.finalise", "team.role_change"
+  targetType String?
+  targetId   String?
+  summary    String
+  metadata   Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  actor  User?  @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([agencyId, createdAt])
+  @@index([agencyId, action])
+}

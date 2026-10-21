@@ -18,7 +18,7 @@ export const viewport: Viewport = {
 
 export default async function WorkforceLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
-  if (user.role !== "STAFF") redirect("/dashboard");
+  if (user.role !== "STAFF") redirect("/oversight");
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col">

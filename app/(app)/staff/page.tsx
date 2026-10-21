@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatCurrency, initials } from "@/lib/utils";
 import { Card, EmptyState, PageHeader, Td, Th, buttonClass, subtleButtonClass } from "@/components/ui";
@@ -12,7 +12,7 @@ export const metadata = { title: "Staff" };
 export const dynamic = "force-dynamic";
 
 export default async function StaffPage() {
-  const user = await requireAdmin();
+  const user = await requireOps();
 
   const staff = await prisma.staffProfile.findMany({
     where: { agencyId: user.agencyId },

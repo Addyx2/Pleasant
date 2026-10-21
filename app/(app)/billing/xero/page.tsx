@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import { Card, PageHeader } from "@/components/ui";
 
-export const metadata = { title: "Export to Xero | Pleasant" };
+export const metadata = { title: "Export to Xero" };
 export const dynamic = "force-dynamic";
 
 export default async function XeroExportPage() {

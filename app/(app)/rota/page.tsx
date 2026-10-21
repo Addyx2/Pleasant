@@ -1,6 +1,6 @@
 import { CalendarPlus, Plus, Repeat, Trash2 } from "lucide-react";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatHhMm } from "@/lib/rota";
 import { formatCurrency } from "@/lib/utils";
@@ -13,7 +13,7 @@ import {
   generateRotaWeekAction,
 } from "./actions";
 
-export const metadata = { title: "Recurring rota | Pleasant" };
+export const metadata = { title: "Recurring rota" };
 export const dynamic = "force-dynamic";
 
 const WEEKDAYS = [
@@ -34,7 +34,7 @@ function todayIso(): string {
 }
 
 export default async function RotaPage() {
-  const user = await requireAdmin();
+  const user = await requireOps();
 
   const [templates, clients, staff, sites] = await Promise.all([
     prisma.rotaTemplate.findMany({

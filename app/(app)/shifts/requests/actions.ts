@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 function refresh() {
@@ -15,7 +15,7 @@ function refresh() {
 }
 
 export async function approveShiftRequestAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const requestId = String(formData.get("requestId") ?? "");
 
   const req = await prisma.shiftRequest.findFirst({
@@ -53,7 +53,7 @@ export async function approveShiftRequestAction(formData: FormData): Promise<voi
 }
 
 export async function rejectShiftRequestAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const requestId = String(formData.get("requestId") ?? "");
 
   await prisma.shiftRequest.updateMany({

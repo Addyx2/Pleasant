@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { generatePleasantLink } from "@/lib/clientpoint/pleasant-link";
 import { createClientSchema, createSiteSchema } from "@/lib/validation";
@@ -12,7 +12,7 @@ export async function createClientAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const user = await requireAdmin();
+  const user = await requireOps();
 
   const parsed = createClientSchema.safeParse({
     firstName: formData.get("firstName"),
@@ -58,7 +58,7 @@ export async function createSiteAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const user = await requireAdmin();
+  const user = await requireOps();
 
   const parsed = createSiteSchema.safeParse({
     name: formData.get("name"),
@@ -85,7 +85,7 @@ export async function createSiteAction(
 }
 
 export async function createPleasantLinkAction(clientId: string): Promise<ActionState & { link?: string }> {
-  const user = await requireAdmin();
+  const user = await requireOps();
 
   const client = await prisma.client.findFirst({
     where: { id: clientId, agencyId: user.agencyId },

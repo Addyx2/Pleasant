@@ -64,6 +64,17 @@ if (existing) {
     },
   });
 
+  await prisma.user.create({
+    data: {
+      agencyId: agency.id,
+      email: "manager@pleasant.demo",
+      passwordHash,
+      firstName: "Daniel",
+      lastName: "Reyes",
+      role: "MANAGER",
+    },
+  });
+
   interface StaffSeed {
     firstName: string;
     lastName: string;
@@ -473,7 +484,8 @@ if (existing) {
   }
 
   console.log(`Seeded Brightwater Care (payroll ${payrollRun.reference}).`);
-  console.log("Manager: admin@pleasant.demo / pleasant123");
+  console.log("Admin: admin@pleasant.demo / pleasant123");
+  console.log("Manager (operations only): manager@pleasant.demo / pleasant123");
   console.log("Carer: tunde.adeyemi@brightwatercare.co.uk / pleasant123");
 }
 

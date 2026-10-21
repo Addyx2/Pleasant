@@ -1,14 +1,14 @@
 import { AlertTriangle, Bot, CalendarClock, Clock } from "lucide-react";
 import { format } from "date-fns";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatDate, formatTime } from "@/lib/utils";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { triageShiftAction } from "../actions";
 
 export const metadata = {
-  title: "Unattended Shifts | Pleasant",
+  title: "Unattended Shifts",
 };
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ async function activeCampaignCount(agencyId: string) {
 }
 
 export default async function UnattendedShiftsPage() {
-  const user = await requireAdmin();
+  const user = await requireOps();
 
   const [unattended, runningCampaigns] = await Promise.all([
     prisma.shift.findMany({

@@ -3,13 +3,13 @@ import { Building2, Landmark, Receipt } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { isValidBankDetails } from "@/lib/payroll/bacs";
-import { Card, PageHeader, buttonClass, inputClass, labelClass } from "@/components/ui";
+import { Card, buttonClass, inputClass, labelClass } from "@/components/ui";
 import {
   saveAgencyBankDetailsAction,
   saveAgencyInvoiceDetailsAction,
 } from "@/app/(app)/settings/actions";
 
-export const metadata = { title: "Settings | Pleasant" };
+export const metadata = { title: "Settings" };
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
@@ -23,11 +23,6 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Agency settings"
-        description={`${agency.name} · details used on invoices and bank payment files.`}
-      />
-
       <Card className="p-5">
         <div className="flex items-center gap-2.5">
           <Building2 className="h-4 w-4 text-brand-600" />

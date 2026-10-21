@@ -1,156 +1,183 @@
-import React from "react";
-import { UserPlus, ShieldCheck, GraduationCap, FileSignature, CheckCircle2, Clock, AlertTriangle, FileText } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, CheckCircle2, CircleDashed, Clock, UserCheck, UserPlus, Users } from "lucide-react";
 
-export const metadata = {
-  title: "Recruitment & Onboarding | Workforce",
+import { requireOps } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import {
+  isBookable,
+  onboardingProgress,
+  onboardingSteps,
+  type OnboardingStep,
+  type StepState,
+} from "@/lib/onboarding";
+import { cn } from "@/lib/utils";
+import { Card, EmptyState, PageHeader, StatCard, Td, Th, buttonClass } from "@/components/ui";
+
+export const metadata = { title: "Onboarding" };
+export const dynamic = "force-dynamic";
+
+const STEP_STYLE: Record<StepState, { icon: typeof CheckCircle2; className: string }> = {
+  DONE: { icon: CheckCircle2, className: "text-emerald-600" },
+  IN_REVIEW: { icon: Clock, className: "text-sky-600" },
+  TODO: { icon: CircleDashed, className: "text-slate-400" },
+  BLOCKED: { icon: AlertTriangle, className: "text-red-600" },
 };
 
-export default function RecruitmentPage() {
-  const candidates = [
-    {
-      id: "CAN-092",
-      name: "Olivia Chen",
-      role: "Registered Nurse (RN)",
-      stage: "Right to Work",
-      status: "Action Required",
-      rtw: "Pending BRP Verification",
-      training: "Not Started",
-      forms: "Not Started",
+function StepCell({ step }: { step: OnboardingStep }) {
+  const { icon: Icon, className } = STEP_STYLE[step.state];
+  return (
+    <div className={cn("flex items-center gap-1.5 text-xs font-medium", className)} title={step.detail}>
+      <Icon className="h-3.5 w-3.5 shrink-0" />
+      <span className="truncate">{step.detail}</span>
+    </div>
+  );
+}
+
+export default async function OnboardingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
+  const user = await requireOps();
+  const { view } = await searchParams;
+  const showAll = view === "all";
+
+  const staff = await prisma.staffProfile.findMany({
+    where: { agencyId: user.agencyId, status: { not: "INACTIVE" } },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      jobTitle: true,
+      createdAt: true,
+      niNumber: true,
+      sortCode: true,
+      bankAcct: true,
+      dbsNumber: true,
+      dbsExpiry: true,
+      userId: true,
+      rightToWork: { select: { status: true, expiryDate: true } },
+      trainingRecords: { select: { status: true, expiryDate: true } },
+      onboardingForms: { select: { status: true } },
     },
-    {
-      id: "CAN-093",
-      name: "Marcus Johnson",
-      role: "Care Assistant",
-      stage: "Training",
-      status: "In Progress",
-      rtw: "Verified",
-      training: "Manual Handling (Pending)",
-      forms: "Submitted",
-    },
-    {
-      id: "CAN-094",
-      name: "Emma Davis",
-      role: "Support Worker",
-      stage: "Forms",
-      status: "Under Review",
-      rtw: "Verified",
-      training: "Completed",
-      forms: "Medical & Bank Details (Pending Review)",
-    },
-  ];
+    orderBy: { createdAt: "desc" },
+  });
+
+  const rows = staff.map((member) => {
+    const steps = onboardingSteps(member);
+    return { member, steps, progress: onboardingProgress(steps), bookable: isBookable(steps) };
+  });
+  const inPipeline = rows.filter((r) => !r.bookable);
+  const blocked = rows.filter((r) => r.steps.some((s) => s.state === "BLOCKED"));
+  const inReview = rows.filter((r) => r.steps.some((s) => s.state === "IN_REVIEW"));
+  const visible = (showAll ? rows : inPipeline).sort(
+    (a, b) =>
+      Number(b.steps.some((s) => s.state === "BLOCKED")) - Number(a.steps.some((s) => s.state === "BLOCKED")) ||
+      a.progress - b.progress,
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <UserPlus className="h-6 w-6 text-brand-600" />
-            Recruitment & Onboarding
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Manage candidate pipelines through Right To Work, Training, and Compliance Forms.
-          </p>
-        </div>
-        <div className="flex gap-3">
-          <button className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-700">
-            Invite Candidate
-          </button>
-        </div>
+      <PageHeader
+        title="Onboarding"
+        description="Every active worker's path to bookable: right to work, DBS, training, forms and payroll details."
+        action={
+          <Link href="/staff/new" className={buttonClass}>
+            <UserPlus className="h-4 w-4" />
+            Add a worker
+          </Link>
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Active workers" value={String(rows.length)} icon={Users} tone="slate" />
+        <StatCard
+          label="Ready to book"
+          value={String(rows.length - inPipeline.length)}
+          hint="All compliance and payroll steps done"
+          icon={UserCheck}
+          tone="green"
+        />
+        <StatCard label="Awaiting review" value={String(inReview.length)} hint="Checks or forms to verify" icon={Clock} tone="blue" />
+        <StatCard label="Blocked" value={String(blocked.length)} hint="Expired or rejected items" icon={AlertTriangle} tone="red" />
       </div>
 
-      {/* Funnel KPI Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-slate-500">Active Candidates</p>
-            <UserPlus className="h-5 w-5 text-slate-400" />
+      <Card className="overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-4">
+          <h2 className="text-sm font-semibold text-slate-900">
+            {showAll ? "All active workers" : "In the pipeline"}
+          </h2>
+          <div className="flex gap-1.5 text-xs">
+            <Link
+              href="/workforce/recruitment"
+              className={cn("rounded-full px-3 py-1 font-medium", !showAll ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}
+            >
+              In pipeline ({inPipeline.length})
+            </Link>
+            <Link
+              href="/workforce/recruitment?view=all"
+              className={cn("rounded-full px-3 py-1 font-medium", showAll ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}
+            >
+              Everyone ({rows.length})
+            </Link>
           </div>
-          <p className="mt-2 text-3xl font-bold text-slate-900">14</p>
         </div>
-        <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-blue-800">Right to Work Checks</p>
-            <ShieldCheck className="h-5 w-5 text-blue-600" />
-          </div>
-          <p className="mt-2 text-3xl font-bold text-blue-900">5 Pending</p>
-        </div>
-        <div className="rounded-xl border border-purple-200 bg-purple-50 p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-purple-800">Training Validation</p>
-            <GraduationCap className="h-5 w-5 text-purple-600" />
-          </div>
-          <p className="mt-2 text-3xl font-bold text-purple-900">3 In Progress</p>
-        </div>
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-amber-800">Forms & Compliance</p>
-            <FileSignature className="h-5 w-5 text-amber-600" />
-          </div>
-          <p className="mt-2 text-3xl font-bold text-amber-900">6 Under Review</p>
-        </div>
-      </div>
 
-      {/* Candidate Pipeline Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-          <h3 className="font-bold text-slate-900">Onboarding Pipeline</h3>
-          <span className="text-xs font-semibold text-slate-500 bg-slate-200 px-2 py-1 rounded-full">Showing 3 Actionable</span>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-white">
-              <tr>
-                <th className="px-6 py-3 text-left font-semibold text-slate-900">Candidate</th>
-                <th className="px-6 py-3 text-left font-semibold text-slate-900">Phase 1: Right To Work</th>
-                <th className="px-6 py-3 text-left font-semibold text-slate-900">Phase 2: Training</th>
-                <th className="px-6 py-3 text-left font-semibold text-slate-900">Phase 3: Forms</th>
-                <th className="px-6 py-3 text-right font-semibold text-slate-900">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
-              {candidates.map((cand) => (
-                <tr key={cand.id} className="hover:bg-slate-50 transition">
-                  <td className="whitespace-nowrap px-6 py-4">
-                    <div className="font-bold text-slate-900">{cand.name}</div>
-                    <div className="text-slate-500">{cand.role}</div>
-                  </td>
-                  
-                  {/* Right To Work Column */}
-                  <td className="whitespace-nowrap px-6 py-4">
-                    <div className={`flex items-center gap-1.5 font-medium ${cand.rtw === 'Verified' ? 'text-emerald-600' : 'text-amber-600'}`}>
-                      {cand.rtw === 'Verified' ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-                      {cand.rtw}
-                    </div>
-                  </td>
-                  
-                  {/* Training Column */}
-                  <td className="whitespace-nowrap px-6 py-4">
-                    <div className={`flex items-center gap-1.5 font-medium ${cand.training === 'Completed' ? 'text-emerald-600' : cand.training === 'Not Started' ? 'text-slate-400' : 'text-blue-600'}`}>
-                      {cand.training === 'Completed' ? <CheckCircle2 className="h-4 w-4" /> : cand.training === 'Not Started' ? <Clock className="h-4 w-4" /> : <GraduationCap className="h-4 w-4" />}
-                      {cand.training}
-                    </div>
-                  </td>
-
-                  {/* Forms Column */}
-                  <td className="whitespace-nowrap px-6 py-4">
-                    <div className={`flex items-center gap-1.5 font-medium ${cand.forms.includes('Review') ? 'text-amber-600' : cand.forms === 'Not Started' ? 'text-slate-400' : 'text-blue-600'}`}>
-                      {cand.forms.includes('Review') ? <FileText className="h-4 w-4" /> : cand.forms === 'Not Started' ? <Clock className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
-                      {cand.forms}
-                    </div>
-                  </td>
-
-                  <td className="whitespace-nowrap px-6 py-4 text-right">
-                    <button className="text-brand-600 hover:text-brand-800 font-semibold bg-brand-50 px-3 py-1.5 rounded transition">
-                      Review & Approve
-                    </button>
-                  </td>
+        {visible.length === 0 ? (
+          <div className="p-5">
+            <EmptyState
+              title={rows.length === 0 ? "No workers yet" : "Everyone is ready to book"}
+              description={
+                rows.length === 0
+                  ? "Add your first worker or import a staff list to start onboarding."
+                  : "No outstanding right-to-work, DBS, training, form or payroll steps."
+              }
+            />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-100">
+              <thead>
+                <tr>
+                  <Th>Worker</Th>
+                  <Th>Progress</Th>
+                  {visible[0].steps.map((s) => (
+                    <Th key={s.key}>{s.label}</Th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {visible.map(({ member, steps, progress }) => (
+                  <tr key={member.id} className="transition hover:bg-slate-50/60">
+                    <Td className="min-w-[11rem]">
+                      <Link href={`/staff/${member.id}`} className="font-medium text-slate-900 hover:text-brand-700">
+                        {member.firstName} {member.lastName}
+                      </Link>
+                      <p className="text-xs text-slate-500">{member.jobTitle}</p>
+                    </Td>
+                    <Td>
+                      <div className="flex w-28 items-center gap-2">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className={cn("h-full rounded-full", progress === 100 ? "bg-emerald-500" : "bg-brand-500")}
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                        <span className="tabular w-8 text-right text-xs text-slate-500">{progress}%</span>
+                      </div>
+                    </Td>
+                    {steps.map((step) => (
+                      <Td key={step.key} className="max-w-[11rem]">
+                        <StepCell step={step} />
+                      </Td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

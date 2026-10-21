@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireAdmin } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import {
   calculatePayslip,
@@ -284,6 +285,13 @@ export async function generatePayrollRunAction(
     return created;
   });
 
+  await recordAudit(user, {
+    action: "payroll.generate",
+    summary: `Generated pay run ${run.reference}`,
+    targetType: "PayrollRun",
+    targetId: run.id,
+  });
+
   revalidatePath("/payroll");
   revalidatePath("/dashboard");
   redirect(`/payroll/${run.id}`);
@@ -295,10 +303,19 @@ export async function setPayrollStatusAction(formData: FormData): Promise<void> 
   const status = String(formData.get("status") ?? "");
   if (!runId || !["DRAFT", "APPROVED", "FINALISED", "PAID"].includes(status)) return;
 
-  await prisma.payrollRun.updateMany({
+  const { count } = await prisma.payrollRun.updateMany({
     where: { id: runId, agencyId: user.agencyId },
     data: { status: status as never },
   });
+  if (count > 0) {
+    await recordAudit(user, {
+      action: "payroll.status",
+      summary: `Moved pay run to ${status.toLowerCase()}`,
+      targetType: "PayrollRun",
+      targetId: runId,
+      metadata: { status },
+    });
+  }
 
   revalidatePath("/payroll");
   revalidatePath(`/payroll/${runId}`);
@@ -309,9 +326,17 @@ export async function deletePayrollRunAction(formData: FormData): Promise<void> 
   const runId = String(formData.get("runId") ?? "");
   if (!runId) return;
 
-  await prisma.payrollRun.deleteMany({
+  const { count } = await prisma.payrollRun.deleteMany({
     where: { id: runId, agencyId: user.agencyId, status: "DRAFT" },
   });
+  if (count > 0) {
+    await recordAudit(user, {
+      action: "payroll.delete",
+      summary: "Deleted a draft pay run",
+      targetType: "PayrollRun",
+      targetId: runId,
+    });
+  }
 
   revalidatePath("/payroll");
   redirect("/payroll");

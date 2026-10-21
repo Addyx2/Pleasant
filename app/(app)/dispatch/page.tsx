@@ -1,19 +1,19 @@
 import { CalendarClock, Clock, Plus, UserCheck, Users } from "lucide-react";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatDate, formatTime } from "@/lib/utils";
 import { Card, EmptyState, PageHeader, inputClass } from "@/components/ui";
 import { offerShiftAction, withdrawOfferAction } from "./actions";
 
 export const metadata = {
-  title: "Dispatch | Pleasant",
+  title: "Dispatch",
 };
 
 export const dynamic = "force-dynamic";
 
 export default async function DispatchPage() {
-  const user = await requireAdmin();
+  const user = await requireOps();
 
   const [activeStaff, pendingOffers, acceptedOffers, unfilledShifts] = await Promise.all([
     prisma.staffProfile.findMany({

@@ -14,7 +14,7 @@ import {
   Users,
 } from "lucide-react";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { asLedgerRow, creditBandTone, creditHealth, type HomeCreditHealth } from "@/lib/credit";
 import { prisma } from "@/lib/db";
 import { nextCutoff, payDayForCutoff } from "@/lib/week";
@@ -32,14 +32,17 @@ import { setInvoiceStatusAction } from "@/app/(app)/billing/actions";
 export const metadata = { title: "Oversight" };
 export const dynamic = "force-dynamic";
 
-function headerCopy() {
+function headerCopy(role: string) {
   return {
     greeting: "Oversight",
-    description: "A live view of the rota, approvals, billing and payroll.",
+    description:
+      role === "ADMIN"
+        ? "A live view of the rota, approvals, billing and payroll."
+        : "A live view of the rota, open shifts and approvals.",
   };
 }
 
-async function OversightHeader({ user }: { user: Awaited<ReturnType<typeof requireAdmin>> }) {
+async function OversightHeader({ user }: { user: Awaited<ReturnType<typeof requireOps>> }) {
   const today = new Date();
   const dayStart = startOfDay(today);
   const dayEnd = endOfDay(today);
@@ -66,7 +69,7 @@ async function OversightHeader({ user }: { user: Awaited<ReturnType<typeof requi
     cutoff,
   );
 
-  const copy = headerCopy();
+  const copy = headerCopy(user.role);
 
   return (
     <div>
@@ -642,7 +645,7 @@ async function AsyncAgentActivity({ agencyId }: { agencyId: string }) {
 }
 
 export default async function OversightPage() {
-  const user = await requireAdmin();
+  const user = await requireOps();
 
   return (
     <div className="space-y-6">
@@ -665,19 +668,24 @@ export default async function OversightPage() {
         <AsyncUnattendedAlert agencyId={user.agencyId} />
       </Suspense>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Suspense fallback={null}>
-          <AsyncLatestPayroll agencyId={user.agencyId} />
-        </Suspense>
+      {/* Pay and receivables are admin-only; managers see the operational view. */}
+      {user.role === "ADMIN" ? (
+        <>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Suspense fallback={null}>
+              <AsyncLatestPayroll agencyId={user.agencyId} />
+            </Suspense>
 
-        <Suspense fallback={null}>
-          <AsyncBilling agencyId={user.agencyId} />
-        </Suspense>
-      </div>
+            <Suspense fallback={null}>
+              <AsyncBilling agencyId={user.agencyId} />
+            </Suspense>
+          </div>
 
-      <Suspense fallback={null}>
-        <AsyncReceivables agencyId={user.agencyId} />
-      </Suspense>
+          <Suspense fallback={null}>
+            <AsyncReceivables agencyId={user.agencyId} />
+          </Suspense>
+        </>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Suspense fallback={<SkeletonTable rows={4} />}>

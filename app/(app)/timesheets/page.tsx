@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatDateTime, formatHours } from "@/lib/utils";
 import { Card, EmptyState, PageHeader, Td, Th, buttonClass, subtleButtonClass } from "@/components/ui";
@@ -17,7 +17,7 @@ export default async function TimesheetsPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const { status } = await searchParams;
   const active = FILTERS.includes((status ?? "ALL") as never) ? (status ?? "ALL") : "ALL";
 

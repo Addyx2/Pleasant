@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { initiatePushbotTriage } from "@/lib/pushbots/triage";
 import { createShiftSchema } from "@/lib/validation";
@@ -16,7 +16,7 @@ export async function createShiftAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const user = await requireAdmin();
+  const user = await requireOps();
 
   const parsed = createShiftSchema.safeParse({
     title: formData.get("title"),
@@ -68,7 +68,7 @@ export async function createShiftAction(
 }
 
 export async function assignShiftFormAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const shiftId = String(formData.get("shiftId") ?? "");
   const staffId = String(formData.get("staffId") ?? "");
 
@@ -90,7 +90,7 @@ export async function assignShiftFormAction(formData: FormData): Promise<void> {
 }
 
 export async function updateShiftStatusAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const shiftId = String(formData.get("shiftId") ?? "");
   const status = String(formData.get("status") ?? "");
 
@@ -112,7 +112,7 @@ export async function updateShiftStatusAction(formData: FormData): Promise<void>
 }
 
 export async function triageShiftAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const shiftId = String(formData.get("shiftId") ?? "");
   if (!shiftId || !user) return;
 
@@ -128,7 +128,7 @@ export async function triageShiftAction(formData: FormData): Promise<void> {
 }
 
 export async function deleteShiftAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const shiftId = String(formData.get("shiftId") ?? "");
   if (!shiftId) return;
 

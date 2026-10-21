@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { DEMO_MODE } from "@/lib/constants";
+
 import { LoginForm } from "./LoginForm";
 
 export const metadata = { title: "Sign in" };
@@ -23,16 +25,20 @@ export default async function LoginPage({
 
         <h1 className="mt-8 text-2xl font-semibold tracking-tight">Sign in to your agency</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Use the demo credentials below to explore Pleasant.
+          {DEMO_MODE
+            ? "Use the demo credentials below to explore Pleasant."
+            : "Welcome back. Sign in with your work email."}
         </p>
 
         <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <LoginForm next={next} />
+          <LoginForm next={next} demo={DEMO_MODE} />
         </div>
 
-        <p className="mt-4 text-center text-xs text-slate-500">
-          Demo: admin@pleasant.demo · pleasant123
-        </p>
+        {DEMO_MODE ? (
+          <p className="mt-4 text-center text-xs text-slate-500">
+            Demo: admin@pleasant.demo · pleasant123
+          </p>
+        ) : null}
         <div className="mt-2 flex items-center justify-center gap-4 text-sm">
           <Link href="/reset" className="font-medium text-brand-700 hover:text-brand-800">
             Forgot password?

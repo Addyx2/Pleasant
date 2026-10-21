@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
@@ -20,7 +20,7 @@ export default async function ShiftRequestsPage({
 }: {
   searchParams: Promise<{ result?: string }>;
 }) {
-  await requireAdmin();
+  await requireOps();
   const { result } = await searchParams;
   const banner = result != null && result in BANNERS ? BANNERS[result] : null;
 

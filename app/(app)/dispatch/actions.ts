@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 export async function offerShiftAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const shiftId = String(formData.get("shiftId") ?? "");
   const staffId = String(formData.get("staffId") ?? "");
   if (!shiftId || !staffId) return;
@@ -42,7 +42,7 @@ export async function offerShiftAction(formData: FormData): Promise<void> {
 }
 
 export async function withdrawOfferAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const offerId = String(formData.get("offerId") ?? "");
   if (!offerId) return;
 

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireAdmin } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { parseCsv } from "@/lib/csv";
 import { normalizeAccount, normalizeSortCode } from "@/lib/payroll/bacs";
@@ -244,6 +245,16 @@ export async function commitImportAction(formData: FormData): Promise<void> {
   if (failed) {
     revalidatePath("/import");
     redirect(`/import?session=${session.id}&result=failed`);
+  }
+
+  if (created > 0) {
+    await recordAudit(user, {
+      action: "import.commit",
+      summary: `Imported ${created} record${created === 1 ? "" : "s"} (${skipped} skipped)`,
+      targetType: "ImportSession",
+      targetId: session.id,
+      metadata: { created, skipped },
+    });
   }
 
   revalidatePath("/import");

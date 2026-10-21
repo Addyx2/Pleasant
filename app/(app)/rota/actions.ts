@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { isValidLine, lineDateFor, lineEndFor, parseHhMm, buildWeek } from "@/lib/rota";
 import { nextCutoff } from "@/lib/week";
@@ -14,7 +14,7 @@ function weekdayFrom(value: string): number {
 }
 
 export async function createRotaTemplateAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
 
@@ -26,7 +26,7 @@ export async function createRotaTemplateAction(formData: FormData): Promise<void
 }
 
 export async function deleteRotaTemplateAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const templateId = String(formData.get("templateId") ?? "");
   if (!templateId) return;
 
@@ -35,7 +35,7 @@ export async function deleteRotaTemplateAction(formData: FormData): Promise<void
 }
 
 export async function addRotaLineAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const templateId = String(formData.get("templateId") ?? "");
   const role = String(formData.get("role") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim();
@@ -73,7 +73,7 @@ export async function addRotaLineAction(formData: FormData): Promise<void> {
 }
 
 export async function deleteRotaLineAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const lineId = String(formData.get("lineId") ?? "");
   if (!lineId) return;
 
@@ -85,7 +85,7 @@ export async function deleteRotaLineAction(formData: FormData): Promise<void> {
 }
 
 export async function generateRotaWeekAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const templateId = String(formData.get("templateId") ?? "");
   const weekStartRaw = String(formData.get("weekStart") ?? "").trim();
   if (!templateId || !weekStartRaw) return;

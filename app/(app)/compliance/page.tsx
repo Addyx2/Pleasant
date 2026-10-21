@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AlertTriangle, CalendarClock, CheckCircle2, ShieldCheck, Wallet } from "lucide-react";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { isValidBankDetails } from "@/lib/payroll/bacs";
 import {
@@ -14,7 +14,7 @@ import {
 import { formatDate } from "@/lib/utils";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 
-export const metadata = { title: "Compliance | Pleasant" };
+export const metadata = { title: "Compliance" };
 export const dynamic = "force-dynamic";
 
 const stateStyles: Record<ExpiryState, string> = {
@@ -34,7 +34,7 @@ type Row = {
 };
 
 export default async function CompliancePage() {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const now = new Date();
 
   const staff = await prisma.staffProfile.findMany({

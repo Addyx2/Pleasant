@@ -167,3 +167,15 @@ export function parseTimeToMinutes(value: string): number | null {
   if (hours > 23 || minutes > 59) return null;
   return hours * 60 + minutes;
 }
+
+/**
+ * Encode one value for a CSV we generate. Quotes when needed and neutralises
+ * spreadsheet formula injection (cells starting with = + - @ tab or CR), since
+ * exported fields can contain text typed by other users.
+ */
+export function csvCell(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return "";
+  let text = String(value);
+  if (typeof value === "string" && /^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}

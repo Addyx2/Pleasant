@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Card, PageHeader } from "@/components/ui";
 import { NewShiftForm } from "../NewShiftForm";
@@ -9,7 +9,7 @@ export const metadata = { title: "New shift" };
 export const dynamic = "force-dynamic";
 
 export default async function NewShiftPage() {
-  const user = await requireAdmin();
+  const user = await requireOps();
 
   const [clients, sites, staff] = await Promise.all([
     prisma.client.findMany({
