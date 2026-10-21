@@ -5,6 +5,7 @@ import {
   computeInvoiceLine,
   defaultInvoiceReference,
   invoiceTotals,
+  lineBasis,
   type BillableTimesheet,
 } from "./billing";
 
@@ -115,4 +116,11 @@ test("zero VAT leaves grand total equal to charge", () => {
 test("reference numbering pads the sequence", () => {
   assert.equal(defaultInvoiceReference(new Date(2026, 8, 30), 1), "INV-202609-0001");
   assert.equal(defaultInvoiceReference(new Date(2026, 8, 30), 214), "INV-202609-0214");
+});
+test("lineBasis prices sleep-ins as one flat unit and hourly lines by the hour", () => {
+  const sleepIn = lineBasis({ hours: 8.5, chargeRate: 24.5, chargeAmount: 85, isSleepIn: true });
+  assert.deepEqual([sleepIn.quantity, sleepIn.unitAmount, sleepIn.quantityLabel, sleepIn.rateLabel], [1, 85, "Sleep-in", "Flat"]);
+  const hourly = lineBasis({ hours: 7.5, chargeRate: 24.5, chargeAmount: 183.75, isSleepIn: false });
+  assert.deepEqual([hourly.quantity, hourly.unitAmount, hourly.quantityLabel, hourly.rateLabel], [7.5, 24.5, "7.50", "£24.50/h"]);
+  assert.equal(hourly.quantity * hourly.unitAmount, 183.75);
 });

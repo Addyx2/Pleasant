@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { requireAdmin } from "@/lib/auth";
+import { lineBasis } from "@/lib/billing";
 import { prisma } from "@/lib/db";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Card, IconTile, PageHeader, StatCard, Td, Th, buttonClass } from "@/components/ui";
@@ -21,7 +22,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
     include: {
       client: true,
       lines: {
-        include: { staff: true },
+        include: { staff: true, shift: { select: { isSleepIn: true } } },
         orderBy: { date: "asc" },
       },
     },
@@ -141,15 +142,22 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {invoice.lines.map((line) => (
+            {invoice.lines.map((line) => {
+              const basis = lineBasis({
+                  hours: Number(line.hours),
+                  chargeRate: Number(line.chargeRate),
+                  chargeAmount: Number(line.chargeAmount),
+                  isSleepIn: line.shift?.isSleepIn ?? false,
+                });
+              return (
               <tr key={line.id} className="hover:bg-slate-50">
                 <Td className="tabular">{formatDate(line.date)}</Td>
                 <Td className="text-slate-900">{line.title}</Td>
                 <Td className="text-slate-900">
                   {line.staff.firstName} {line.staff.lastName}
                 </Td>
-                <Td className="tabular">{Number(line.hours).toFixed(2)}</Td>
-                <Td className="tabular">{formatCurrency(Number(line.chargeRate))}/h</Td>
+                <Td className="tabular">{basis.quantityLabel}</Td>
+                <Td className="tabular">{basis.flat ? "Flat" : `${formatCurrency(basis.unitAmount)}/h`}</Td>
                 <Td className="tabular font-semibold text-slate-900">
                   {formatCurrency(Number(line.chargeAmount))}
                 </Td>
@@ -164,7 +172,8 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
                   {formatCurrency(Number(line.marginAmount))}
                 </Td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
           <tfoot>
             <tr className="border-t border-slate-200 bg-slate-50/70">

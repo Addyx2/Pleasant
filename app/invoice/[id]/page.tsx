@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { requireAdmin } from "@/lib/auth";
+import { lineBasis } from "@/lib/billing";
 import { prisma } from "@/lib/db";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { PrintButton } from "@/app/billing-pack/PrintButton";
@@ -23,7 +24,7 @@ export default async function PrintableInvoicePage({
     include: {
       client: { include: { contacts: { where: { isAccounts: true }, orderBy: { createdAt: "asc" }, take: 1 } } },
       agency: true,
-      lines: { include: { staff: true }, orderBy: { date: "asc" } },
+      lines: { include: { staff: true, shift: { select: { isSleepIn: true } } }, orderBy: { date: "asc" } },
     },
   });
 
@@ -116,22 +117,30 @@ export default async function PrintableInvoicePage({
             </tr>
           </thead>
           <tbody>
-            {invoice.lines.map((line) => (
+            {invoice.lines.map((line) => {
+              const basis = lineBasis({
+                  hours: Number(line.hours),
+                  chargeRate: Number(line.chargeRate),
+                  chargeAmount: Number(line.chargeAmount),
+                  isSleepIn: line.shift?.isSleepIn ?? false,
+                });
+              return (
               <tr key={line.id} className="border-b border-slate-100">
                 <td className="py-2.5 pr-2 tabular whitespace-nowrap text-slate-600">{formatDate(line.date)}</td>
                 <td className="py-2.5 pr-2 text-slate-900">
                   {line.title}
                   <span className="text-slate-500"> — {line.staff.firstName} {line.staff.lastName}</span>
                 </td>
-                <td className="tabular py-2.5 pr-2 text-right text-slate-600">{Number(line.hours).toFixed(2)}</td>
+                <td className="tabular py-2.5 pr-2 text-right text-slate-600">{basis.quantityLabel}</td>
                 <td className="tabular py-2.5 pr-2 text-right text-slate-600">
-                  {formatCurrency(Number(line.chargeRate))}
+                  {basis.flat ? "Flat" : formatCurrency(basis.unitAmount)}
                 </td>
                 <td className="tabular py-2.5 text-right font-medium text-slate-900">
                   {formatCurrency(Number(line.chargeAmount))}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
 

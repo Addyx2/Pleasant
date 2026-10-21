@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { lineBasis } from "@/lib/billing";
 import { buildXeroBillsCsv, type XeroBillsInvoice } from "@/lib/billing/xero";
 import { clientName } from "@/lib/clients";
 
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
       agencyId: user.agencyId,
       status: statusParam && statusParam !== "ALL" ? (statusParam as never) : { in: ["ISSUED", "PAID"] },
     },
-    include: { client: true, lines: { include: { staff: true }, orderBy: { date: "asc" } } },
+    include: { client: true, lines: { include: { staff: true, shift: { select: { isSleepIn: true } } }, orderBy: { date: "asc" } } },
     orderBy: { issueDate: "desc" },
   });
 
@@ -36,13 +37,22 @@ export async function GET(request: Request) {
     subtotal: Number(invoice.chargeTotal),
     vat: Number(invoice.vatTotal),
     total: Number(invoice.grandTotal),
-    lines: invoice.lines.map((line) => ({
-      description: `${line.title} — ${line.staff.firstName} ${line.staff.lastName}`,
-      quantity: Number(line.hours),
-      unitAmount: Number(line.chargeRate),
-      accountCode: "200",
-      taxType: Number(invoice.vatRatePct) > 0 ? "TAX" : "None",
-    })),
+    lines: invoice.lines.map((line) => {
+      const basis = lineBasis({
+        hours: Number(line.hours),
+        chargeRate: Number(line.chargeRate),
+        chargeAmount: Number(line.chargeAmount),
+        isSleepIn: line.shift?.isSleepIn ?? false,
+      });
+      return {
+        description: `${line.title}${basis.flat && !/sleep-in/i.test(line.title) ? " (sleep-in)" : ""} — ${line.staff.firstName} ${line.staff.lastName}`,
+        quantity: basis.quantity,
+        unitAmount: basis.unitAmount,
+        lineAmount: Number(line.chargeAmount),
+        accountCode: "200",
+        taxType: Number(invoice.vatRatePct) > 0 ? "TAX" : "None",
+      };
+    }),
   }));
 
   const csv = buildXeroBillsCsv(payload);

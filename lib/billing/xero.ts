@@ -25,6 +25,8 @@ export interface XeroBillsInvoice {
     description: string;
     quantity: number;
     unitAmount: number;
+    /** The line's actual charge; Xero checks it against quantity x unit amount. */
+    lineAmount: number;
     accountCode: string;
     taxType: string;
   }[];
@@ -119,7 +121,7 @@ export function buildXeroBillsCsv(
       rows.push(
         [
           ...shared,
-          cell(line.quantity.toFixed(2)),
+          cell(line.lineAmount.toFixed(2)),
           cell(line.description),
           cell(line.quantity.toFixed(2)),
           cell(line.unitAmount.toFixed(2)),

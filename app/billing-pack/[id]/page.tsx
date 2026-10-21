@@ -21,7 +21,7 @@ export default async function FundingPackPage({ params }: { params: Promise<{ id
       client: true,
       agency: true,
       lines: {
-        include: { staff: true, timesheet: true },
+        include: { staff: true, timesheet: true, shift: { select: { isSleepIn: true } } },
         orderBy: { date: "asc" },
       },
     },
@@ -148,7 +148,7 @@ export default async function FundingPackPage({ params }: { params: Promise<{ id
                       {line.staff.firstName} {line.staff.lastName}
                     </td>
                     <td className="py-3 pr-2 tabular text-right text-slate-600">
-                      {Number(line.hours).toFixed(2)}
+                      {line.shift?.isSleepIn ? "Sleep-in" : Number(line.hours).toFixed(2)}
                     </td>
                     <td className="py-3 pr-2 tabular text-right font-semibold text-slate-900">
                       {formatCurrency(Number(line.chargeAmount))}

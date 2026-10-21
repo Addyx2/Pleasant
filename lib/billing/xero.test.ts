@@ -19,7 +19,7 @@ function invoice(overrides: Partial<XeroBillsInvoice> = {}): XeroBillsInvoice {
     vat: 0,
     total: 1200,
     lines: [
-      { description: "Day shift — Jane Hughes", quantity: 12, unitAmount: 100, accountCode: "200", taxType: "None" },
+      { description: "Day shift — Jane Hughes", quantity: 12, unitAmount: 100, lineAmount: 1200, accountCode: "200", taxType: "None" },
     ],
     ...overrides,
   };
@@ -45,7 +45,7 @@ test("a single-line invoice exports one row with the contact block repeated", ()
   assert.equal(rows.length, 2);
   assert.equal(
     rows[1],
-    "Meadow View Care Home,accounts@meadowview.example,1 High St,SW1A 1AA,INV-202609-0001,2026-09-01,2026-09-15,SUBMITTED,GBP,12.00,Day shift — Jane Hughes,12.00,100.00,200,None,1200.00,0.00,1200.00",
+    "Meadow View Care Home,accounts@meadowview.example,1 High St,SW1A 1AA,INV-202609-0001,2026-09-01,2026-09-15,SUBMITTED,GBP,1200.00,Day shift — Jane Hughes,12.00,100.00,200,None,1200.00,0.00,1200.00",
   );
 });
 
@@ -53,8 +53,8 @@ test("multi-line invoices emit one row per line sharing the invoice number", () 
   const csv = buildXeroBillsCsv([
     invoice({
       lines: [
-        { description: "Mon", quantity: 8, unitAmount: 20, accountCode: "200", taxType: "None" },
-        { description: "Tue", quantity: 8, unitAmount: 20, accountCode: "200", taxType: "None" },
+        { description: "Mon", quantity: 8, unitAmount: 20, lineAmount: 160, accountCode: "200", taxType: "None" },
+        { description: "Tue", quantity: 8, unitAmount: 20, lineAmount: 160, accountCode: "200", taxType: "None" },
       ],
     }),
   ]);
@@ -81,7 +81,7 @@ test("commas and quotes in descriptions are escaped", () => {
   const csv = buildXeroBillsCsv([
     invoice({
       lines: [
-        { description: 'Day shift, "Meadow View"', quantity: 1, unitAmount: 10, accountCode: "200", taxType: "None" },
+        { description: 'Day shift, "Meadow View"', quantity: 1, unitAmount: 10, lineAmount: 10, accountCode: "200", taxType: "None" },
       ],
     }),
   ]);
@@ -109,4 +109,11 @@ test("an empty invoice list still produces a valid header", () => {
   const csv = buildXeroBillsCsv([]);
   assert.equal(csv.split("\r\n").length, 1);
   assert.ok(csv.startsWith("Contact,Contact Email"));
+});
+test("LineAmount is the money amount, not the hours", () => {
+  const row = buildXeroBillsCsv([invoice()]).split("\r\n")[1].split(",");
+  // Columns: ... Currency, LineAmount, LineDescription, LineQuantity, LineUnitAmount ...
+  assert.equal(row[9], "1200.00");
+  assert.equal(row[11], "12.00");
+  assert.equal(row[12], "100.00");
 });

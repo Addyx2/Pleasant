@@ -109,6 +109,35 @@ export function computeInvoiceLine(
   };
 }
 
+/**
+ * How an invoice line is priced, for display and accounting exports. Sleep-in
+ * lines are a flat charge, so their hours and hourly rate aren't what the
+ * client pays for; everything else is hours x hourly rate.
+ */
+export function lineBasis(line: {
+  hours: number;
+  chargeRate: number;
+  chargeAmount: number;
+  isSleepIn: boolean;
+}): { flat: boolean; quantity: number; unitAmount: number; quantityLabel: string; rateLabel: string } {
+  if (line.isSleepIn) {
+    return {
+      flat: true,
+      quantity: 1,
+      unitAmount: line.chargeAmount,
+      quantityLabel: "Sleep-in",
+      rateLabel: "Flat",
+    };
+  }
+  return {
+    flat: false,
+    quantity: line.hours,
+    unitAmount: line.chargeRate,
+    quantityLabel: line.hours.toFixed(2),
+    rateLabel: `£${line.chargeRate.toFixed(2)}/h`,
+  };
+}
+
 export function invoiceTotals(
   lines: InvoiceLineCompute[],
   vatRatePct: number,
