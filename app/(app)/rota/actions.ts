@@ -156,7 +156,8 @@ export async function generateRotaWeekAction(formData: FormData): Promise<void> 
         chargeRate: line.chargeRate,
         isSleepIn: line.isSleepIn,
         sleepInRate: line.sleepInRate,
-      })),
+        rotaTemplateId: line.templateId,
+      })) as any,
     });
   }
 

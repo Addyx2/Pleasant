@@ -297,12 +297,13 @@ model Site {
 }
 
 model Shift {
-  id        String      @id @default(cuid())
-  agencyId  String
-  clientId  String?
-  siteId    String?
-  staffId   String?
-  createdById String?
+  id              String  @id @default(cuid())
+  agencyId        String
+  clientId        String?
+  siteId          String?
+  staffId         String?
+  createdById     String?
+  rotaTemplateId  String?
 
   title     String // e.g. "Morning care call", "Night shift — Ward 4"
   role      String // required role for the shift
@@ -322,25 +323,26 @@ model Shift {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
-  agency  Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  client  Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  site    Site?         @relation(fields: [siteId], references: [id], onDelete: SetNull)
-  staff   StaffProfile? @relation(fields: [staffId], references: [id], onDelete: SetNull)
-  createdBy User?       @relation("ShiftCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  timesheet Timesheet?
+  agency        Agency         @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  client        Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  site          Site?          @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  staff         StaffProfile?  @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  createdBy     User?          @relation("ShiftCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  rotaTemplate  RotaTemplate?  @relation(fields: [rotaTemplateId], references: [id], onDelete: SetNull)
+  timesheet     Timesheet?
   shiftRequests ShiftRequest[]
-  shiftOffers ShiftOffer[]
+  shiftOffers   ShiftOffer[]
 
-  comments ShiftComment[]
-  complaints ClientComplaint[]
+  comments         ShiftComment[]
+  complaints       ClientComplaint[]
   pushbotCampaigns PushbotCampaign[]
 
   invoiceLines InvoiceLine[]
 
-
   @@index([agencyId, startAt])
   @@index([agencyId, status])
   @@index([staffId, startAt])
+  @@index([rotaTemplateId])
 }
 
 model ShiftRequest {
@@ -764,9 +766,11 @@ model RotaTemplate {
   title     String
   notes     String?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  agency Agency          @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  agency Agency             @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   lines  RotaTemplateLine[]
+  shifts Shift[]
 
   @@index([agencyId])
 }

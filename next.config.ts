@@ -16,6 +16,15 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   serverExternalPackages: ["@prisma/client", "bcryptjs"],
+  async redirects() {
+    return [
+      {
+        source: "/shifts/requests",
+        destination: "/dispatch?tab=requests",
+        permanent: false,
+      },
+    ];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

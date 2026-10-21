@@ -1,9 +1,8 @@
 import {
-  AlertTriangle,
   Banknote,
   Building2,
   CalendarClock,
-  CheckCircle2,
+  CalendarDays,
   Clock,
   FileUp,
   LayoutDashboard,
@@ -43,11 +42,10 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Operations",
     items: [
-      { href: "/shifts", label: "Shifts", icon: CalendarClock, keywords: "rota schedule calendar" },
-      { href: "/rota", label: "Recurring rota", icon: Repeat, keywords: "template pattern" },
-      { href: "/dispatch", label: "Dispatch", icon: Send, keywords: "offer fill broadcast" },
-      { href: "/shifts/requests", label: "Shift requests", icon: CheckCircle2, keywords: "approve claim" },
-      { href: "/shifts/unattended", label: "Unattended", icon: AlertTriangle, keywords: "no show missed" },
+      { href: "/shifts", label: "Shifts", icon: CalendarClock, keywords: "rota schedule list" },
+      { href: "/shifts/calendar", label: "Calendar", icon: CalendarDays, keywords: "rota schedule week" },
+      { href: "/rota", label: "Recurring", icon: Repeat, keywords: "template pattern rota" },
+      { href: "/dispatch", label: "Dispatch", icon: Send, keywords: "offer fill requests approve claim" },
     ],
   },
   {

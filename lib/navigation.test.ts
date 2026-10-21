@@ -3,10 +3,10 @@ import { test } from "node:test";
 
 import { activeHref, navForRole, quickActionsForRole } from "./navigation";
 
-const hrefs = ["/shifts", "/shifts/requests", "/shifts/unattended", "/staff"];
+const hrefs = ["/shifts", "/shifts/calendar", "/staff"];
 
 test("activeHref picks the most specific match", () => {
-  assert.equal(activeHref("/shifts/requests", hrefs), "/shifts/requests");
+  assert.equal(activeHref("/shifts/calendar", hrefs), "/shifts/calendar");
   assert.equal(activeHref("/shifts/abc123", hrefs), "/shifts");
   assert.equal(activeHref("/staff/new", hrefs), "/staff");
   assert.equal(activeHref("/staffing", hrefs), null);

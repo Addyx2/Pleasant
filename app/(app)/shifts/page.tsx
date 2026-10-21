@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Calendar, List, Plus } from "lucide-react";
 
 import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatCurrency, formatDate, formatTime, shiftDurationMins } from "@/lib/utils";
-import { Card, EmptyState, PageHeader, Td, Th, buttonClass } from "@/components/ui";
+import { Badge, Card, EmptyState, PageHeader, Td, Th, buttonClass } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
 
 export const metadata = { title: "Shifts" };
@@ -26,10 +26,13 @@ export default async function ShiftsPage({
       agencyId: user.agencyId,
       ...(active !== "ALL" ? { status: active as never } : {}),
     },
-    include: { client: true, staff: true, site: true },
+    include: { client: true, staff: true, site: true, rotaTemplate: true } as any,
     orderBy: { startAt: "desc" },
     take: 100,
   });
+
+  const calendarHref =
+    active === "ALL" ? "/shifts/calendar" : `/shifts/calendar?status=${active}`;
 
   return (
     <div className="space-y-6">
@@ -43,20 +46,36 @@ export default async function ShiftsPage({
         }
       />
 
-      <div className="flex flex-wrap gap-2">
-        {FILTERS.map((filter) => (
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
+          {FILTERS.map((filter) => (
+            <Link
+              key={filter}
+              href={filter === "ALL" ? "/shifts" : `/shifts?status=${filter}`}
+              className={
+                filter === active
+                  ? "rounded-full bg-brand-600 px-3 py-1 text-xs font-semibold text-white"
+                  : "rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              }
+            >
+              {filter === "ALL" ? "All" : filter.charAt(0) + filter.slice(1).toLowerCase()}
+            </Link>
+          ))}
+        </div>
+        <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1">
           <Link
-            key={filter}
-            href={filter === "ALL" ? "/shifts" : `/shifts?status=${filter}`}
-            className={
-              filter === active
-                ? "rounded-full bg-brand-600 px-3 py-1 text-xs font-semibold text-white"
-                : "rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
-            }
+            href={active === "ALL" ? "/shifts" : `/shifts?status=${active}`}
+            className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-900"
           >
-            {filter === "ALL" ? "All" : filter.charAt(0) + filter.slice(1).toLowerCase()}
+            <List className="h-3.5 w-3.5" /> List
           </Link>
-        ))}
+          <Link
+            href={calendarHref}
+            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+          >
+            <Calendar className="h-3.5 w-3.5" /> Calendar
+          </Link>
+        </div>
       </div>
 
       {shifts.length === 0 ? (
@@ -79,8 +98,10 @@ export default async function ShiftsPage({
                 <Th>Time</Th>
                 <Th>Duration</Th>
                 <Th>Carer</Th>
+                <Th>Source</Th>
                 <Th>Charge</Th>
                 <Th>Status</Th>
+                <Th className="text-right">Actions</Th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -91,9 +112,9 @@ export default async function ShiftsPage({
                       {shift.title}
                     </Link>
                     <p className="text-xs text-slate-500">
-                      {shift.client
-                        ? `${shift.client.firstName} ${shift.client.lastName}`
-                        : shift.site?.name ?? "No client"}
+                      {(shift as any).client
+                        ? `${(shift as any).client.firstName} ${(shift as any).client.lastName}`
+                        : (shift as any).site?.name ?? "No client"}
                     </p>
                   </Td>
                   <Td>{formatDate(shift.startAt)}</Td>
@@ -102,15 +123,34 @@ export default async function ShiftsPage({
                   </Td>
                   <Td>{Math.round(shiftDurationMins(shift.startAt, shift.endAt) / 60)}h</Td>
                   <Td>
-                    {shift.staff ? (
-                      `${shift.staff.firstName} ${shift.staff.lastName}`
+                    {(shift as any).staff ? (
+                      `${(shift as any).staff.firstName} ${(shift as any).staff.lastName}`
                     ) : (
                       <span className="text-amber-700">Unassigned</span>
+                    )}
+                  </Td>
+                  <Td>
+                    {(shift as any).rotaTemplate ? (
+                      <Badge tone="blue">{(shift as any).rotaTemplate.title}</Badge>
+                    ) : (
+                      <Badge tone="slate">One-off</Badge>
                     )}
                   </Td>
                   <Td>{formatCurrency(Number(shift.chargeRate))}/h</Td>
                   <Td>
                     <StatusBadge status={shift.status} />
+                  </Td>
+                  <Td className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      {(shift as any).status === "OPEN" && !(shift as any).staffId ? (
+                        <Link href={`/dispatch?tab=to-cover`} className="text-sm font-medium text-brand-700 hover:underline">
+                          Assign
+                        </Link>
+                      ) : null}
+                      <Link href={`/shifts/${shift.id}`} className="text-sm font-medium text-brand-700 hover:underline">
+                        View
+                      </Link>
+                    </div>
                   </Td>
                 </tr>
               ))}

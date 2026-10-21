@@ -38,6 +38,8 @@ export async function offerShiftAction(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/dispatch");
+  revalidatePath("/shifts");
+  revalidatePath("/shifts/calendar");
   revalidatePath("/workforce");
 }
 
