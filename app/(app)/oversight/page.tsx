@@ -28,6 +28,7 @@ import {
 import { Card, EmptyState, IconTile, SkeletonCard, SkeletonTable, StatCard, Td } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
 import { setInvoiceStatusAction } from "@/app/(app)/billing/actions";
+import { clientName } from "@/lib/clients";
 
 export const metadata = { title: "Oversight" };
 export const dynamic = "force-dynamic";
@@ -163,7 +164,7 @@ async function AsyncUnattendedAlert({ agencyId }: { agencyId: string }) {
             </p>
             <p className="mt-0.5 text-xs text-red-700">
               {unattended
-                .map((s) => (s.client ? `${s.client.firstName} ${s.client.lastName}` : "Unassigned"))
+                .map((s) => (clientName(s.client, "Unassigned")))
                 .join(" · ")}
             </p>
           </div>
@@ -436,7 +437,7 @@ async function AsyncReceivables({ agencyId }: { agencyId: string }) {
                     {health ? <CreditBadge health={health} /> : null}
                   </div>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    {invoice.client.firstName} {invoice.client.lastName}
+                    {clientName(invoice.client)}
                   </p>
                   <Link
                     href={`/billing-pack/${invoice.id}`}
@@ -520,7 +521,7 @@ async function AsyncUpcomingShifts({ agencyId }: { agencyId: string }) {
                   </Link>
                   <p className="mt-0.5 text-xs text-slate-500">
                     {shift.client
-                      ? `${shift.client.firstName} ${shift.client.lastName}`
+                      ? clientName(shift.client)
                       : "No client"}
                   </p>
                 </Td>

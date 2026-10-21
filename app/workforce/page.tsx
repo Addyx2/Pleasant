@@ -14,6 +14,7 @@ import {
   saveCandidateSignatureAction,
   saveClientAuthAction,
 } from "@/app/(app)/timesheets/actions";
+import { clientName, type NamedClient } from "@/lib/clients";
 
 export const dynamic = "force-dynamic";
 
@@ -102,7 +103,7 @@ export default async function WorkforceHomePage() {
                   <p className="font-semibold text-slate-900">{offer.shift.title}</p>
                   <p className="mt-1 text-sm text-slate-600">
                     {offer.shift.client
-                      ? `${offer.shift.client.firstName} ${offer.shift.client.lastName}`
+                      ? clientName(offer.shift.client)
                       : (offer.shift.site?.name ?? "Location TBC")}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
@@ -184,7 +185,7 @@ type ShiftWithRelations = {
   chargeRate: unknown;
   status: string;
   notes: string | null;
-  client: { firstName: string; lastName: string } | null;
+  client: NamedClient | null;
   site: { name: string } | null;
   timesheet: {
     id: string;
@@ -199,9 +200,8 @@ type ShiftWithRelations = {
 function ShiftCard({ shift }: { shift: ShiftWithRelations }) {
   const ts = shift.timesheet;
   const where =
-    shift.client != null
-      ? `${shift.client.firstName} ${shift.client.lastName}`
-      : (shift.site?.name ?? "Location TBC");
+    [shift.client ? clientName(shift.client) : null, shift.site?.name].filter(Boolean).join(" · ") ||
+    "Location TBC";
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">

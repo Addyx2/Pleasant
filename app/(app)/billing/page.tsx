@@ -7,6 +7,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { Card, EmptyState, PageHeader, StatCard, Td, Th } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
 import { NewInvoiceForm } from "./NewInvoiceForm";
+import { clientName } from "@/lib/clients";
 
 export const metadata = { title: "Billing" };
 export const dynamic = "force-dynamic";
@@ -27,7 +28,7 @@ export default async function BillingPage() {
     }),
     prisma.client.findMany({
       where: { agencyId, status: "ACTIVE" },
-      orderBy: { lastName: "asc" },
+      orderBy: { name: "asc" },
     }),
     prisma.invoice.aggregate({
       where: { agencyId, status: { in: ["DRAFT", "ISSUED"] } },
@@ -51,7 +52,8 @@ export default async function BillingPage() {
 
   const clientOptions = clients.map((c) => ({
     id: c.id,
-    name: `${c.firstName} ${c.lastName}`,
+    name: clientName(c),
+    paymentTermsDays: c.paymentTermsDays,
   }));
 
   return (
@@ -107,7 +109,7 @@ export default async function BillingPage() {
                       <p className="text-xs text-slate-500">{invoice._count.lines} lines</p>
                     </Td>
                     <Td className="text-slate-900">
-                      {invoice.client.firstName} {invoice.client.lastName}
+                      {clientName(invoice.client)}
                     </Td>
                     <Td>
                       {formatDate(invoice.periodStart)} – {formatDate(invoice.periodEnd)}

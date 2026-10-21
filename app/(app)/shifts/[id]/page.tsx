@@ -17,6 +17,7 @@ import {
   saveClientAuthAction,
   saveExpensesAction,
 } from "../../timesheets/actions";
+import { clientName } from "@/lib/clients";
 
 export const dynamic = "force-dynamic";
 
@@ -91,7 +92,7 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
             <StatusBadge status={shift.status} />
           </div>
           <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Detail label="Client" value={shift.client ? `${shift.client.firstName} ${shift.client.lastName}` : "—"} />
+            <Detail label="Client" value={clientName(shift.client, "—")} />
             <Detail label="Site" value={shift.site?.name ?? "—"} />
             <Detail label="Starts" value={formatDateTime(shift.startAt)} />
             <Detail label="Ends" value={formatDateTime(shift.endAt)} />

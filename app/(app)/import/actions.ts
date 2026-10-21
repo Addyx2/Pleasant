@@ -117,7 +117,7 @@ export async function commitImportAction(formData: FormData): Promise<void> {
           if (kind === "clients") {
             const draft = toClientDraft(record);
             const existing = await tx.client.findFirst({
-              where: { agencyId: user.agencyId, firstName: draft.firstName, lastName: draft.lastName },
+              where: { agencyId: user.agencyId, name: { equals: draft.name, mode: "insensitive" } },
               select: { id: true },
             });
             if (existing) {
@@ -127,16 +127,28 @@ export async function commitImportAction(formData: FormData): Promise<void> {
             await tx.client.create({
               data: {
                 agencyId: user.agencyId,
-                firstName: draft.firstName,
-                lastName: draft.lastName,
+                name: draft.name,
+                type: draft.type,
                 email: draft.email,
                 phone: draft.phone,
                 address: draft.address,
                 postcode: draft.postcode,
-                careLevel: draft.careLevel,
-                companyName: draft.companyName,
                 vatNumber: draft.vatNumber,
                 status: "ACTIVE",
+                ...(draft.contactName
+                  ? {
+                      contacts: {
+                        create: {
+                          agencyId: user.agencyId,
+                          name: draft.contactName,
+                          jobTitle: draft.contactTitle,
+                          email: draft.contactEmail,
+                          // Imported contacts aren't signatories until someone at the agency confirms it.
+                          isSignatory: false,
+                        },
+                      },
+                    }
+                  : {}),
               },
             });
             created += 1;
@@ -179,14 +191,21 @@ export async function commitImportAction(formData: FormData): Promise<void> {
             }
 
             const client = draft.clientName
-              ? await findByName(tx.client, user.agencyId, draft.clientName)
+              ? await tx.client.findFirst({
+                  where: { agencyId: user.agencyId, name: { equals: draft.clientName, mode: "insensitive" } },
+                  select: { id: true },
+                })
               : null;
             const staffMember = draft.staffName
               ? await findByName(tx.staffProfile, user.agencyId, draft.staffName)
               : null;
             const site = draft.siteName
               ? await tx.site.findFirst({
-                  where: { agencyId: user.agencyId, name: draft.siteName },
+                  where: {
+                    agencyId: user.agencyId,
+                    name: { equals: draft.siteName, mode: "insensitive" },
+                    ...(client ? { clientId: client.id } : {}),
+                  },
                   select: { id: true },
                 })
               : null;

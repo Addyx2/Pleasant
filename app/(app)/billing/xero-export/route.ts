@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { buildXeroBillsCsv, type XeroBillsInvoice } from "@/lib/billing/xero";
+import { clientName } from "@/lib/clients";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
   const payload: XeroBillsInvoice[] = invoices.map((invoice) => ({
     reference: invoice.reference,
     status: invoice.status,
-    contactName: invoice.client.companyName || `${invoice.client.firstName} ${invoice.client.lastName}`,
+    contactName: clientName(invoice.client),
     contactEmail: invoice.client.email,
     contactAddress: invoice.client.address,
     contactPostcode: invoice.client.postcode,

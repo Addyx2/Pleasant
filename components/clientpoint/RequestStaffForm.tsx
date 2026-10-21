@@ -7,7 +7,11 @@ import { requestShifts } from "@/lib/clientpoint/actions";
 
 interface RequestStaffFormProps {
   token: string;
+  /** Roles on the client's rate card; falls back to common roles when empty. */
+  roles: string[];
 }
+
+const DEFAULT_ROLES = ["Care Assistant", "Senior Care Assistant", "Registered Nurse", "Support Worker"];
 
 interface RequestState {
   success?: boolean;
@@ -15,7 +19,8 @@ interface RequestState {
   message?: string;
 }
 
-export function RequestStaffForm({ token }: RequestStaffFormProps) {
+export function RequestStaffForm({ token, roles }: RequestStaffFormProps) {
+  const options = roles.length > 0 ? roles : DEFAULT_ROLES;
   const [state, formAction, pending] = useActionState<RequestState, FormData>(
     async (_prev, formData) => {
       const role = String(formData.get("role") ?? "");
@@ -42,10 +47,10 @@ export function RequestStaffForm({ token }: RequestStaffFormProps) {
         <select
           name="role"
           id="role"
-          defaultValue="Care Assistant"
+          defaultValue={options[0]}
           className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-brand-500 focus:outline-none"
         >
-          {["Care Assistant", "Senior Carer", "Registered Nurse (RN)", "Support Worker", "Driver"].map((r) => (
+          {options.map((r) => (
             <option key={r} value={r}>{r}</option>
           ))}
         </select>

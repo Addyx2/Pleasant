@@ -8,6 +8,7 @@ import { Card, IconTile, PageHeader, StatCard, Td, Th, buttonClass } from "@/com
 import { StatusBadge } from "@/components/status";
 import { deleteInvoiceAction, setInvoiceStatusAction } from "../actions";
 import { Landmark, PackageCheck, Receipt, TrendingUp } from "lucide-react";
+import { clientName } from "@/lib/clients";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
     <div className="space-y-6">
       <PageHeader
         title={`Invoice ${invoice.reference}`}
-        description={`${invoice.client.firstName} ${invoice.client.lastName} · ${formatDate(invoice.periodStart)} – ${formatDate(invoice.periodEnd)}${invoice.dueDate ? ` · due ${formatDate(invoice.dueDate)}` : ""}`}
+        description={`${clientName(invoice.client)} · ${formatDate(invoice.periodStart)} – ${formatDate(invoice.periodEnd)}${invoice.dueDate ? ` · due ${formatDate(invoice.dueDate)}` : ""}`}
         action={
           <div className="flex items-center gap-3">
             <StatusBadge status={invoice.status} />

@@ -5,28 +5,45 @@ import { Check, Copy, Link2, Loader2 } from "lucide-react";
 
 import { createPleasantLinkAction } from "@/app/(app)/clients/actions";
 
-interface GenerateLinkButtonProps {
-  clientId: string;
-  clientName: string;
+interface Signatory {
+  id: string;
+  name: string;
+  jobTitle: string | null;
 }
 
 interface LinkState {
   error?: string;
   success?: string;
   link?: string;
+  contactName?: string;
 }
 
-export function GenerateLinkButton({ clientId, clientName }: GenerateLinkButtonProps) {
+/** Issues a 24-hour Pleasant Link in a named signatory's name. */
+export function GenerateLinkButton({
+  clientId,
+  signatories,
+}: {
+  clientId: string;
+  signatories: Signatory[];
+}) {
   const [copied, setCopied] = useState(false);
+  const [contactId, setContactId] = useState(signatories[0]?.id ?? "");
   const [state, formAction, pending] = useActionState<LinkState, FormData>(
-    async (_prev) => ({ ...(await createPleasantLinkAction(clientId)) }),
+    async () => ({ ...(await createPleasantLinkAction(clientId, contactId)) }),
     {},
   );
 
+  if (signatories.length === 0) {
+    return (
+      <p className="text-xs text-slate-500">
+        Add a contact and tick <span className="font-medium">Can sign timesheets</span> to issue a
+        Pleasant Link.
+      </p>
+    );
+  }
+
   const fullUrl =
-    typeof window !== "undefined" && state.link
-      ? `${window.location.origin}${state.link}`
-      : state.link ?? "";
+    typeof window !== "undefined" && state.link ? `${window.location.origin}${state.link}` : (state.link ?? "");
 
   const copy = async () => {
     if (!fullUrl) return;
@@ -36,38 +53,54 @@ export function GenerateLinkButton({ clientId, clientName }: GenerateLinkButtonP
   };
 
   return (
-    <div className="flex flex-col items-end gap-2">
-      <form action={formAction}>
+    <div className="space-y-3">
+      <form action={formAction} className="flex flex-wrap items-center gap-2">
+        <label htmlFor="link-contact" className="sr-only">
+          Signatory
+        </label>
+        <select
+          id="link-contact"
+          value={contactId}
+          onChange={(e) => setContactId(e.target.value)}
+          className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+        >
+          {signatories.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+              {s.jobTitle ? ` — ${s.jobTitle}` : ""}
+            </option>
+          ))}
+        </select>
         <button
           type="submit"
-          disabled={pending}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1.5 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-600/15 transition hover:bg-brand-100 disabled:opacity-60"
+          disabled={pending || !contactId}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 disabled:opacity-60"
         >
-          {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
-          {state.link ? "New link" : "Pleasant Link"}
+          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+          {state.link ? "New link" : "Create link"}
         </button>
       </form>
       {state.link ? (
-        <div className="flex items-center gap-1.5">
-          <code className="max-w-[220px] truncate rounded bg-slate-100 px-2 py-1 text-[11px] text-slate-700">
-            {fullUrl}
-          </code>
-          <button
-            type="button"
-            onClick={copy}
-            className="inline-flex items-center gap-1 rounded bg-slate-900 px-2 py-1 text-[11px] font-semibold text-white transition hover:bg-slate-700"
-            title="Copy link"
-          >
-            {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-            {copied ? "Copied" : "Copy"}
-          </button>
+        <div className="space-y-1.5">
+          <p className="text-xs text-slate-500">
+            Valid for 24 hours. Sign-offs are recorded in {state.contactName}&apos;s name.
+          </p>
+          <div className="flex items-center gap-1.5">
+            <code className="min-w-0 flex-1 truncate rounded bg-slate-100 px-2 py-1.5 text-[11px] text-slate-700">
+              {fullUrl}
+            </code>
+            <button
+              type="button"
+              onClick={copy}
+              className="inline-flex items-center gap-1 rounded bg-slate-900 px-2 py-1.5 text-[11px] font-semibold text-white transition hover:bg-slate-700"
+            >
+              {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
         </div>
       ) : null}
-      {state.error ? (
-        <p className="text-[11px] font-medium text-red-600" title={`for ${clientName}`}>
-          {state.error}
-        </p>
-      ) : null}
+      {state.error ? <p className="text-xs font-medium text-red-600">{state.error}</p> : null}
     </div>
   );
 }

@@ -8,6 +8,7 @@ from a care home's shift request to the carer's payslip and the home's invoice.
 | Area | Highlights |
 | --- | --- |
 | **Operations** | Shifts, recurring rota, dispatch offers, open-shift marketplace, unattended triage |
+| **Clients** | Care homes, nursing homes and domiciliary providers with their units/branches, contacts, named timesheet signatories and a rate card (day, night, weekend, bank holiday) that prices new shifts |
 | **People** | Workers, timesheets with carer e-sign and client authorisation (Pleasant Link), compliance expiry tracking, onboarding pipeline |
 | **Finance** | UK PAYE payroll (tax, NI, pension, holiday, student loan), RTI/FPS export, BACS STD18 + CSV payment files, invoicing with margin, aged receivables, Xero export |
 | **Workers app** | Mobile-first PWA for carers: open shifts, offers, timesheets, profile |
@@ -84,7 +85,8 @@ See `.env.example`. Notable variables:
 - `GET /api/health` returns `200 {"status":"ok"}` when Postgres is reachable, `503` otherwise — point
   your uptime monitor at it.
 - `npm run db:backup` writes a JSON backup of the database.
-- Deploys on Vercel run `prisma db push` before the build (`vercel.json`).
+- Deploys on Vercel run `prisma db push`, then `scripts/backfill-clients.ts` (idempotent: names any
+  client rows created before clients were organisations), then the build (`vercel.json`).
 
 ## Project layout
 

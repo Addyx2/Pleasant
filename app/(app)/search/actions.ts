@@ -3,6 +3,7 @@
 import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatDateTime } from "@/lib/utils";
+import { CLIENT_NAME_SELECT, CLIENT_TYPE_LABELS, clientName, type ClientTypeKey } from "@/lib/clients";
 
 export interface SearchResult {
   id: string;
@@ -34,9 +35,14 @@ export async function searchAction(raw: string): Promise<SearchResult[]> {
     prisma.client.findMany({
       where: {
         agencyId,
-        OR: [{ companyName: contains }, { firstName: contains }, { lastName: contains }, { postcode: contains }],
+        OR: [
+          { name: contains },
+          { postcode: contains },
+          { sites: { some: { name: contains } } },
+          { contacts: { some: { name: contains } } },
+        ],
       },
-      select: { id: true, firstName: true, lastName: true, companyName: true, postcode: true },
+      select: { id: true, ...CLIENT_NAME_SELECT, type: true, postcode: true },
       take: LIMIT,
     }),
     prisma.shift.findMany({
@@ -48,7 +54,7 @@ export async function searchAction(raw: string): Promise<SearchResult[]> {
     user.role === "ADMIN"
       ? prisma.invoice.findMany({
           where: { agencyId, reference: contains },
-          select: { id: true, reference: true, status: true, client: { select: { companyName: true, firstName: true, lastName: true } } },
+          select: { id: true, reference: true, status: true, client: { select: CLIENT_NAME_SELECT } },
           take: LIMIT,
         })
       : Promise.resolve([]),
@@ -65,9 +71,9 @@ export async function searchAction(raw: string): Promise<SearchResult[]> {
     ...clients.map((c) => ({
       id: c.id,
       kind: "Client" as const,
-      title: c.companyName || `${c.firstName} ${c.lastName}`,
-      subtitle: [c.companyName ? `${c.firstName} ${c.lastName}` : null, c.postcode].filter(Boolean).join(" · "),
-      href: "/clients",
+      title: clientName(c),
+      subtitle: [CLIENT_TYPE_LABELS[c.type as ClientTypeKey], c.postcode].filter(Boolean).join(" · "),
+      href: `/clients/${c.id}`,
     })),
     ...shifts.map((s) => ({
       id: s.id,
@@ -80,7 +86,7 @@ export async function searchAction(raw: string): Promise<SearchResult[]> {
       id: i.id,
       kind: "Invoice" as const,
       title: i.reference,
-      subtitle: `${i.client.companyName || `${i.client.firstName} ${i.client.lastName}`} · ${i.status.toLowerCase()}`,
+      subtitle: `${clientName(i.client)} · ${i.status.toLowerCase()}`,
       href: `/billing/${i.id}`,
     })),
   ];

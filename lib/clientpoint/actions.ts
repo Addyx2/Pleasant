@@ -2,48 +2,50 @@
 
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { resolveChargeRate, toRateCardEntry } from "@/lib/clients";
 import { validatePleasantLink } from "./pleasant-link";
 
 /**
- * Server Action for a Client to digitally sign off on a timesheet via their Pleasant Link portal.
+ * Server Action for a client signatory to sign off a timesheet via their Pleasant Link.
+ * The signer is the contact the link was issued to — never a name sent by the browser.
  */
-export async function signOffTimesheet(token: string, timesheetId: string, clientName: string, position: string) {
+export async function signOffTimesheet(token: string, timesheetId: string) {
   try {
-    // 1. Validate the secure token
     const linkSession = await validatePleasantLink(token);
+    const signer = linkSession.contact;
+    if (!signer || !signer.isSignatory) {
+      throw new Error("This link isn't issued to an authorised signatory. Ask your agency for a new link.");
+    }
 
-    // 2. Fetch the timesheet
     const timesheet = await prisma.timesheet.findUnique({
       where: { id: timesheetId },
       include: { shift: true },
     });
 
-    if (!timesheet) throw new Error("Timesheet not found");
-    
-    // Ensure the timesheet belongs to the client accessed via the token
+    if (!timesheet || timesheet.agencyId !== linkSession.agencyId) throw new Error("Timesheet not found");
     if (timesheet.shift.clientId !== linkSession.clientId) {
       throw new Error("Unauthorized: Timesheet does not belong to this client account.");
     }
+    if (timesheet.status !== "PENDING") throw new Error("This timesheet has already been decided.");
 
-    // 3. Update the timesheet with the digital sign-off
+    const position = signer.jobTitle ?? "Authorised signatory";
     await prisma.timesheet.update({
       where: { id: timesheetId },
       data: {
         status: "APPROVED",
-        clientAuthName: clientName,
+        clientAuthName: signer.name,
         clientAuthPosition: position,
         clientAuthAt: new Date(),
-        clientAuthSignature: "DIGITAL_SIGNATURE_CAPTURED", // In production, this would be a hash or Base64 SVG
+        clientAuthSignature: `PLEASANT_LINK:${linkSession.id}`,
       },
     });
 
-    // 4. Log the action
     await prisma.agentLog.create({
       data: {
         agencyId: linkSession.agencyId,
         agentName: "CLIENTPOINT",
         action: "TIMESHEET_SIGNOFF",
-        details: `Client ${clientName} (${position}) signed off Timesheet ${timesheetId}.`,
+        details: `${signer.name} (${position}) signed off Timesheet ${timesheetId}.`,
         status: "SUCCESS",
       }
     });
@@ -61,6 +63,13 @@ export async function signOffTimesheet(token: string, timesheetId: string, clien
 export async function requestShifts(token: string, role: string, startAt: Date, endAt: Date, notes?: string) {
   try {
     const linkSession = await validatePleasantLink(token);
+    const start = new Date(startAt);
+    const end = new Date(endAt);
+    if (!(end > start)) throw new Error("The shift must end after it starts.");
+
+    // Price the request from the client's rate card so it isn't invoiced at £0.
+    const rates = await prisma.clientRate.findMany({ where: { clientId: linkSession.clientId } });
+    const resolved = resolveChargeRate(rates.map(toRateCardEntry), { role, startAt: start, endAt: end });
 
     // Creates an OPEN shift ready for triage
     const shift = await prisma.shift.create({
@@ -69,10 +78,11 @@ export async function requestShifts(token: string, role: string, startAt: Date, 
         clientId: linkSession.clientId,
         title: `Client Request: ${role}`,
         role: role,
-        startAt: startAt,
-        endAt: endAt,
+        startAt: start,
+        endAt: end,
+        chargeRate: resolved?.rate ?? 0,
         status: "OPEN",
-        notes: notes,
+        notes: linkSession.contact ? [notes, `Requested by ${linkSession.contact.name}`].filter(Boolean).join(" · ") : notes,
       }
     });
 

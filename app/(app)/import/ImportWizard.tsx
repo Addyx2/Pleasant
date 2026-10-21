@@ -11,8 +11,8 @@ const TEMPLATES: { kind: "clients" | "workers" | "shifts"; label: string; column
   {
     kind: "clients",
     label: "Clients",
-    columns: "First Name, Last Name, Email, Phone, Address, Postcode, Care Level, Company, VAT Number",
-    example: "Jane,Hughes,jane@example.com,07700 900123,1 High St,SW1A 1AA,High,Meadow View Care Home,GB123456789",
+    columns: "Name, Type, Invoice Email, Phone, Address, Postcode, VAT Number, Contact Name, Contact Title",
+    example: "Meadow View Care Home,Care home,accounts@meadowview.co.uk,0113 496 0000,1 High St,LS1 1AA,GB123456789,Jane Hughes,Home Manager",
   },
   {
     kind: "workers",
@@ -24,7 +24,7 @@ const TEMPLATES: { kind: "clients" | "workers" | "shifts"; label: string; column
     kind: "shifts",
     label: "Shifts",
     columns: "Date, Start, End, Title, Role, Client, Carer",
-    example: "09/03/2026,07:00,15:00,Day shift,Care Assistant,Jane Hughes,Ada Lovelace",
+    example: "09/03/2026,07:00,15:00,Day shift,Care Assistant,Meadow View Care Home,Ada Lovelace",
   },
 ];
 

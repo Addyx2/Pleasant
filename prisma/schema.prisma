@@ -145,6 +145,8 @@ model Agency {
   importSessions ImportSession[]
   agencyAddons   AgencyAddon[]
   auditEvents    AuditEvent[]
+  clientContacts ClientContact[]
+  clientRates    ClientRate[]
 }
 
 model User {
@@ -250,50 +252,126 @@ model StaffProfile {
   @@index([agencyId, status])
 }
 
-model Client {
-  id         String       @id @default(cuid())
-  agencyId   String
-  firstName  String
-  lastName   String
-  address    String?
-  postcode   String?
-  phone      String?
-  email      String?
-  companyName String?
-  vatNumber  String?
-  careLevel  String? // e.g. "Low", "Medium", "High", "Complex"
-  notes      String?
-  status     ClientStatus @default(ACTIVE)
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
+enum ClientType {
+  CARE_HOME
+  NURSING_HOME
+  DOMICILIARY_PROVIDER
+  SUPPORTED_LIVING
+  NHS
+  LOCAL_AUTHORITY
+  OTHER
+}
 
-  agency Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  shifts Shift[]
+// The organisation the agency supplies workers to and invoices: a care home,
+// nursing home or domiciliary care provider. Its wards/units or branches are
+// Sites; the people there (managers, signatories, accounts) are Contacts.
+model Client {
+  id               String       @id @default(cuid())
+  agencyId         String
+  // Organisation name as it appears on invoices. Nullable only until legacy
+  // rows are backfilled (scripts/backfill-clients.ts); always written by the app.
+  name             String?
+  type             ClientType   @default(CARE_HOME)
+  address          String?
+  postcode         String?
+  phone            String?
+  email            String? // accounts / invoice email
+  vatNumber        String?
+  companyNo        String?
+  cqcLocationId    String? // the home's own CQC registration, for compliance packs
+  frameworkRef     String? // framework agreement / PO reference printed on invoices
+  paymentTermsDays Int          @default(30)
+  notes            String?
+  status           ClientStatus @default(ACTIVE)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  // Legacy person-shaped fields from before clients were organisations.
+  // Read only by the backfill; no longer written.
+  firstName   String?
+  lastName    String?
+  companyName String?
+  careLevel   String?
+
+  agency   Agency          @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  shifts   Shift[]
+  sites    Site[]
+  contacts ClientContact[]
+  rates    ClientRate[]
 
   pleasantLinkTokens PleasantLinkToken[]
-  complaints ClientComplaint[]
-  confidenceRating ClientConfidenceRating?
+  complaints         ClientComplaint[]
+  confidenceRating   ClientConfidenceRating?
 
-  invoices Invoice[]
+  invoices          Invoice[]
   rotaTemplateLines RotaTemplateLine[]
-
 
   @@index([agencyId, status])
 }
 
+// A person at a client: home manager, deputy, nurse in charge, accounts.
+// Signatories can authorise timesheets through Pleasant Link.
+model ClientContact {
+  id          String   @id @default(cuid())
+  agencyId    String
+  clientId    String
+  name        String
+  jobTitle    String?
+  email       String?
+  phone       String?
+  isSignatory Boolean  @default(false)
+  isAccounts  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  agency             Agency              @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  client             Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  pleasantLinkTokens PleasantLinkToken[]
+
+  @@index([clientId])
+}
+
+// Charge-out rate card: what the client pays per hour for a role, optionally
+// specific to one site. Prefills the charge rate on new shifts.
+model ClientRate {
+  id              String   @id @default(cuid())
+  agencyId        String
+  clientId        String
+  siteId          String?
+  role            String // e.g. "Care Assistant", "Senior Carer", "Registered Nurse"
+  dayRate         Decimal  @db.Decimal(8, 2)
+  nightRate       Decimal? @db.Decimal(8, 2)
+  weekendRate     Decimal? @db.Decimal(8, 2)
+  bankHolidayRate Decimal? @db.Decimal(8, 2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  site   Site?  @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+// A ward/unit of a care home, or a branch of a domiciliary provider.
 model Site {
   id        String   @id @default(cuid())
   agencyId  String
+  clientId  String?
   name      String
   address   String?
   postcode  String?
+  notes     String? // arrival, parking, door codes
   createdAt DateTime @default(now())
 
-  agency Agency          @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  shifts Shift[]
+  agency            Agency             @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  client            Client?            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  shifts            Shift[]
   rotaTemplateLines RotaTemplateLine[]
+  rates             ClientRate[]
 
   @@index([agencyId])
+  @@index([clientId])
 }
 
 model Shift {
@@ -599,16 +677,19 @@ model PushMessageLog {
 // -----------------------------------------------------------------------------
 
 model PleasantLinkToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   agencyId  String
   clientId  String
-  token     String   @unique
+  // The signatory this link was issued to; sign-offs are recorded in their name.
+  contactId String?
+  token     String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
-  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  agency  Agency         @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  client  Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  contact ClientContact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
   @@index([token])
 }

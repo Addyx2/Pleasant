@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import { PrintButton } from "../PrintButton";
+import { clientName } from "@/lib/clients";
 
 export const metadata = { title: "Funding evidence pack" };
 export const dynamic = "force-dynamic";
@@ -66,7 +67,7 @@ export default async function FundingPackPage({ params }: { params: Promise<{ id
               Billed to — care home
             </p>
             <p className="mt-1 text-sm font-semibold text-slate-900">
-              {client.firstName} {client.lastName}
+              {clientName(client)}
             </p>
             {client.address ? <p className="mt-1 text-xs leading-5 text-slate-600">{client.address}</p> : null}
             {client.postcode ? <p className="text-xs text-slate-600">{client.postcode}</p> : null}

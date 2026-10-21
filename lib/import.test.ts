@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import { parseCsv } from "./csv";
 import {
+  clientTypeFromText,
   missingColumns,
   previewImport,
   shiftEnd,
@@ -19,7 +20,7 @@ function record(headers: string[], values: string[]) {
 
 test("missingColumns reports required headers that are absent", () => {
   const parsed = parseCsv("First Name,Address\nAda,1 High St");
-  assert.deepEqual(missingColumns("clients", parsed), ["lastname"]);
+  assert.deepEqual(missingColumns("clients", parsed), ["name"]);
   assert.deepEqual(missingColumns("workers", parsed), ["lastname", "jobtitle"]);
 });
 
@@ -28,10 +29,30 @@ test("missingColumns is empty when required headers are present", () => {
   assert.deepEqual(missingColumns("workers", parsed), []);
 });
 
-test("validateRecord requires a name for clients", () => {
-  assert.equal(validateRecord("clients", record(["First Name", "Last Name"], ["", "Lovelace"])), "First name is missing");
-  assert.equal(validateRecord("clients", record(["First Name", "Last Name"], ["Ada", ""])), "Last name is missing");
-  assert.equal(validateRecord("clients", record(["First Name", "Last Name"], ["Ada", "Lovelace"])), null);
+test("validateRecord requires an organisation name for clients", () => {
+  assert.equal(validateRecord("clients", record(["Name", "Postcode"], ["", "LS1 1AA"])), "Client name is missing");
+  assert.equal(validateRecord("clients", record(["Home Name"], ["Meadow View"])), null);
+  assert.equal(validateRecord("clients", record(["Company"], ["Oak Homecare Ltd"])), null);
+});
+
+test("missingColumns accepts common organisation-name headers for clients", () => {
+  assert.deepEqual(missingColumns("clients", parseCsv("Home Name,Postcode\nMeadow View,LS1")), []);
+  assert.deepEqual(missingColumns("clients", parseCsv("Company\nOak Homecare")), []);
+});
+
+test("toClientDraft maps type text and the main contact", () => {
+  const draft = toClientDraft(
+    record(
+      ["Name", "Type", "Invoice Email", "Contact Name", "Contact Title"],
+      ["Oak Homecare Ltd", "Domiciliary care", "accounts@oak.co.uk", "Priya Shah", "Registered Manager"],
+    ),
+  );
+  assert.equal(draft.name, "Oak Homecare Ltd");
+  assert.equal(draft.type, "DOMICILIARY_PROVIDER");
+  assert.equal(draft.email, "accounts@oak.co.uk");
+  assert.equal(draft.contactName, "Priya Shah");
+  assert.equal(clientTypeFromText("Nursing home"), "NURSING_HOME");
+  assert.equal(clientTypeFromText(""), "CARE_HOME");
 });
 
 test("validateRecord requires a job title and numeric rate for workers", () => {
@@ -109,7 +130,7 @@ test("previewImport counts valid and invalid rows and caps issues at 20", () => 
 
 test("previewImport surfaces missing required columns", () => {
   const preview = previewImport("clients", parseCsv("First Name\nAda"));
-  assert.deepEqual(preview.missingColumns, ["lastname"]);
+  assert.deepEqual(preview.missingColumns, ["name"]);
 });
 
 test("previewImport samples at most five valid rows", () => {
@@ -123,16 +144,16 @@ test("previewImport samples at most five valid rows", () => {
 test("toClientDraft maps billing fields and drops a malformed email", () => {
   const draft = toClientDraft(
     record(
-      ["First Name", "Last Name", "Email", "Company", "VAT Number", "Post Code"],
-      ["Ada", "Lovelace", "ada@example.com", "Meadow View", "GB123456789", "SW1A 1AA"],
+      ["Company", "Email", "VAT Number", "Post Code"],
+      ["Meadow View", "accounts@meadowview.co.uk", "GB123456789", "SW1A 1AA"],
     ),
   );
-  assert.equal(draft.email, "ada@example.com");
-  assert.equal(draft.companyName, "Meadow View");
+  assert.equal(draft.name, "Meadow View");
+  assert.equal(draft.email, "accounts@meadowview.co.uk");
   assert.equal(draft.vatNumber, "GB123456789");
   assert.equal(draft.postcode, "SW1A 1AA");
 
-  const bad = toClientDraft(record(["First Name", "Last Name", "Email"], ["A", "B", "not-an-email"]));
+  const bad = toClientDraft(record(["Name", "Email"], ["Oak Lodge", "not-an-email"]));
   assert.equal(bad.email, null);
 });
 

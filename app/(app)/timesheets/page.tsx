@@ -6,6 +6,7 @@ import { formatDateTime, formatHours } from "@/lib/utils";
 import { Card, EmptyState, PageHeader, Td, Th, buttonClass, subtleButtonClass } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
 import { clockOutAction, decideTimesheetAction } from "./actions";
+import { clientName } from "@/lib/clients";
 
 export const metadata = { title: "Timesheets" };
 export const dynamic = "force-dynamic";
@@ -94,7 +95,7 @@ export default async function TimesheetsPage({
                     </Link>
                     <p className="text-xs text-slate-500">
                       {ts.shift.client
-                        ? `${ts.shift.client.firstName} ${ts.shift.client.lastName}`
+                        ? clientName(ts.shift.client)
                         : "—"}
                     </p>
                   </Td>

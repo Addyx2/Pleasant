@@ -16,16 +16,19 @@ export type ImportPreview = {
 };
 
 export type ClientDraft = {
-  firstName: string;
-  lastName: string;
+  name: string;
+  type: "CARE_HOME" | "NURSING_HOME" | "DOMICILIARY_PROVIDER" | "SUPPORTED_LIVING" | "OTHER";
   email: string | null;
   phone: string | null;
   address: string | null;
   postcode: string | null;
-  careLevel: string | null;
-  companyName: string | null;
   vatNumber: string | null;
+  contactName: string | null;
+  contactTitle: string | null;
+  contactEmail: string | null;
 };
+
+const CLIENT_NAME_KEYS = ["name", "clientname", "homename", "companyname", "company", "organisation", "organization", "tradingname", "client"];
 
 export type WorkerDraft = {
   firstName: string;
@@ -55,7 +58,7 @@ export type ShiftDraft = {
   siteName: string | null;
 };
 
-const CLIENT_REQUIRED = ["firstname", "lastname"];
+const CLIENT_REQUIRED = ["name"];
 const WORKER_REQUIRED = ["firstname", "lastname", "jobtitle"];
 const SHIFT_REQUIRED = ["date", "start", "end"];
 
@@ -69,9 +72,14 @@ function requiredFor(kind: ImportKind): string[] {
   return SHIFT_REQUIRED;
 }
 
-export function missingColumns(kind: ImportKind, parsed: ParsedCsv): string[] {
-  const present = normalizeSet(parsed.headers);
+function missingFrom(kind: ImportKind, present: Set<string>): string[] {
+  // Clients accept any of the usual organisation-name headers.
+  if (kind === "clients") return CLIENT_NAME_KEYS.some((k) => present.has(k)) ? [] : CLIENT_REQUIRED;
   return requiredFor(kind).filter((column) => !present.has(column));
+}
+
+export function missingColumns(kind: ImportKind, parsed: ParsedCsv): string[] {
+  return missingFrom(kind, normalizeSet(parsed.headers));
 }
 
 function summarize(kind: ImportKind, record: Record<string, string>): string {
@@ -81,15 +89,14 @@ function summarize(kind: ImportKind, record: Record<string, string>): string {
     const title = pick(record, ["title", "shift", "shiftname", "name"]);
     return [date, start, title].filter(Boolean).join(" · ") || "(blank)";
   }
+  if (kind === "clients") return pick(record, CLIENT_NAME_KEYS) || "(blank)";
   const first = pick(record, ["firstname", "first", "forename", "givenname"]);
   const last = pick(record, ["lastname", "last", "surname", "familyname"]);
   return `${first} ${last}`.trim() || "(blank)";
 }
 
 export function previewImport(kind: ImportKind, parsed: ParsedCsv): ImportPreview {
-  const required = requiredFor(kind);
-  const present = normalizeSet(parsed.headers);
-  const missing = required.filter((column) => !present.has(column));
+  const missing = missingFrom(kind, normalizeSet(parsed.headers));
   const issues: ImportRowIssue[] = [];
   const sample: { line: number; summary: string }[] = [];
   let valid = 0;
@@ -120,8 +127,7 @@ export function previewImport(kind: ImportKind, parsed: ParsedCsv): ImportPrevie
 
 export function validateRecord(kind: ImportKind, record: Record<string, string>): string | null {
   if (kind === "clients") {
-    if (!pick(record, ["firstname", "first", "forename", "givenname"])) return "First name is missing";
-    if (!pick(record, ["lastname", "last", "surname", "familyname"])) return "Last name is missing";
+    if (!pick(record, CLIENT_NAME_KEYS)) return "Client name is missing";
     return null;
   }
 
@@ -162,17 +168,27 @@ function emailOrNull(value: string): string | null {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(raw) ? raw : null;
 }
 
+export function clientTypeFromText(value: string): ClientDraft["type"] {
+  const v = value.toLowerCase();
+  if (/nurs/.test(v)) return "NURSING_HOME";
+  if (/dom|home ?care|homecare/.test(v)) return "DOMICILIARY_PROVIDER";
+  if (/supported/.test(v)) return "SUPPORTED_LIVING";
+  if (!v || /care ?home|residential/.test(v)) return "CARE_HOME";
+  return "OTHER";
+}
+
 export function toClientDraft(record: Record<string, string>): ClientDraft {
   return {
-    firstName: pick(record, ["firstname", "first", "forename", "givenname"]),
-    lastName: pick(record, ["lastname", "last", "surname", "familyname"]),
-    email: emailOrNull(pick(record, ["email", "emailaddress", "billingemail"])),
-    phone: pick(record, ["phone", "telephone", "mobile", "contactnumber"]) || null,
+    name: pick(record, CLIENT_NAME_KEYS),
+    type: clientTypeFromText(pick(record, ["type", "clienttype", "servicetype", "category"])),
+    email: emailOrNull(pick(record, ["invoiceemail", "billingemail", "accountsemail", "email", "emailaddress"])),
+    phone: pick(record, ["phone", "telephone", "mainphone", "contactnumber"]) || null,
     address: pick(record, ["address", "addressline1", "street"]) || null,
     postcode: pick(record, ["postcode", "postalcode", "zip"]) || null,
-    careLevel: pick(record, ["carelevel", "level", "caretype"]) || null,
-    companyName: pick(record, ["companyname", "company", "homename", "tradingname"]) || null,
     vatNumber: pick(record, ["vatnumber", "vat", "vatno"]) || null,
+    contactName: pick(record, ["contactname", "contact", "manager", "homemanager"]) || null,
+    contactTitle: pick(record, ["contacttitle", "contactrole", "jobtitle"]) || null,
+    contactEmail: emailOrNull(pick(record, ["contactemail", "manageremail"])),
   };
 }
 

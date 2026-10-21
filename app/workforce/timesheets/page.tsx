@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils";
 import { StatusBadge } from "@/components/status";
+import { clientName } from "@/lib/clients";
 
 export const metadata = { title: "Timesheets" };
 export const dynamic = "force-dynamic";
@@ -62,7 +63,7 @@ export default async function WorkforceTimesheetsPage() {
           all.map((ts) => {
             const where =
               ts.shift.client != null
-                ? `${ts.shift.client.firstName} ${ts.shift.client.lastName}`
+                ? clientName(ts.shift.client)
                 : (ts.shift.site?.name ?? "Location TBC");
             return (
               <div key={ts.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">

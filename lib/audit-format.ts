@@ -8,6 +8,7 @@ export const AUDIT_CATEGORIES = [
   { key: "invoice", label: "Invoices" },
   { key: "import", label: "Imports" },
   { key: "staff", label: "Workers" },
+  { key: "client", label: "Clients" },
   { key: "addon", label: "Add-ons" },
 ] as const;
 
@@ -30,6 +31,8 @@ const SENSITIVE = new Set([
   "auth.locked",
   "payroll.status",
   "invoice.status",
+  "client.rate",
+  "client.signatory_add",
 ]);
 
 export function isSensitiveAction(action: string): boolean {

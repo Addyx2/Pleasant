@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { formatCurrency, formatDate, formatTime, shiftDurationMins } from "@/lib/utils";
 import { Badge, Card, EmptyState, PageHeader, Td, Th, buttonClass } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
+import { clientName } from "@/lib/clients";
 
 export const metadata = { title: "Shifts" };
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export default async function ShiftsPage({
       agencyId: user.agencyId,
       ...(active !== "ALL" ? { status: active as never } : {}),
     },
-    include: { client: true, staff: true, site: true, rotaTemplate: true } as any,
+    include: { client: true, staff: true, site: true, rotaTemplate: true },
     orderBy: { startAt: "desc" },
     take: 100,
   });
@@ -112,9 +113,9 @@ export default async function ShiftsPage({
                       {shift.title}
                     </Link>
                     <p className="text-xs text-slate-500">
-                      {(shift as any).client
-                        ? `${(shift as any).client.firstName} ${(shift as any).client.lastName}`
-                        : (shift as any).site?.name ?? "No client"}
+                      {[shift.client ? clientName(shift.client) : null, shift.site?.name]
+                        .filter(Boolean)
+                        .join(" · ") || "No client"}
                     </p>
                   </Td>
                   <Td>{formatDate(shift.startAt)}</Td>
@@ -123,15 +124,15 @@ export default async function ShiftsPage({
                   </Td>
                   <Td>{Math.round(shiftDurationMins(shift.startAt, shift.endAt) / 60)}h</Td>
                   <Td>
-                    {(shift as any).staff ? (
-                      `${(shift as any).staff.firstName} ${(shift as any).staff.lastName}`
+                    {shift.staff ? (
+                      `${shift.staff.firstName} ${shift.staff.lastName}`
                     ) : (
                       <span className="text-amber-700">Unassigned</span>
                     )}
                   </Td>
                   <Td>
-                    {(shift as any).rotaTemplate ? (
-                      <Badge tone="blue">{(shift as any).rotaTemplate.title}</Badge>
+                    {shift.rotaTemplate ? (
+                      <Badge tone="blue">{shift.rotaTemplate.title}</Badge>
                     ) : (
                       <Badge tone="slate">One-off</Badge>
                     )}
@@ -142,7 +143,7 @@ export default async function ShiftsPage({
                   </Td>
                   <Td className="text-right">
                     <div className="flex items-center justify-end gap-2">
-                      {(shift as any).status === "OPEN" && !(shift as any).staffId ? (
+                      {shift.status === "OPEN" && !shift.staffId ? (
                         <Link href={`/dispatch?tab=to-cover`} className="text-sm font-medium text-brand-700 hover:underline">
                           Assign
                         </Link>

@@ -12,6 +12,7 @@ import {
   deleteRotaTemplateAction,
   generateRotaWeekAction,
 } from "./actions";
+import { CLIENT_NAME_SELECT, clientName } from "@/lib/clients";
 
 export const metadata = { title: "Recurring" };
 export const dynamic = "force-dynamic";
@@ -49,8 +50,8 @@ export default async function RotaPage() {
     }),
     prisma.client.findMany({
       where: { agencyId: user.agencyId, status: "ACTIVE" },
-      orderBy: { lastName: "asc" },
-      select: { id: true, firstName: true, lastName: true },
+      orderBy: { name: "asc" },
+      select: { id: true, ...CLIENT_NAME_SELECT },
     }),
     prisma.staffProfile.findMany({
       where: { agencyId: user.agencyId, status: "ACTIVE" },
@@ -165,7 +166,7 @@ export default async function RotaPage() {
                             ) : null}
                           </td>
                           <td className="px-5 py-3 text-sm text-slate-700">
-                            {line.client ? `${line.client.firstName} ${line.client.lastName}` : "—"}
+                            {clientName(line.client, "—")}
                             {line.site ? <p className="text-xs text-slate-500">{line.site.name}</p> : null}
                           </td>
                           <td className="px-5 py-3 text-sm text-slate-700">
@@ -239,7 +240,7 @@ export default async function RotaPage() {
                       <option value="">None</option>
                       {clients.map((c) => (
                         <option key={c.id} value={c.id}>
-                          {c.firstName} {c.lastName}
+                          {clientName(c)}
                         </option>
                       ))}
                     </select>

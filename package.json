@@ -17,6 +17,7 @@
     "db:studio": "prisma studio",
     "db:migrate": "prisma migrate deploy",
     "db:backup": "tsx scripts/backup.ts",
+    "db:backfill-clients": "tsx scripts/backfill-clients.ts",
     "db:up": "node scripts/local-db.js start",
     "db:down": "node scripts/local-db.js stop"
   },
