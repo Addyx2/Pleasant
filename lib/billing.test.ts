@@ -54,6 +54,30 @@ test("sleep-in shifts bill as a flat allowance", () => {
   assert.equal(line.marginAmount, Math.round((45 - line.payAmount) * 100) / 100);
 });
 
+test("sleep-ins bill their own client charge when set, keeping pay at the allowance", () => {
+  const { startAt, endAt } = TUE_0900_1700();
+  const line = computeInvoiceLine(
+    baseTimesheet({
+      shift: { id: "s-3", title: "Sleep-in", startAt, endAt, chargeRate: 24.5, isSleepIn: true, sleepInRate: 45, sleepInCharge: 85 },
+      staff: { id: "p-2", baseRate: 12.71, holidayAccrualPct: 12.07 },
+    }),
+  );
+  assert.equal(line.chargeAmount, 85);
+  assert.equal(line.payAmount, Math.round((45 + (45 * 12.07) / 100) * 100) / 100);
+  assert.equal(line.marginAmount, Math.round((85 - line.payAmount) * 100) / 100);
+});
+
+test("a null sleep-in charge falls back to billing the allowance", () => {
+  const { startAt, endAt } = TUE_0900_1700();
+  const line = computeInvoiceLine(
+    baseTimesheet({
+      shift: { id: "s-4", title: "Sleep-in", startAt, endAt, chargeRate: 24.5, isSleepIn: true, sleepInRate: 45, sleepInCharge: null },
+      staff: { id: "p-2", baseRate: 12.71, holidayAccrualPct: 12.07 },
+    }),
+  );
+  assert.equal(line.chargeAmount, 45);
+});
+
 test("rounding is consistent with the payroll engine:", () => {
   // 0 break minutes still rounds to the quarter hour.
   const line = computeInvoiceLine(baseTimesheet({ breakMins: 0 }));

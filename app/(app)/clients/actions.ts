@@ -247,6 +247,7 @@ export async function saveRateAction(_prev: ActionState, formData: FormData): Pr
     nightRate: formData.get("nightRate") ?? "",
     weekendRate: formData.get("weekendRate") ?? "",
     bankHolidayRate: formData.get("bankHolidayRate") ?? "",
+    sleepInCharge: formData.get("sleepInCharge") ?? "",
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Could not save this rate" };
 
@@ -263,6 +264,7 @@ export async function saveRateAction(_prev: ActionState, formData: FormData): Pr
     nightRate: d.nightRate ?? null,
     weekendRate: d.weekendRate ?? null,
     bankHolidayRate: d.bankHolidayRate ?? null,
+    sleepInCharge: d.sleepInCharge ?? null,
   };
   // One line per role and site: saving the same pair again updates it.
   const existing = await prisma.clientRate.findFirst({

@@ -20,7 +20,10 @@ export interface BillableTimesheet {
     endAt: Date;
     chargeRate: number;
     isSleepIn: boolean;
+    /** Carer's flat sleep-in allowance (pay). */
     sleepInRate: number;
+    /** Client's flat sleep-in charge; null/undefined bills the allowance. */
+    sleepInCharge?: number | null;
   };
   staff: {
     id: string;
@@ -83,9 +86,10 @@ export function computeInvoiceLine(
   const holiday = round2(pay * (ts.staff.holidayAccrualPct / 100));
   const expenses = round2(ts.expenses);
 
+  const sleepInFlat = ts.shift.sleepInCharge ?? ts.shift.sleepInRate;
   const charge =
-    ts.shift.isSleepIn && ts.shift.sleepInRate > 0
-      ? round2(ts.shift.sleepInRate)
+    ts.shift.isSleepIn && sleepInFlat > 0
+      ? round2(sleepInFlat)
       : round2(ts.shift.chargeRate * hours);
 
   const payAmount = round2(pay + holiday + expenses);

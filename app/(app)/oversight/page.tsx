@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   ArrowUpRight,
   Banknote,
+  Building2,
   CalendarClock,
   ClipboardCheck,
   PoundSterling,
@@ -25,10 +26,10 @@ import {
   formatHours,
   formatTime,
 } from "@/lib/utils";
-import { Card, EmptyState, IconTile, SkeletonCard, SkeletonTable, StatCard, Td } from "@/components/ui";
+import { Badge, Card, EmptyState, IconTile, SkeletonCard, SkeletonTable, StatCard, Td } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
 import { setInvoiceStatusAction } from "@/app/(app)/billing/actions";
-import { clientName } from "@/lib/clients";
+import { CLIENT_NAME_SELECT, clientName } from "@/lib/clients";
 
 export const metadata = { title: "Oversight" };
 export const dynamic = "force-dynamic";
@@ -175,6 +176,62 @@ async function AsyncUnattendedAlert({ agencyId }: { agencyId: string }) {
         >
           Open triage queue <ArrowUpRight className="h-3.5 w-3.5" />
         </Link>
+      </div>
+    </Card>
+  );
+}
+
+// Active clients that can't be priced or signed off yet: no rate card, or no
+// contact authorised to sign timesheets (so no Pleasant Link can be issued).
+async function AsyncClientSetup({ agencyId }: { agencyId: string }) {
+  const clients = await prisma.client.findMany({
+    where: {
+      agencyId,
+      status: "ACTIVE",
+      OR: [{ rates: { none: {} } }, { contacts: { none: { isSignatory: true } } }],
+    },
+    select: {
+      id: true,
+      ...CLIENT_NAME_SELECT,
+      _count: { select: { rates: true, contacts: { where: { isSignatory: true } } } },
+    },
+    orderBy: { name: "asc" },
+  });
+
+  if (clients.length === 0) return null;
+
+  return (
+    <Card className="border-amber-200 bg-amber-50/50">
+      <div className="p-5">
+        <div className="flex items-center gap-4">
+          <IconTile icon={Building2} tone="amber" />
+          <div>
+            <p className="text-sm font-semibold text-amber-950">
+              {clients.length === 1 ? "1 client needs" : `${clients.length} clients need`} setting up
+            </p>
+            <p className="mt-0.5 text-xs text-amber-800">
+              Without a rate card new shifts can&apos;t be priced; without a signatory you can&apos;t send a
+              Pleasant Link for timesheet sign-off.
+            </p>
+          </div>
+        </div>
+        <ul className="mt-4 divide-y divide-amber-200/60 rounded-lg border border-amber-200/70 bg-white/70">
+          {clients.map((client) => (
+            <li key={client.id}>
+              <Link
+                href={`/clients/${client.id}`}
+                className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm hover:bg-white"
+              >
+                <span className="font-medium text-slate-900">{clientName(client)}</span>
+                <span className="flex items-center gap-1.5 text-xs">
+                  {client._count.rates === 0 ? <Badge tone="amber">No rate card</Badge> : null}
+                  {client._count.contacts === 0 ? <Badge tone="amber">No signatory</Badge> : null}
+                  <ArrowUpRight className="h-3.5 w-3.5 text-slate-400" />
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
       </div>
     </Card>
   );
@@ -667,6 +724,10 @@ export default async function OversightPage() {
 
       <Suspense fallback={null}>
         <AsyncUnattendedAlert agencyId={user.agencyId} />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <AsyncClientSetup agencyId={user.agencyId} />
       </Suspense>
 
       {/* Pay and receivables are admin-only; managers see the operational view. */}

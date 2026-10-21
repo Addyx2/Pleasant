@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { isValidLine, lineDateFor, lineEndFor, parseHhMm, buildWeek } from "@/lib/rota";
+import { resolveChargeRate, resolveSleepInCharge, toRateCardEntry, type RateCardEntry } from "@/lib/clients";
 import { nextCutoff } from "@/lib/week";
 
 function weekdayFrom(value: string): number {
@@ -141,8 +142,31 @@ export async function generateRotaWeekAction(formData: FormData): Promise<void> 
   }
 
   if (toInsert.length > 0) {
+    // Lines without their own charge rate (0) are priced from the client's
+    // rate card for the actual date, so weekend and bank-holiday rates apply.
+    const clientIds = [...new Set(toInsert.map((c) => c.line.clientId).filter((id): id is string => !!id))];
+    const rateRows = clientIds.length
+      ? await prisma.clientRate.findMany({ where: { agencyId: user.agencyId, clientId: { in: clientIds } } })
+      : [];
+    const cards = new Map<string, RateCardEntry[]>();
+    for (const row of rateRows) cards.set(row.clientId, [...(cards.get(row.clientId) ?? []), toRateCardEntry(row)]);
+    const priced = (line: (typeof toInsert)[number]["line"], startAt: Date, endAt: Date) => {
+      const card = line.clientId ? (cards.get(line.clientId) ?? []) : [];
+      const chargeRate =
+        Number(line.chargeRate) > 0
+          ? Number(line.chargeRate)
+          : (resolveChargeRate(card, { role: line.role, siteId: line.siteId, startAt, endAt })?.rate ?? 0);
+      const sleepInCharge = line.isSleepIn
+        ? line.sleepInCharge != null
+          ? Number(line.sleepInCharge)
+          : resolveSleepInCharge(card, { role: line.role, siteId: line.siteId })
+        : null;
+      return { chargeRate, sleepInCharge };
+    };
+
     await prisma.shift.createMany({
       data: toInsert.map(({ line, startAt, endAt }) => ({
+        ...priced(line, startAt, endAt),
         agencyId: user.agencyId,
         clientId: line.clientId,
         siteId: line.siteId,
@@ -153,7 +177,6 @@ export async function generateRotaWeekAction(formData: FormData): Promise<void> 
         breakMins: line.breakMins,
         status: line.staffId ? ("ASSIGNED" as const) : ("OPEN" as const),
         staffId: line.staffId,
-        chargeRate: line.chargeRate,
         isSleepIn: line.isSleepIn,
         sleepInRate: line.sleepInRate,
         rotaTemplateId: line.templateId,

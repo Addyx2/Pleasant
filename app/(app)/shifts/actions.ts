@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { initiatePushbotTriage } from "@/lib/pushbots/triage";
-import { clientName, resolveChargeRate, toRateCardEntry } from "@/lib/clients";
+import { clientName, resolveChargeRate, resolveSleepInCharge, toRateCardEntry } from "@/lib/clients";
 import { createShiftSchema } from "@/lib/validation";
 
 export interface ActionState {
@@ -31,6 +31,7 @@ export async function createShiftAction(
     chargeRate: formData.get("chargeRate") || undefined,
     isSleepIn: formData.get("isSleepIn") === "on",
     sleepInRate: formData.get("sleepInRate") || 0,
+    sleepInCharge: formData.get("sleepInCharge") || undefined,
     notes: formData.get("notes"),
   });
 
@@ -58,9 +59,10 @@ export async function createShiftAction(
     return { error: `${site.name} belongs to a different client` };
   }
 
+  const rateCard = client?.rates.map(toRateCardEntry) ?? [];
   let chargeRate = data.chargeRate;
   if (chargeRate === undefined && !data.isSleepIn && client) {
-    const resolved = resolveChargeRate(client.rates.map(toRateCardEntry), {
+    const resolved = resolveChargeRate(rateCard, {
       role: data.role,
       siteId: site?.id ?? null,
       startAt: data.startAt,
@@ -73,7 +75,12 @@ export async function createShiftAction(
     }
     chargeRate = resolved.rate;
   }
-  const title = data.title ?? [data.role, site?.name].filter(Boolean).join(" — ");
+  // Sleep-ins: an explicit charge wins, then the rate card; null bills the allowance.
+  const sleepInCharge = data.isSleepIn
+    ? (data.sleepInCharge ?? resolveSleepInCharge(rateCard, { role: data.role, siteId: site?.id ?? null }))
+    : null;
+  const title =
+    data.title ?? [data.isSleepIn ? `${data.role} sleep-in` : data.role, site?.name].filter(Boolean).join(" — ");
 
   await prisma.shift.create({
     data: {
@@ -90,6 +97,7 @@ export async function createShiftAction(
       chargeRate: chargeRate ?? 0,
       isSleepIn: data.isSleepIn,
       sleepInRate: data.sleepInRate,
+      sleepInCharge,
       notes: data.notes ?? null,
       status: data.staffId ? "ASSIGNED" : "OPEN",
     },

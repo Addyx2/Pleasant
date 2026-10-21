@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { clientName, findRate, resolveChargeRate, shiftRateBand, siteNoun, type RateCardEntry } from "./clients";
+import { clientName, findRate, resolveSleepInCharge, resolveChargeRate, shiftRateBand, siteNoun, type RateCardEntry } from "./clients";
 
 const card: RateCardEntry[] = [
-  { role: "Care Assistant", siteId: null, dayRate: 18, nightRate: 19.5, weekendRate: 20, bankHolidayRate: 27 },
-  { role: "Care Assistant", siteId: "dementia-unit", dayRate: 19, nightRate: null, weekendRate: null, bankHolidayRate: null },
-  { role: "Registered Nurse", siteId: null, dayRate: 32, nightRate: null, weekendRate: null, bankHolidayRate: null },
+  { role: "Care Assistant", siteId: null, dayRate: 18, nightRate: 19.5, weekendRate: 20, bankHolidayRate: 27, sleepInCharge: 95 },
+  { role: "Care Assistant", siteId: "dementia-unit", dayRate: 19, nightRate: null, weekendRate: null, bankHolidayRate: null, sleepInCharge: null },
+  { role: "Registered Nurse", siteId: null, dayRate: 32, nightRate: null, weekendRate: null, bankHolidayRate: null, sleepInCharge: null },
 ];
 
 // Local-time constructors, matching how the payroll engine reads hours.
@@ -56,4 +56,12 @@ test("resolveChargeRate applies the band with day-rate fallbacks", () => {
 
 test("roles missing from the card resolve to nothing", () => {
   assert.equal(resolveChargeRate(card, { role: "Cook", startAt: at(2026, 10, 21, 8), endAt: at(2026, 10, 21, 16) }), null);
+});
+
+test("resolveSleepInCharge reads the flat charge from the matching line", () => {
+  assert.equal(resolveSleepInCharge(card, { role: "Care Assistant" }), 95);
+  // The unit line has no sleep-in charge, so the client-wide one applies.
+  assert.equal(resolveSleepInCharge(card, { role: "Care Assistant", siteId: "dementia-unit" }), 95);
+  assert.equal(resolveSleepInCharge(card, { role: "Registered Nurse" }), null);
+  assert.equal(resolveSleepInCharge(card, { role: "Cook" }), null);
 });

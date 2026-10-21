@@ -34,6 +34,8 @@ export const createShiftSchema = z.object({
   chargeRate: z.coerce.number().min(0).optional(),
   isSleepIn: z.coerce.boolean().default(false),
   sleepInRate: z.coerce.number().min(0).default(0),
+  // Blank means "use the rate card", or bill the allowance if the card has none.
+  sleepInCharge: z.coerce.number().min(0).optional(),
   notes: optionalString,
 });
 
@@ -137,6 +139,7 @@ export const clientRateSchema = z.object({
   nightRate: optionalMoney,
   weekendRate: optionalMoney,
   bankHolidayRate: optionalMoney,
+  sleepInCharge: optionalMoney,
 });
 
 export const payrollRunSchema = z.object({

@@ -235,7 +235,7 @@ if (existing) {
         { name: "Accounts", jobTitle: "Accounts payable", email: "accounts@meadowviewcare.co.uk", isSignatory: false, isAccounts: true },
       ],
       rates: [
-        { role: "Care Assistant", dayRate: 24.5, nightRate: 25.75, weekendRate: 26.5, bankHolidayRate: 36.75 },
+        { role: "Care Assistant", dayRate: 24.5, nightRate: 25.75, weekendRate: 26.5, bankHolidayRate: 36.75, sleepInCharge: 95 },
         { role: "Senior Care Assistant", dayRate: 26.5, nightRate: 27.75, weekendRate: 28.5, bankHolidayRate: 39.75 },
       ],
     },
@@ -273,7 +273,7 @@ if (existing) {
       contacts: [
         { name: "Marcus Lee", jobTitle: "Registered Manager", email: "marcus.lee@brightpathhomecare.co.uk", isSignatory: true, isAccounts: true },
       ],
-      rates: [{ role: "Care Assistant", dayRate: 24.5, nightRate: 26.5, weekendRate: 27, bankHolidayRate: 36.75 }],
+      rates: [{ role: "Care Assistant", dayRate: 24.5, nightRate: 26.5, weekendRate: 27, bankHolidayRate: 36.75, sleepInCharge: 85 }],
     },
   ];
 
@@ -377,6 +377,7 @@ if (existing) {
         chargeRate: seed.staff === grace.id ? 42 : 24.5,
         isSleepIn: seed.isSleepIn ?? false,
         sleepInRate: seed.sleepInRate ?? 0,
+        sleepInCharge: seed.isSleepIn ? 85 : null,
         // Future assigned shifts are still upcoming, not finished.
         status: !seed.staff ? "OPEN" : startAt < now ? "COMPLETED" : "ASSIGNED",
       },

@@ -79,6 +79,7 @@ export async function createInvoiceAction(
           chargeRate: Number(ts.shift.chargeRate),
           isSleepIn: ts.shift.isSleepIn,
           sleepInRate: Number(ts.shift.sleepInRate),
+          sleepInCharge: ts.shift.sleepInCharge == null ? null : Number(ts.shift.sleepInCharge),
         },
         staff: {
           id: ts.staff.id,

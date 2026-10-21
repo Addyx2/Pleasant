@@ -343,6 +343,7 @@ model ClientRate {
   nightRate       Decimal? @db.Decimal(8, 2)
   weekendRate     Decimal? @db.Decimal(8, 2)
   bankHolidayRate Decimal? @db.Decimal(8, 2)
+  sleepInCharge   Decimal? @db.Decimal(8, 2) // flat client charge per sleep-in
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -395,6 +396,8 @@ model Shift {
   // Sleep-in shifts are paid a flat allowance rather than an hourly rate.
   isSleepIn    Boolean @default(false)
   sleepInRate  Decimal @db.Decimal(8, 2) @default(0)
+  // What the client is charged for a sleep-in. Null bills the carer allowance.
+  sleepInCharge Decimal? @db.Decimal(8, 2)
 
   status    ShiftStatus @default(DRAFT)
   notes     String?
@@ -867,6 +870,8 @@ model RotaTemplateLine {
   breakMins   Int @default(0)
   isSleepIn   Boolean @default(false)
   sleepInRate Decimal @db.Decimal(8, 2) @default(0)
+  // What the client is charged for a sleep-in. Null bills the carer allowance.
+  sleepInCharge Decimal? @db.Decimal(8, 2)
   chargeRate  Decimal @db.Decimal(8, 2) @default(0)
   clientId    String?
   staffId     String?

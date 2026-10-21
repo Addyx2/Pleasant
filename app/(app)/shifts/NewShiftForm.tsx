@@ -3,7 +3,7 @@
 import { useActionState, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { resolveChargeRate, type RateCardEntry } from "@/lib/clients";
+import { resolveChargeRate, resolveSleepInCharge, type RateCardEntry } from "@/lib/clients";
 import { formatCurrency } from "@/lib/utils";
 import { createShiftAction, type ActionState } from "./actions";
 import { buttonClass, inputClass, labelClass } from "@/components/ui";
@@ -66,8 +66,11 @@ export function NewShiftForm({
     return resolveChargeRate(client.rates, { role, siteId: siteId || null, startAt: start, endAt: end });
   }, [client, role, siteId, startAt, endAt, isSleepIn]);
 
+  const cardSleepIn =
+    client && role ? resolveSleepInCharge(client.rates, { role, siteId: siteId || null }) : null;
+
   const rateHint = isSleepIn
-    ? "Sleep-ins are billed at the flat allowance below."
+    ? "Sleep-ins are charged a flat amount — see below."
     : !client
       ? "Choose a client to use their rate card."
       : !role
@@ -137,7 +140,12 @@ export function NewShiftForm({
 
       <div>
         <label className={labelClass} htmlFor="title">Shift title <span className="font-normal text-slate-400">(optional)</span></label>
-        <input id="title" name="title" className={inputClass} placeholder={[role || "Care Assistant", clientSites.find((s) => s.id === siteId)?.label].filter(Boolean).join(" — ")} />
+        <input id="title" name="title" className={inputClass} placeholder={[
+            `${role || "Care Assistant"}${isSleepIn ? " sleep-in" : ""}`,
+            clientSites.find((s) => s.id === siteId)?.label,
+          ]
+            .filter(Boolean)
+            .join(" — ")} />
       </div>
 
       <div>
@@ -192,13 +200,34 @@ export function NewShiftForm({
           />
           Sleep-in
         </label>
-        {isSleepIn ? (
-          <div className="flex-1">
-            <label className={labelClass} htmlFor="sleepInRate">Flat allowance (£)</label>
-            <input id="sleepInRate" name="sleepInRate" type="number" step="0.01" min="0" required className={inputClass} />
-          </div>
-        ) : null}
       </div>
+
+      {isSleepIn ? (
+        <div className="grid gap-5 rounded-lg border border-slate-200 bg-slate-50/60 p-4 sm:col-span-2 sm:grid-cols-2">
+          <div>
+            <label className={labelClass} htmlFor="sleepInRate">Carer allowance (£ flat)</label>
+            <input id="sleepInRate" name="sleepInRate" type="number" step="0.01" min="0" required className={inputClass} />
+            <p className="mt-1 text-xs text-slate-500">What the carer is paid for the sleep-in.</p>
+          </div>
+          <div>
+            <label className={labelClass} htmlFor="sleepInCharge">Client charge (£ flat)</label>
+            <input
+              id="sleepInCharge"
+              name="sleepInCharge"
+              type="number"
+              step="0.01"
+              min="0"
+              className={inputClass}
+              placeholder={cardSleepIn != null ? cardSleepIn.toFixed(2) : "= carer allowance"}
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              {cardSleepIn != null
+                ? `Leave blank to charge ${formatCurrency(cardSleepIn)} from the rate card.`
+                : "Leave blank to charge the same as the allowance (no margin)."}
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       <div className="sm:col-span-2">
         <label className={labelClass} htmlFor="notes">Notes for the carer</label>

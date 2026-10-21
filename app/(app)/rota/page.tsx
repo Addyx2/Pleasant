@@ -232,7 +232,7 @@ export default async function RotaPage() {
                   </div>
                   <div>
                     <label className={labelClass} htmlFor={`chargeRate-${template.id}`}>Charge rate (£/hr)</label>
-                    <input id={`chargeRate-${template.id}`} name="chargeRate" type="number" step="0.01" min="0" defaultValue="0" className={inputClass} />
+                    <input id={`chargeRate-${template.id}`} name="chargeRate" type="number" step="0.01" min="0" placeholder="From rate card" className={inputClass} />
                   </div>
                   <div>
                     <label className={labelClass} htmlFor={`clientId-${template.id}`}>Client</label>

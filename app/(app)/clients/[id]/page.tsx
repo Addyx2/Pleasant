@@ -183,6 +183,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                       <Th className="text-right">Night</Th>
                       <Th className="text-right">Weekend</Th>
                       <Th className="text-right">Bank hol.</Th>
+                      <Th className="text-right">Sleep-in</Th>
                       <Th />
                     </tr>
                   </thead>
@@ -195,6 +196,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
                         <Td className="tabular text-right">{money(rate.nightRate)}</Td>
                         <Td className="tabular text-right">{money(rate.weekendRate)}</Td>
                         <Td className="tabular text-right">{money(rate.bankHolidayRate)}</Td>
+                        <Td className="tabular text-right">{money(rate.sleepInCharge)}</Td>
                         <Td className="w-8">
                           <form action={deleteRateAction}>
                             <input type="hidden" name="rateId" value={rate.id} />

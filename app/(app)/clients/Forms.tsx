@@ -247,9 +247,11 @@ export function RateForm({
         <Field id="nightRate" label="Night £/hr" type="number" step="0.01" min="0" placeholder="= day" />
         <Field id="weekendRate" label="Weekend £/hr" type="number" step="0.01" min="0" placeholder="= day" />
         <Field id="bankHolidayRate" label="Bank holiday £/hr" type="number" step="0.01" min="0" placeholder="= weekend" />
+        <Field id="sleepInCharge" label="Sleep-in charge (£ flat)" type="number" step="0.01" min="0" placeholder="= carer allowance" />
       </div>
       <p className="text-xs text-slate-500">
-        Blank premium rates fall back to the day rate. Sleep-ins are set on the shift. Saving a role that already has a line for the
+        Blank premium rates fall back to the day rate. The sleep-in charge is what the client pays
+        per sleep-in; the carer&apos;s allowance is set on the shift. Saving a role that already has a line for the
         same {noun} updates it.
       </p>
       <Feedback state={state} />

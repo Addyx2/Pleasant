@@ -71,6 +71,7 @@ export interface RateCardEntry {
   nightRate: number | null;
   weekendRate: number | null;
   bankHolidayRate: number | null;
+  sleepInCharge: number | null;
 }
 
 export type RateBand = "DAY" | "NIGHT" | "WEEKEND" | "BANK_HOLIDAY";
@@ -119,7 +120,7 @@ export function resolveChargeRate(
   rates: RateCardEntry[],
   shift: { role: string; siteId?: string | null; startAt: Date; endAt: Date },
 ): ResolvedRate | null {
-  // Sleep-ins are billed as their flat allowance (lib/billing.ts), not hourly.
+  // Sleep-ins are billed flat (see resolveSleepInCharge), not hourly.
   const entry = findRate(rates, shift.role, shift.siteId);
   if (!entry) return null;
   const band = shiftRateBand(shift.startAt, shift.endAt);
@@ -134,6 +135,19 @@ export function resolveChargeRate(
   return { rate, band, entry };
 }
 
+/**
+ * Flat client charge for a sleep-in in this role, if the card sets one. A
+ * unit-specific line without one falls back to the client-wide line.
+ */
+export function resolveSleepInCharge(
+  rates: RateCardEntry[],
+  shift: { role: string; siteId?: string | null },
+): number | null {
+  return (
+    findRate(rates, shift.role, shift.siteId)?.sleepInCharge ?? findRate(rates, shift.role, null)?.sleepInCharge ?? null
+  );
+}
+
 export function toRateCardEntry(row: {
   role: string;
   siteId: string | null;
@@ -141,6 +155,7 @@ export function toRateCardEntry(row: {
   nightRate: { toString(): string } | null;
   weekendRate: { toString(): string } | null;
   bankHolidayRate: { toString(): string } | null;
+  sleepInCharge: { toString(): string } | null;
 }): RateCardEntry {
   const n = (v: { toString(): string } | null) => (v == null ? null : Number(v.toString()));
   return {
@@ -150,5 +165,6 @@ export function toRateCardEntry(row: {
     nightRate: n(row.nightRate),
     weekendRate: n(row.weekendRate),
     bankHolidayRate: n(row.bankHolidayRate),
+    sleepInCharge: n(row.sleepInCharge),
   };
 }

@@ -57,7 +57,10 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
     });
 
   const locked = shift.status === "COMPLETED" || shift.status === "CANCELLED";
-  const charge = Number(shift.chargeRate) * (duration / 60);
+  // Mirrors lib/billing.ts: sleep-ins bill a flat charge (or the allowance if none is set).
+  const sleepInFlat = Number(shift.sleepInCharge ?? shift.sleepInRate);
+  const charge =
+    shift.isSleepIn && sleepInFlat > 0 ? sleepInFlat : Number(shift.chargeRate) * (duration / 60);
 
   return (
     <div className="space-y-6">
@@ -78,7 +81,11 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
           value={earnings ? formatCurrency(earnings.totalEarnings) : "—"}
           hint={shift.staff ? "Before tax and NI" : "Assign a carer"}
         />
-        <StatCard label="Client charge (est.)" value={formatCurrency(charge)} hint={`${formatCurrency(Number(shift.chargeRate))}/hr`} />
+        <StatCard
+          label="Client charge (est.)"
+          value={formatCurrency(charge)}
+          hint={shift.isSleepIn ? "Flat sleep-in charge" : `${formatCurrency(Number(shift.chargeRate))}/hr`}
+        />
         <StatCard
           label="Margin (est.)"
           value={earnings ? formatCurrency(charge - earnings.totalEarnings) : "—"}
@@ -98,10 +105,10 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
             <Detail label="Ends" value={formatDateTime(shift.endAt)} />
             <Detail label="Carer" value={shift.staff ? `${shift.staff.firstName} ${shift.staff.lastName}` : "Unassigned"} />
             <Detail
-              label="Pay"
+              label="Rate"
               value={
                 shift.isSleepIn
-                  ? `Sleep-in · ${formatCurrency(Number(shift.sleepInRate))} flat`
+                  ? `Sleep-in · ${formatCurrency(Number(shift.sleepInRate))} carer / ${formatCurrency(sleepInFlat)} client`
                   : `${formatCurrency(Number(shift.chargeRate))}/hr charge`
               }
             />
