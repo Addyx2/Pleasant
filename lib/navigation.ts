@@ -12,6 +12,7 @@ import {
   Send,
   Settings,
   ShieldCheck,
+  Sparkles,
   UserPlus,
   Users,
   type LucideIcon,
@@ -71,6 +72,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Workspace",
     items: [
+      { href: "/assist", label: "Assist", icon: Sparkles, keywords: "ai agent chat history automations connections" },
       { href: "/import", label: "Import data", icon: FileUp, keywords: "csv upload migrate" },
       { href: "/addons", label: "Add-ons", icon: Plus, keywords: "gateway peak integrations" },
       { href: "/settings", label: "Settings", icon: Settings, keywords: "team audit bank invoice" },

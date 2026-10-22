@@ -147,6 +147,12 @@ model Agency {
   auditEvents    AuditEvent[]
   clientContacts ClientContact[]
   clientRates    ClientRate[]
+  assistConversations AssistConversation[]
+  assistAutomations   AssistAutomation[]
+
+  // Assist access policy: tool groups switched off for this agency, as
+  // "<group>:read" or "<group>:write" (e.g. "payroll:write").
+  assistDisabled String[] @default([])
 }
 
 model User {
@@ -179,6 +185,8 @@ model User {
   verifiedRightToWork RightToWork[] @relation("RightToWorkVerifier")
   reviewedForms OnboardingForm[] @relation("FormReviewer")
   auditEvents AuditEvent[]
+  assistConversations AssistConversation[]
+  assistAutomations   AssistAutomation[]
 }
 
 model StaffProfile {
@@ -967,4 +975,64 @@ model AuditEvent {
 
   @@index([agencyId, createdAt])
   @@index([agencyId, action])
+}
+
+// An Assist conversation. Private to the user who started it. The server
+// holds the authoritative Messages API history; the browser only ever sends
+// the next message or its decisions on pending changes.
+model AssistConversation {
+  id           String   @id @default(cuid())
+  agencyId     String
+  userId       String
+  title        String
+  messages     Json     @default("[]")
+  // Plain-English confirmation summaries, keyed by tool_use id.
+  summaries    Json     @default("{}")
+  pinned       Boolean  @default(false)
+  automationId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  agency     Agency            @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  automation AssistAutomation? @relation(fields: [automationId], references: [id], onDelete: SetNull)
+
+  @@index([userId, updatedAt])
+  @@index([automationId, createdAt])
+}
+
+// A scheduled Assist prompt. Runs unattended with read-only tools; each run
+// is saved as a conversation and can be emailed to the owner.
+model AssistAutomation {
+  id          String    @id @default(cuid())
+  agencyId    String
+  userId      String
+  name        String
+  prompt      String
+  cadence     String // DAILY | WEEKDAYS | WEEKLY
+  weekday     Int? // 0 = Sunday … 6 = Saturday, for WEEKLY
+  time        String // "HH:MM", UK time
+  enabled     Boolean   @default(true)
+  emailResult Boolean   @default(true)
+  nextRunAt   DateTime
+  lastRunAt   DateTime?
+  lastStatus  String? // OK | FAILED
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  agency Agency               @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  user   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  runs   AssistConversation[]
+
+  @@index([enabled, nextRunAt])
+  @@index([userId])
+}
+
+// Last time a background job checked in (e.g. "assist-scheduler"), so the
+// app can show whether its scheduler is actually running.
+model SystemHeartbeat {
+  key    String   @id
+  at     DateTime
+  detail String?
 }

@@ -45,6 +45,24 @@ Assist runs Claude (`claude-opus-5-5`) with a tool for each thing it can do (`li
 Set `ANTHROPIC_API_KEY` to enable it. Requests use streaming, prompt caching for the tools and instructions,
 effort `medium`, and the server-side refusal fallback (`fallbacks: "default"`).
 
+### Assist workspace (`/assist`)
+
+- **Chats** — a full-page chat with searchable history. Conversations are stored server-side per user
+  (`AssistConversation`), private to their owner, and can be renamed, pinned and deleted. The server keeps the
+  history, so a client can't rewrite what Assist said or approve changes it never proposed.
+- **Automations** — scheduled prompts (daily, weekdays or weekly, UK time) such as a morning briefing or a
+  compliance watch. They run as their owner with **read-only** tools, save the result as a conversation and
+  optionally email it. Changes are suggested, never made: open the run to continue and approve them.
+  Admins can pause, run or delete their team's automations but can't edit their prompts or read results.
+- **Connections** — status and tests for the AI model, email and the scheduler; links to the Xero, HMRC/bank
+  and Pleasant Link exports; and (admins) the agency's Assist access policy: which areas Assist may read
+  or change, enforced on the server for every user and automation.
+
+The scheduler is `GET /api/cron/assist` with `Authorization: Bearer $CRON_SECRET`. Call it every 15 minutes:
+`.github/workflows/assist-automations.yml` does this when the repository secrets `APP_URL` and
+`CRON_SECRET` are set (Vercel Hobby crons only run daily). Overlapping calls are safe: each run is claimed
+atomically.
+
 ## Security model
 
 - **Sessions** — HMAC-signed, `httpOnly` cookies carrying a per-user `sessionVersion`. Password resets,

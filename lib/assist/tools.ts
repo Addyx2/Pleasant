@@ -29,6 +29,7 @@ import { absoluteUrl } from "@/lib/url";
 import { safeNextPath } from "@/lib/utils";
 
 import { runFormAction, runStateAction, type ActionOutcome } from "./bridge";
+import { TOOL_GROUPS, isAllowed } from "./policy";
 import { bool, date, dateTime, id, idList, int, num, oneOf, optional, shape, str } from "./schema";
 
 export interface ToolContext {
@@ -1226,10 +1227,23 @@ const clientTools = [
 export const ASSIST_TOOLS: AssistTool[] = [...readTools, ...writeTools, ...clientTools];
 
 /** Tools this user's role may use. */
-export function toolsFor(role: string): AssistTool[] {
-  return ASSIST_TOOLS.filter((t) => canAccess(role, t.route));
+export interface ToolScope {
+  /** Agency policy: groups switched off, as "<group>:read" / "<group>:write". */
+  disabled?: readonly string[];
+  /** Unattended runs (automations) can only read: nobody is there to confirm a change. */
+  readOnly?: boolean;
 }
 
-export function findTool(role: string, name: string): AssistTool | undefined {
-  return toolsFor(role).find((t) => t.name === name);
+/** Tools this user may use: their role's routes, minus the agency's Assist policy. */
+export function toolsFor(role: string, scope: ToolScope = {}): AssistTool[] {
+  const disabled = scope.disabled ?? [];
+  return ASSIST_TOOLS.filter((t) => {
+    if (!canAccess(role, t.route)) return false;
+    if (scope.readOnly && t.kind !== "read") return false;
+    return isAllowed(disabled, TOOL_GROUPS[t.name] ?? "general", t.kind === "write" ? "write" : "read");
+  });
+}
+
+export function findTool(role: string, name: string, scope: ToolScope = {}): AssistTool | undefined {
+  return toolsFor(role, scope).find((t) => t.name === name);
 }

@@ -14,7 +14,12 @@ import type { SessionUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { ROLE_LABELS, type AppRole } from "@/lib/permissions";
 
-import { findTool, toolsFor, type AssistTool } from "./tools";
+import { toolLabel } from "./labels";
+import { ASSIST_GROUPS } from "./policy";
+import { findTool, toolsFor, type AssistTool, type ToolScope } from "./tools";
+import type { Decision } from "./types";
+
+export type { Decision };
 
 export const ASSIST_MODEL = "claude-opus-5-5";
 
@@ -22,8 +27,6 @@ export const ASSIST_MODEL = "claude-opus-5-5";
 const MAX_MODEL_CALLS = 8;
 /** Conversations longer than this must be restarted. */
 export const MAX_HISTORY = 120;
-
-export type Decision = "approve" | "decline";
 
 export type AssistEvent =
   | { type: "text"; delta: string }
@@ -55,13 +58,35 @@ Domain notes:
 
 Style: be brief and concrete. Lead with the answer or the result, then the detail that matters. Use short bullet lists for several items and include the key facts (who, where, when). Refer to pages by name, e.g. "on the shift page".`;
 
-function contextBlock(user: SessionUser): string {
+export interface RunOptions {
+  scope?: ToolScope;
+  /** Set for unattended scheduled runs. */
+  automation?: { name: string };
+}
+
+function contextBlock(user: SessionUser, options: RunOptions): string {
   const now = new Date();
   // Date only: this block sits before the conversation in the cache prefix, so
   // anything that changes more often than daily would keep invalidating it.
-  return `Today is ${format(now, "EEEE d MMMM yyyy")} (UK). You are helping ${user.firstName} ${user.lastName}, ${ROLE_LABELS[user.role as AppRole]} at ${user.agency.name}.${
-    user.role === "ADMIN" ? "" : " As a Manager they can't see or change payroll, invoices or agency settings."
-  }`;
+  const parts = [
+    `Today is ${format(now, "EEEE d MMMM yyyy")} (UK). You are helping ${user.firstName} ${user.lastName}, ${ROLE_LABELS[user.role as AppRole]} at ${user.agency.name}.`,
+  ];
+  if (user.role !== "ADMIN") parts.push("As a Manager they can't see or change payroll, invoices or agency settings.");
+  const off = ASSIST_GROUPS.flatMap((g) => {
+    const disabled = options.scope?.disabled ?? [];
+    if (disabled.includes(`${g.key}:read`)) return [`${g.label} (switched off)`];
+    if (disabled.includes(`${g.key}:write`)) return [`${g.label} (read only)`];
+    return [];
+  });
+  if (off.length) {
+    parts.push(`The agency's Assist settings limit these areas: ${off.join(", ")}. If asked, explain that an admin can change this under Assist → Connections.`);
+  }
+  if (options.automation) {
+    parts.push(
+      `This is the scheduled automation "${options.automation.name}". Nobody is watching this run and you can only read: do not ask questions. Answer the request as a concise report. If something needs changing, list it under "Suggested actions" so the user can open this conversation and ask you to do it.`,
+    );
+  }
+  return parts.join(" ");
 }
 
 function toolDefinitions(tools: AssistTool[]): BetaToolUnion[] {
@@ -73,29 +98,6 @@ function toolDefinitions(tools: AssistTool[]): BetaToolUnion[] {
     // input is validated with Zod before a tool runs.
     eager_input_streaming: true,
   }));
-}
-
-const TOOL_LABELS: Record<string, string> = {
-  search_records: "Searching",
-  get_overview: "Checking today's overview",
-  list_shifts: "Looking up shifts",
-  get_shift: "Opening the shift",
-  find_available_workers: "Finding available carers",
-  list_workers: "Looking up carers",
-  get_worker: "Opening the carer's profile",
-  list_clients: "Looking up clients",
-  get_client: "Opening the client",
-  list_timesheets: "Looking up timesheets",
-  list_shift_requests: "Checking shift requests",
-  compliance_alerts: "Checking compliance",
-  list_rota_templates: "Looking up rota templates",
-  list_invoices: "Looking up invoices",
-  list_payroll_runs: "Looking up pay runs",
-  open_page: "Opening the page",
-};
-
-function toolLabel(name: string): string {
-  return TOOL_LABELS[name] ?? "Preparing a change";
 }
 
 function lastToolUses(messages: BetaMessageParam[]): BetaToolUseBlockParam[] {
@@ -116,9 +118,11 @@ export async function* runAssist(
   user: SessionUser,
   history: BetaMessageParam[],
   decisions: Record<string, Decision>,
+  options: RunOptions = {},
 ): AsyncGenerator<AssistEvent> {
   const client = new Anthropic();
-  const tools = toolsFor(user.role);
+  const scope = options.scope ?? {};
+  const tools = toolsFor(user.role, scope);
   const toolDefs = toolDefinitions(tools);
   const messages = [...history];
 
@@ -127,11 +131,11 @@ export async function* runAssist(
     const uses = lastToolUses(messages);
     if (uses.length > 0) {
       const ctx = { user };
-      const undecided = uses.filter((u) => findTool(user.role, u.name)?.kind === "write" && !decisions[u.id]);
+      const undecided = uses.filter((u) => findTool(user.role, u.name, scope)?.kind === "write" && !decisions[u.id]);
       if (undecided.length > 0) {
         const actions = [];
         for (const use of undecided) {
-          const t = findTool(user.role, use.name)!;
+          const t = findTool(user.role, use.name, scope)!;
           const parsed = t.input.zod.safeParse(use.input);
           // Invalid input is reported to the model on resume; still let the user see what was asked.
           const summary = parsed.success && t.describe ? await t.describe(parsed.data, ctx).catch(() => t.name) : t.name;
@@ -144,7 +148,7 @@ export async function* runAssist(
 
       const results: BetaToolResultBlockParam[] = [];
       for (const use of uses) {
-        const t = findTool(user.role, use.name);
+        const t = findTool(user.role, use.name, scope);
         if (!t) {
           results.push(errorResult(use.id, `Unknown or unavailable tool: ${use.name}`));
           continue;
@@ -201,7 +205,7 @@ export async function* runAssist(
           cache_control: { type: "ephemeral" },
           system: [
             { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
-            { type: "text", text: contextBlock(user) } satisfies BetaTextBlockParam,
+            { type: "text", text: contextBlock(user, options) } satisfies BetaTextBlockParam,
           ],
           tools: toolDefs,
           messages,
