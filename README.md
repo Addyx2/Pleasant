@@ -10,7 +10,7 @@ from a care home's shift request to the carer's payslip and the home's invoice.
 | **Operations** | Shifts, recurring rota, dispatch offers, open-shift marketplace, unattended triage |
 | **Clients** | Care homes, nursing homes and domiciliary providers with their units/branches, contacts, named timesheet signatories and a rate card (day, night, weekend, bank holiday) that prices new shifts |
 | **People** | Workers, timesheets with carer e-sign and client authorisation (Pleasant Link), compliance expiry tracking, onboarding pipeline |
-| **Finance** | UK PAYE payroll (tax, NI, pension, holiday, student loan), RTI/FPS export, BACS STD18 + CSV payment files, invoicing with margin, aged receivables, Xero export |
+| **Finance** | UK PAYE payroll (tax, NI, pension, holiday, student loan), RTI/FPS export, BACS STD18 + CSV payment files, invoicing with margin, aged receivables, Xero sales-invoice CSV export |
 | **Workers app** | Mobile-first PWA for carers: open shifts, offers, timesheets, profile |
 | **Workspace** | Team management with roles, append-only audit log, CSV import, ⌘K command palette |
 
