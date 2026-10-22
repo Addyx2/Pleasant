@@ -12,6 +12,7 @@ from a care home's shift request to the carer's payslip and the home's invoice.
 | **People** | Workers, timesheets with carer e-sign and client authorisation (Pleasant Link), compliance expiry tracking, onboarding pipeline |
 | **Finance** | UK PAYE payroll (tax, NI, pension, holiday, student loan), RTI/FPS export, BACS STD18 + CSV payment files, invoicing with margin, aged receivables, Xero sales-invoice CSV export |
 | **Workers app** | Mobile-first PWA for carers: open shifts, offers, timesheets, profile |
+| **Assist** | AI assistant in every back-office page (⌘J, or "Ask Assist" from ⌘K). Answers questions from live data and carries out work — finding and filling shifts, approving timesheets and requests, setting up workers and clients, invoicing and payroll for admins — through the app's own server actions, with the user confirming every change |
 | **Workspace** | Team management with roles, append-only audit log, CSV import, ⌘K command palette |
 
 ## Roles and access
@@ -24,6 +25,25 @@ from a care home's shift request to the carer's payslip and the home's invoice.
 
 Rules live in `lib/permissions.ts` and are enforced server-side by `requireOps()` / `requireAdmin()` in
 `lib/auth.ts`; navigation and the command palette read the same rules.
+
+## Assist (AI assistant)
+
+Assist runs Claude (`claude-opus-5-5`) with a tool for each thing it can do (`lib/assist/tools.ts`).
+
+- **Same rules as the UI.** Every change goes through the existing server action for that feature, so permissions,
+  validation and audit logging are identical to clicking the button. Tools are filtered by role with
+  `canAccess()`, so a Manager's Assist has no payroll or invoice tools.
+- **Nothing changes without a click.** Read tools run straight away; every write tool pauses the conversation and
+  shows a confirmation card with a plain-English summary. Declining tells the model nothing changed.
+- **Verified results.** Many actions fail silently, so each write tool re-reads the record afterwards and reports
+  what actually happened. Executed actions are written to the audit log ("Assist" category).
+- **Bounded.** At most 10 model calls per message and 120 messages per conversation; record text (notes, names,
+  carer messages) is treated as data, never instructions.
+- Not available through Assist by design: agency bank details, team roles, deleting records, imports and
+  add-ons. Assist opens the right page instead.
+
+Set `ANTHROPIC_API_KEY` to enable it. Requests use streaming, prompt caching for the tools and instructions,
+effort `medium`, and the server-side refusal fallback (`fallbacks: "default"`).
 
 ## Security model
 

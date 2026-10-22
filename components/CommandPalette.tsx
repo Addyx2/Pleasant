@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CornerDownLeft, Loader2, Search, Zap } from "lucide-react";
+import { ArrowRight, CornerDownLeft, Loader2, Search, Sparkles, Zap } from "lucide-react";
 
 import { searchAction, type SearchResult } from "@/app/(app)/search/actions";
+import { openAssist } from "@/components/assist/AssistPanel";
 import { navForRole, quickActionsForRole } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
@@ -65,7 +66,11 @@ export function CommandPalette({ role }: { role: string }) {
       href: r.href,
       haystack: "",
     }));
-    return [...records, ...matched];
+    // Anything typed can also go to Assist as a question or instruction.
+    const ask: Entry[] = q
+      ? [{ key: "assist", group: "Assist", label: `Ask Assist: “${query.trim()}”`, href: "", haystack: "" }]
+      : [];
+    return [...records, ...matched, ...ask];
   }, [query, results, staticEntries]);
 
   const close = useCallback(() => {
@@ -126,7 +131,8 @@ export function CommandPalette({ role }: { role: string }) {
   const go = (entry: Entry | undefined) => {
     if (!entry) return;
     close();
-    router.push(entry.href);
+    if (entry.key === "assist") openAssist(query.trim());
+    else router.push(entry.href);
   };
 
   if (!open) return null;
@@ -206,7 +212,9 @@ export function CommandPalette({ role }: { role: string }) {
                       index === selected ? "bg-brand-50 text-brand-900" : "text-slate-700",
                     )}
                   >
-                    {entry.group === "Actions" ? (
+                    {entry.group === "Assist" ? (
+                      <Sparkles className="h-4 w-4 shrink-0 text-brand-500" />
+                    ) : entry.group === "Actions" ? (
                       <Zap className="h-4 w-4 shrink-0 text-amber-500" />
                     ) : (
                       <ArrowRight className="h-4 w-4 shrink-0 text-slate-400" />

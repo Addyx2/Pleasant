@@ -9,6 +9,7 @@ export const AUDIT_CATEGORIES = [
   { key: "import", label: "Imports" },
   { key: "staff", label: "Workers" },
   { key: "client", label: "Clients" },
+  { key: "assist", label: "Assist" },
   { key: "addon", label: "Add-ons" },
 ] as const;
 

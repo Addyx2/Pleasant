@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { LogOut } from "lucide-react";
 
 import { AppNav } from "@/components/AppNav";
+import { AssistPanel } from "@/components/assist/AssistPanel";
 import { CommandPalette, CommandPaletteTrigger } from "@/components/CommandPalette";
 import { MobileHeader } from "@/components/MobileHeader";
 import { logoutAction, logoutEverywhereAction } from "@/app/login/actions";
@@ -23,6 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         Skip to content
       </a>
       <CommandPalette role={user.role} />
+      <AssistPanel role={user.role} firstName={user.firstName} />
 
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex">
         <div className="flex items-center gap-3 px-6 pt-6">
