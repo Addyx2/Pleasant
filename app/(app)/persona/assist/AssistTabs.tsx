@@ -7,9 +7,9 @@ import { MessagesSquare, PlugZap, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { href: "/assist", label: "Chats", icon: MessagesSquare, match: (p: string) => p === "/assist" || p.startsWith("/assist/c/") },
-  { href: "/assist/automations", label: "Automations", icon: Repeat, match: (p: string) => p.startsWith("/assist/automations") },
-  { href: "/assist/connections", label: "Connections", icon: PlugZap, match: (p: string) => p.startsWith("/assist/connections") },
+  { href: "/persona/assist", label: "Chats", icon: MessagesSquare, match: (p: string) => p === "/persona/assist" || p.startsWith("/persona/assist/c/") },
+  { href: "/persona/assist/automations", label: "Automations", icon: Repeat, match: (p: string) => p.startsWith("/persona/assist/automations") },
+  { href: "/persona/assist/connections", label: "Connections", icon: PlugZap, match: (p: string) => p.startsWith("/persona/assist/connections") },
 ];
 
 export function AssistTabs() {

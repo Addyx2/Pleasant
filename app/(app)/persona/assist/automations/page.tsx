@@ -67,7 +67,7 @@ export default async function AutomationsPage() {
               ? "Scheduled runs are off until a scheduler is connected."
               : `The scheduler hasn't checked in ${heartbeat ? `since ${ukTime.format(heartbeat.at)}` : "yet"}.`}{" "}
             You can still use <strong>Run now</strong>. See{" "}
-            <Link href="/assist/connections" className="font-semibold underline">
+            <Link href="/persona/assist/connections" className="font-semibold underline">
               Connections
             </Link>{" "}
             to set it up.

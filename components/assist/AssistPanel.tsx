@@ -29,7 +29,7 @@ function remember(id: string | null) {
 
 export function AssistPanel({ role, firstName }: { role: string; firstName: string }) {
   const pathname = usePathname();
-  const onAssistPage = pathname.startsWith("/assist");
+  const onAssistPage = pathname.startsWith("/persona/assist");
   const [open, setOpen] = useState(false);
   const restored = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -109,7 +109,9 @@ export function AssistPanel({ role, firstName }: { role: string; firstName: stri
                 <Sparkles className="h-3.5 w-3.5 text-brand-300" />
               </span>
               <div className="min-w-0 leading-tight">
-                <p className="font-display text-sm font-bold text-slate-900">Assist</p>
+                <p className="font-display text-sm font-bold text-slate-900">
+                  Assist <span className="ml-1 text-[10px] font-semibold uppercase tracking-wider text-brand-600">Persona</span>
+                </p>
                 <p className="truncate text-[11px] text-slate-500">{chat.title ?? "Works across Pleasant with your permissions"}</p>
               </div>
             </div>
@@ -125,7 +127,7 @@ export function AssistPanel({ role, firstName }: { role: string; firstName: stri
                 <Plus className="h-3.5 w-3.5" /> New chat
               </button>
               <Link
-                href={chat.conversationId ? `/assist/c/${chat.conversationId}` : "/assist"}
+                href={chat.conversationId ? `/persona/assist/c/${chat.conversationId}` : "/persona/assist"}
                 aria-label="Open full page"
                 title="Open full page"
                 className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"

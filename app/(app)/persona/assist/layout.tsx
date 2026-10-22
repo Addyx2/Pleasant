@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Sparkles } from "lucide-react";
 
 import { requireOps } from "@/lib/auth";
@@ -14,8 +15,11 @@ export default async function AssistLayout({ children }: { children: React.React
             <Sparkles className="h-4 w-4 text-brand-300" />
           </span>
           <div>
-            <h1 className="font-display text-xl font-bold tracking-tight text-slate-900">Assist</h1>
-            <p className="text-xs text-slate-500">Your AI assistant for Pleasant: ask, act, automate.</p>
+            <Link href="/persona" className="text-[11px] font-semibold uppercase tracking-wider text-brand-600 hover:text-brand-700">
+              Persona
+            </Link>
+            <h1 className="font-display text-xl font-bold leading-tight tracking-tight text-slate-900">Assist</h1>
+            <p className="text-xs text-slate-500">Ask, act and automate across Pleasant, with your permissions.</p>
           </div>
         </div>
         <AssistTabs />

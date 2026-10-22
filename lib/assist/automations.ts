@@ -92,11 +92,11 @@ export async function runAutomation(automationId: string, trigger: "schedule" | 
   });
 
   if (ok && automation.emailResult && owner.email) {
-    const link = await absoluteUrl(`/assist/c/${conversation.id}`).catch(() => `/assist/c/${conversation.id}`);
+    const link = await absoluteUrl(`/persona/assist/c/${conversation.id}`).catch(() => `/persona/assist/c/${conversation.id}`);
     await sendEmail({
       to: owner.email,
-      subject: `Assist: ${automation.name}`,
-      text: `${report.trim()}\n\n—\nOpen in Pleasant to continue, or to ask Assist to make any suggested changes:\n${link}\n\nYou're receiving this because you scheduled "${automation.name}" in Assist → Automations.`,
+      subject: `Persona Assist: ${automation.name}`,
+      text: `${report.trim()}\n\n—\nOpen in Pleasant to continue, or to ask Assist to make any suggested changes:\n${link}\n\nYou're receiving this because you scheduled "${automation.name}" in Persona → Assist → Automations.`,
     });
   }
 

@@ -207,7 +207,7 @@ export function AssistWorkspace({
     initial,
     onConversation: (id) => {
       // Update the address without remounting mid-stream.
-      window.history.replaceState(null, "", `/assist/c/${id}`);
+      window.history.replaceState(null, "", `/persona/assist/c/${id}`);
       void refreshHistory();
     },
     onSettled: () => void refreshHistory(),
@@ -237,7 +237,7 @@ export function AssistWorkspace({
           onClick={() => {
             chat.reset();
             setShowHistory(false);
-            router.push("/assist");
+            router.push("/persona/assist");
             inputRef.current?.focus();
           }}
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
@@ -272,11 +272,11 @@ export function AssistWorkspace({
                     active={item.id === activeId}
                     onOpen={() => {
                       setShowHistory(false);
-                      router.push(`/assist/c/${item.id}`);
+                      router.push(`/persona/assist/c/${item.id}`);
                     }}
                     onChanged={() => void refreshHistory()}
                     onDeleted={() => {
-                      if (item.id === activeId) router.push("/assist");
+                      if (item.id === activeId) router.push("/persona/assist");
                       void refreshHistory();
                     }}
                   />

@@ -96,7 +96,7 @@ export async function saveAutomationAction(
     });
   }
 
-  revalidatePath("/assist/automations");
+  revalidatePath("/persona/assist/automations");
   return { success: d.id ? "Automation saved" : "Automation created" };
 }
 
@@ -121,7 +121,7 @@ export async function toggleAutomationAction(formData: FormData): Promise<void> 
     targetType: "AssistAutomation",
     targetId: automation.id,
   });
-  revalidatePath("/assist/automations");
+  revalidatePath("/persona/assist/automations");
 }
 
 export async function deleteAutomationAction(formData: FormData): Promise<void> {
@@ -135,7 +135,7 @@ export async function deleteAutomationAction(formData: FormData): Promise<void> 
     targetType: "AssistAutomation",
     targetId: automation.id,
   });
-  revalidatePath("/assist/automations");
+  revalidatePath("/persona/assist/automations");
 }
 
 export async function runAutomationNowAction(formData: FormData): Promise<void> {
@@ -143,7 +143,7 @@ export async function runAutomationNowAction(formData: FormData): Promise<void> 
   const automation = await manageable(user, String(formData.get("id") ?? ""));
   if (!automation) return;
   const result = await runAutomation(automation.id, "manual");
-  revalidatePath("/assist/automations");
+  revalidatePath("/persona/assist/automations");
   // The run is saved in the owner's private history; open it if that's you.
-  if (result.conversationId && automation.userId === user.id) redirect(`/assist/c/${result.conversationId}`);
+  if (result.conversationId && automation.userId === user.id) redirect(`/persona/assist/c/${result.conversationId}`);
 }

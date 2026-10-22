@@ -321,7 +321,7 @@ function AutomationCard({ item, onEdit, mine }: { item: AutomationItem; onEdit?:
                 <span className="text-slate-400">None yet</span>
               ) : (
                 item.runs.map((r) => (
-                  <Link key={r.id} href={`/assist/c/${r.id}`} className="font-medium text-brand-700 hover:text-brand-800">
+                  <Link key={r.id} href={`/persona/assist/c/${r.id}`} className="font-medium text-brand-700 hover:text-brand-800">
                     {r.at}
                   </Link>
                 ))

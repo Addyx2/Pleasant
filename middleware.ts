@@ -20,6 +20,7 @@ const PROTECTED_PREFIXES = [
   "/invoice",
   "/settings",
   "/addons",
+  "/persona",
   "/assist",
 ];
 
@@ -58,6 +59,7 @@ export const config = {
     "/invoice/:path*",
     "/settings/:path*",
     "/addons/:path*",
+    "/persona/:path*",
     "/assist/:path*",
   ],
 };

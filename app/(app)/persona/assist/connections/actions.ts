@@ -36,7 +36,7 @@ export async function sendTestEmailAction(_prev: TestState): Promise<TestState> 
   const { delivered } = await sendEmail({
     to: user.email,
     subject: "Pleasant test email",
-    text: `This is a test from Assist → Connections in ${user.agency.name}. If you can read it, automation results can be emailed.`,
+    text: `This is a test from Persona → Assist → Connections in ${user.agency.name}. If you can read it, automation results can be emailed.`,
   });
   return delivered
     ? { ok: true, message: `Sent to ${user.email}.` }
@@ -68,5 +68,5 @@ export async function saveAssistPolicyAction(formData: FormData): Promise<void> 
     targetId: user.agencyId,
     metadata: { disabled: next },
   });
-  revalidatePath("/assist/connections");
+  revalidatePath("/persona/assist/connections");
 }

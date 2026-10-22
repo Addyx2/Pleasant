@@ -23,6 +23,9 @@ const nextConfig: NextConfig = {
         destination: "/dispatch?tab=requests",
         permanent: false,
       },
+      // Assist moved under Persona; keep old links (emails, bookmarks) working.
+      { source: "/assist", destination: "/persona/assist", permanent: false },
+      { source: "/assist/:path*", destination: "/persona/assist/:path*", permanent: false },
     ];
   },
   async headers() {

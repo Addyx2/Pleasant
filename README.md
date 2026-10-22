@@ -45,7 +45,13 @@ Assist runs Claude (`claude-opus-5-5`) with a tool for each thing it can do (`li
 Set `ANTHROPIC_API_KEY` to enable it. Requests use streaming, prompt caching for the tools and instructions,
 effort `medium`, and the server-side refusal fallback (`fallbacks: "default"`).
 
-### Assist workspace (`/assist`)
+### Persona and the Assist workspace (`/persona`)
+
+**Persona** is Pleasant's AI suite: it understands care delivery from the providers who supply care to the
+service users who receive it, mapped to their needs and abilities. `/persona` shows the suite: Assist (live) and
+the foundation layers (Competence, Compliance, Shift Readiness) with live figures and what comes next.
+Assist lives at `/persona/assist`; old `/assist` links redirect there.
+
 
 - **Chats** — a full-page chat with searchable history. Conversations are stored server-side per user
   (`AssistConversation`), private to their owner, and can be renamed, pinned and deleted. The server keeps the
