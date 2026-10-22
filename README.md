@@ -37,7 +37,7 @@ Assist runs Claude (`claude-opus-5-5`) with a tool for each thing it can do (`li
   shows a confirmation card with a plain-English summary. Declining tells the model nothing changed.
 - **Verified results.** Many actions fail silently, so each write tool re-reads the record afterwards and reports
   what actually happened. Executed actions are written to the audit log ("Assist" category).
-- **Bounded.** At most 10 model calls per message and 120 messages per conversation; record text (notes, names,
+- **Bounded.** At most 8 model calls per message and 120 messages per conversation; record text (notes, names,
   carer messages) is treated as data, never instructions.
 - Not available through Assist by design: agency bank details, team roles, deleting records, imports and
   add-ons. Assist opens the right page instead.

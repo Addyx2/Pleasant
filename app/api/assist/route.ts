@@ -7,8 +7,9 @@ import { getSessionUser } from "@/lib/auth";
 import { isOpsRole } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
-// Several model calls and tool runs can happen in one request.
-export const maxDuration = 300;
+// Several model calls and tool runs can happen in one request. 60s is
+// accepted on every Vercel plan; raise it if your plan allows longer.
+export const maxDuration = 60;
 
 const MAX_BODY_BYTES = 2_000_000;
 

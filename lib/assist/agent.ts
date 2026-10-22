@@ -19,7 +19,7 @@ import { findTool, toolsFor, type AssistTool } from "./tools";
 export const ASSIST_MODEL = "claude-opus-5-5";
 
 /** Model calls allowed per user message, so a confused loop can't run up cost. */
-const MAX_MODEL_CALLS = 10;
+const MAX_MODEL_CALLS = 8;
 /** Conversations longer than this must be restarted. */
 export const MAX_HISTORY = 120;
 
