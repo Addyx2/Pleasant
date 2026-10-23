@@ -164,7 +164,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
-          <Card className="overflow-hidden">
+          <Card id="rates" className="scroll-mt-6 overflow-hidden">
             <div className="p-5">
               <SectionHeader
                 icon={BadgePoundSterling}
@@ -298,7 +298,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
             </div>
           </Card>
 
-          <Card className="p-5">
+          <Card id="contacts" className="scroll-mt-6 p-5">
             <SectionHeader icon={Users} title="Contacts" hint="Managers, nurses in charge and accounts at this client." />
             {client.contacts.length > 0 ? (
               <ul className="mt-4 divide-y divide-slate-100">

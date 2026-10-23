@@ -13,6 +13,7 @@ function refreshTimesheetPaths() {
   revalidatePath("/workforce");
   revalidatePath("/shifts");
   revalidatePath("/dashboard");
+  revalidatePath("/oversight");
 }
 
 /** Carers acting as staff may only touch their own shifts and timesheets. */
