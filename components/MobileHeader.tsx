@@ -1,18 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { LogOut, Menu, Search, X } from "lucide-react";
+import { Menu, Search, X } from "lucide-react";
 
+import { AccountMenu } from "./AccountMenu";
 import { AppNav } from "./AppNav";
 import { openCommandPalette } from "./CommandPalette";
-import { logoutAction } from "@/app/login/actions";
-import { ROLE_LABELS, type AppRole } from "@/lib/permissions";
-import { initials } from "@/lib/utils";
 
 interface MobileHeaderProps {
   user: {
     firstName: string;
     lastName: string;
+    email: string;
     role: string;
     agency: {
       name: string;
@@ -99,30 +98,21 @@ export function MobileHeader({ user }: MobileHeaderProps) {
               <AppNav role={user.role} />
             </div>
 
-            <div className="border-t border-slate-200 p-4 space-y-3">
-              <div className="flex items-center gap-3 px-1">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-600/10">
-                  {initials(user.firstName, user.lastName)}
-                </span>
-                <div className="min-w-0 flex-1 leading-tight">
-                  <p className="truncate text-sm font-medium text-slate-900">
-                    {user.firstName} {user.lastName}
-                  </p>
-                  <p className="truncate text-xs text-slate-500">
-                    {ROLE_LABELS[user.role as AppRole] ?? user.role}
-                  </p>
-                </div>
-              </div>
-
-              <form action={logoutAction}>
-                <button
-                  type="submit"
-                  className="flex w-full items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 active:scale-[0.99]"
-                >
-                  <LogOut className="h-4 w-4 text-slate-500" />
-                  Sign out
-                </button>
-              </form>
+            <div
+              className="border-t border-slate-200 p-3"
+              onClick={(e) => {
+                if ((e.target as HTMLElement).closest("a")) setIsOpen(false);
+              }}
+            >
+              <AccountMenu
+                user={{
+                  firstName: user.firstName,
+                  lastName: user.lastName,
+                  email: user.email,
+                  role: user.role,
+                  agencyName: user.agency.name,
+                }}
+              />
             </div>
           </div>
         </div>

@@ -2,8 +2,10 @@ import {
   Banknote,
   Building2,
   CalendarClock,
+  FileUp,
   Fingerprint,
   LayoutDashboard,
+  Puzzle,
   Settings,
   Users,
   type LucideIcon,
@@ -80,16 +82,6 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/persona/assist", label: "Assist", keywords: "persona ai agent chat history automations connections" },
     ],
   },
-  {
-    key: "workspace",
-    title: "Workspace",
-    icon: Settings,
-    items: [
-      { href: "/import", label: "Import data", keywords: "csv upload migrate" },
-      { href: "/addons", label: "Add-ons", keywords: "gateway peak integrations" },
-      { href: "/settings", label: "Settings", keywords: "team audit bank invoice" },
-    ],
-  },
 ];
 
 export interface QuickAction {
@@ -107,12 +99,20 @@ export const QUICK_ACTIONS: QuickAction[] = [
   { href: "/settings/audit", label: "View audit log", keywords: "security history" },
 ];
 
-export function navForRole(role: string): { home: NavItem; sections: NavSection[] } {
+/** Agency setup, opened from the account menu rather than the sidebar. */
+export const WORKSPACE_ITEMS: NavItem[] = [
+  { href: "/settings", label: "Settings", icon: Settings, keywords: "workspace team audit bank invoice" },
+  { href: "/import", label: "Import data", icon: FileUp, keywords: "workspace csv upload migrate" },
+  { href: "/addons", label: "Add-ons", icon: Puzzle, keywords: "workspace gateway peak integrations" },
+];
+
+export function navForRole(role: string): { home: NavItem; sections: NavSection[]; workspace: NavItem[] } {
   return {
     home: HOME_ITEM,
     sections: NAV_SECTIONS.map((s) => ({ ...s, items: s.items.filter((i) => canAccess(role, i.href)) })).filter(
       (s) => s.items.length > 0,
     ),
+    workspace: WORKSPACE_ITEMS.filter((i) => canAccess(role, i.href)),
   };
 }
 

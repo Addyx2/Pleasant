@@ -26,10 +26,15 @@ test("sections have unique keys and icons, and features are listed as text", () 
   assert.equal(new Set(keys).size, keys.length);
   assert.deepEqual(
     sections.map((s) => s.title),
-    ["Shifts", "People", "Clientpointe", "Finance", "Persona", "Workspace"],
+    ["Shifts", "People", "Clientpointe", "Finance", "Persona"],
   );
   for (const s of sections) {
     assert.ok(s.icon, `${s.title} has no icon`);
     assert.ok(s.items.every((i) => !i.icon), `${s.title} lists a feature with an icon`);
   }
+});
+
+test("workspace lives in the account menu and is admin-only", () => {
+  assert.deepEqual(navForRole("ADMIN").workspace.map((i) => i.href), ["/settings", "/import", "/addons"]);
+  assert.deepEqual(navForRole("MANAGER").workspace, []);
 });
