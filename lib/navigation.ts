@@ -2,19 +2,9 @@ import {
   Banknote,
   Building2,
   CalendarClock,
-  CalendarDays,
-  Clock,
-  FileUp,
   Fingerprint,
   LayoutDashboard,
-  Plus,
-  Receipt,
-  Repeat,
-  Send,
   Settings,
-  ShieldCheck,
-  Sparkles,
-  UserPlus,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -24,12 +14,15 @@ import { canAccess } from "./permissions";
 export interface NavItem {
   href: string;
   label: string;
-  icon: LucideIcon;
+  /** Only top-level links carry an icon; section features are listed as text. */
+  icon?: LucideIcon;
   keywords?: string;
 }
 
 export interface NavSection {
+  key: string;
   title: string;
+  icon: LucideIcon;
   items: NavItem[];
 }
 
@@ -42,47 +35,59 @@ export const HOME_ITEM: NavItem = {
 
 export const NAV_SECTIONS: NavSection[] = [
   {
-    title: "Operations",
+    key: "shifts",
+    title: "Shifts",
+    icon: CalendarClock,
     items: [
-      { href: "/shifts", label: "Shifts", icon: CalendarClock, keywords: "rota schedule list" },
-      { href: "/shifts/calendar", label: "Calendar", icon: CalendarDays, keywords: "rota schedule week" },
-      { href: "/rota", label: "Recurring", icon: Repeat, keywords: "template pattern rota" },
-      { href: "/dispatch", label: "Dispatch", icon: Send, keywords: "offer fill requests approve claim" },
+      { href: "/shifts", label: "Shifts", keywords: "rota schedule list operations" },
+      { href: "/shifts/calendar", label: "Calendar", keywords: "rota schedule week" },
+      { href: "/rota", label: "Recurring", keywords: "template pattern rota" },
+      { href: "/dispatch", label: "Dispatch", keywords: "offer fill requests approve claim" },
     ],
   },
   {
+    key: "people",
     title: "People",
+    icon: Users,
     items: [
-      { href: "/staff", label: "Workers", icon: Users, keywords: "carers staff nurses" },
-      { href: "/timesheets", label: "Timesheets", icon: Clock, keywords: "hours approve" },
-      { href: "/compliance", label: "Compliance", icon: ShieldCheck, keywords: "dbs right to work training expiry" },
-      { href: "/workforce/recruitment", label: "Onboarding", icon: UserPlus, keywords: "recruitment candidates" },
+      { href: "/staff", label: "Workers", keywords: "carers staff nurses" },
+      { href: "/timesheets", label: "Timesheets", keywords: "hours approve" },
+      { href: "/compliance", label: "Compliance", keywords: "dbs right to work training expiry" },
+      { href: "/workforce/recruitment", label: "Onboarding", keywords: "recruitment candidates" },
     ],
   },
   {
-    title: "Clients",
-    items: [{ href: "/clients", label: "Clients", icon: Building2, keywords: "care homes sites" }],
+    key: "clientpointe",
+    title: "Clientpointe",
+    icon: Building2,
+    items: [{ href: "/clients", label: "Clients", keywords: "clientpointe care homes sites" }],
   },
   {
+    key: "finance",
     title: "Finance",
+    icon: Banknote,
     items: [
-      { href: "/payroll", label: "Payroll", icon: Banknote, keywords: "pay run payslips rti hmrc bacs" },
-      { href: "/billing", label: "Invoices", icon: Receipt, keywords: "billing invoice receivables xero" },
+      { href: "/payroll", label: "Payroll", keywords: "pay run payslips rti hmrc bacs" },
+      { href: "/billing", label: "Invoices", keywords: "billing invoice receivables xero" },
     ],
   },
   {
+    key: "persona",
     title: "Persona",
+    icon: Fingerprint,
     items: [
-      { href: "/persona", label: "Overview", icon: Fingerprint, keywords: "persona ai suite competence compliance readiness layers" },
-      { href: "/persona/assist", label: "Assist", icon: Sparkles, keywords: "persona ai agent chat history automations connections" },
+      { href: "/persona", label: "Overview", keywords: "persona ai suite competence compliance readiness layers" },
+      { href: "/persona/assist", label: "Assist", keywords: "persona ai agent chat history automations connections" },
     ],
   },
   {
+    key: "workspace",
     title: "Workspace",
+    icon: Settings,
     items: [
-      { href: "/import", label: "Import data", icon: FileUp, keywords: "csv upload migrate" },
-      { href: "/addons", label: "Add-ons", icon: Plus, keywords: "gateway peak integrations" },
-      { href: "/settings", label: "Settings", icon: Settings, keywords: "team audit bank invoice" },
+      { href: "/import", label: "Import data", keywords: "csv upload migrate" },
+      { href: "/addons", label: "Add-ons", keywords: "gateway peak integrations" },
+      { href: "/settings", label: "Settings", keywords: "team audit bank invoice" },
     ],
   },
 ];

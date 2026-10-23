@@ -89,7 +89,13 @@ export function MobileHeader({ user }: MobileHeaderProps) {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4" onClick={() => setIsOpen(false)}>
+            <div
+              className="flex-1 overflow-y-auto p-4"
+              onClick={(e) => {
+                // Close after following a link; section toggles keep the drawer open.
+                if ((e.target as HTMLElement).closest("a")) setIsOpen(false);
+              }}
+            >
               <AppNav role={user.role} />
             </div>
 

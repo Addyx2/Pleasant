@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, CornerDownLeft, Loader2, Search, Sparkles, Zap } from "lucide-react";
 
 import { searchAction, type SearchResult } from "@/app/(app)/search/actions";
+import { useSidebar } from "@/components/SidebarShell";
 import { openAssist } from "@/components/assist/AssistPanel";
 import { navForRole, quickActionsForRole } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
@@ -243,7 +244,24 @@ export function CommandPalette({ role }: { role: string }) {
   );
 }
 
-export function CommandPaletteTrigger({ className }: { className?: string }) {
+export function CommandPaletteTrigger({ className, followRail = false }: { className?: string; followRail?: boolean }) {
+  const { rail } = useSidebar();
+  if (followRail && rail) {
+    return (
+      <button
+        type="button"
+        onClick={openCommandPalette}
+        aria-label="Search"
+        title="Search (⌘K)"
+        className={cn(
+          "mx-auto flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50/70 text-slate-500 transition hover:border-slate-300 hover:bg-white",
+          className,
+        )}
+      >
+        <Search className="h-4 w-4" />
+      </button>
+    );
+  }
   return (
     <button
       type="button"
