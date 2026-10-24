@@ -48,6 +48,17 @@ export default async function LoginPage({
             New agency? Create your account →
           </Link>
         </div>
+        <p className="mt-6 text-center text-xs text-slate-500">
+          New to Pleasant?{" "}
+          <a href="https://aultrum.co.uk/pleasant/" className="font-medium text-slate-700 hover:text-slate-900">
+            See what it does
+          </a>{" "}
+          or{" "}
+          <a href="https://aultrum.co.uk/pleasant/book-a-demo/" className="font-medium text-slate-700 hover:text-slate-900">
+            book a demo
+          </a>
+          .
+        </p>
       </div>
     </main>
   );
