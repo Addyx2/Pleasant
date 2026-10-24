@@ -12,6 +12,8 @@ const securityHeaders = [
   },
 ];
 
+const MARKETING_URL = "https://aultrum.co.uk/pleasant";
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
@@ -23,6 +25,8 @@ const nextConfig: NextConfig = {
         destination: "/dispatch?tab=requests",
         permanent: false,
       },
+      // Pleasant's marketing pages live on the Aultrum site.
+      { source: "/pricing", destination: `${MARKETING_URL}/pricing/`, permanent: false },
       // Assist moved under Persona; keep old links (emails, bookmarks) working.
       { source: "/assist", destination: "/persona/assist", permanent: false },
       { source: "/assist/:path*", destination: "/persona/assist/:path*", permanent: false },
