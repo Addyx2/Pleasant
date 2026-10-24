@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight, Headset, Puzzle, Sparkles, Plus } from "lucide-react";
 
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { Card, PageHeader, buttonClass, subtleButtonClass } from "@/components/ui";
 import { getAvailableAddons } from "@/lib/addons";
 import { installAddonAction, uninstallAddonAction } from "./actions";
@@ -14,7 +14,7 @@ const ICONS = {
 };
 
 export default async function AddonsPage() {
-  const user = await requireUser();
+  const user = await requireAdmin();
   const addons = await getAvailableAddons(user.agencyId);
 
   const installed = addons.filter((a) => a.installed);

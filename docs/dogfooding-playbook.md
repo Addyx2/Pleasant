@@ -102,11 +102,11 @@ full file; keep payslips + invoices 6 years under HMRC rules.
 
 ### Blockers (build before going live for real)
 
-1. **Client = the home with wards.** Today `Client` is person-shaped
-   (firstName/lastName, "people you care for"). For supply work the billable
-   entity is a care home and the signatory is its manager. For the pilot you
-   can use Client name ≈ home + contact, but invoices/receipts should present
-   **home + ward** and land on the framework agreement. (Minor-Medium.)
+1. ~~**Client = the home with wards.**~~ **Done.** Clients are organisations
+   (care home, nursing home, domiciliary provider) with units/branches as Sites,
+   contacts with named timesheet signatories, and a per-role rate card that
+   prices new shifts. Pleasant Links are issued to a named signatory and record
+   their name and role on every sign-off.
 2. **Aged receivables / cash radar.** Pilot lives or dies on collection. Add a
    small Oversight view: invoices by status (ISSUED vs PAID), days overdue vs
    due date. (Medium — no schema change needed, invoice has issueDate/dueDate.)

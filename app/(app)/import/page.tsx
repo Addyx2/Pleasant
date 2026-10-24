@@ -6,7 +6,7 @@ import { formatDateTime } from "@/lib/utils";
 import { Card, PageHeader } from "@/components/ui";
 import { ImportWizard } from "./ImportWizard";
 
-export const metadata = { title: "Import data | Pleasant" };
+export const metadata = { title: "Import data" };
 export const dynamic = "force-dynamic";
 
 const KIND_LABEL: Record<string, string> = {

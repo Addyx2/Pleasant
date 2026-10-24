@@ -1,11 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { requireUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { ensureAddonEntitlement } from "@/lib/addons";
 
 export async function requireInstalledAddon(key: "GATEWAY" | "PEAK") {
-  const user = await requireUser();
+  const user = await requireAdmin();
   await ensureAddonEntitlement(user.agencyId, key);
   const { prisma } = await import("@/lib/db");
   const row = await prisma.agencyAddon.findUnique({

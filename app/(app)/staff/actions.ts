@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { createStaffSchema } from "@/lib/validation";
 import type { ActionState } from "@/app/(app)/shifts/actions";
@@ -11,7 +11,7 @@ export async function createStaffAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const user = await requireAdmin();
+  const user = await requireOps();
 
   const parsed = createStaffSchema.safeParse({
     firstName: formData.get("firstName"),
@@ -85,7 +85,7 @@ export async function createStaffAction(
 }
 
 export async function setStaffStatusAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const staffId = String(formData.get("staffId") ?? "");
   const status = String(formData.get("status") ?? "");
   if (!staffId || !["ACTIVE", "INACTIVE", "ON_LEAVE"].includes(status)) return;

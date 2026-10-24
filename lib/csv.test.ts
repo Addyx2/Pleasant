@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { normalizeHeader, parseCsv, parseDate, parseMoney, parseTimeToMinutes, pick, rowToRecord } from "./csv";
+import { csvCell, normalizeHeader, parseCsv, parseDate, parseMoney, parseTimeToMinutes, pick, rowToRecord } from "./csv";
 
 test("parseCsv reads a simple file", () => {
   const { headers, rows } = parseCsv("a,b\n1,2\n3,4");
@@ -92,4 +92,13 @@ test("parseTimeToMinutes reads clock times and rejects out-of-range", () => {
   assert.equal(parseTimeToMinutes("2026-03-09 22:30:00"), 1350);
   assert.equal(parseTimeToMinutes("25:00"), null);
   assert.equal(parseTimeToMinutes(""), null);
+});
+
+test("csvCell quotes and neutralises formulas", () => {
+  assert.equal(csvCell("plain"), "plain");
+  assert.equal(csvCell('a,"b"'), '"a,""b"""');
+  assert.equal(csvCell("=HYPERLINK(\"x\")"), "\"'=HYPERLINK(\"\"x\"\")\"");
+  assert.equal(csvCell("@cmd"), "'@cmd");
+  assert.equal(csvCell(-5), "-5");
+  assert.equal(csvCell(null), "");
 });

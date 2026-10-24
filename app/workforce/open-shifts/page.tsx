@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { formatCurrency, formatDate, formatTime, shiftDurationMins } from "@/lib/utils";
 import { StatusBadge } from "@/components/status";
 import { requestShiftAction } from "./actions";
+import { clientName } from "@/lib/clients";
 
 export const metadata = { title: "Open shifts" };
 export const dynamic = "force-dynamic";
@@ -91,7 +92,7 @@ export default async function OpenShiftsPage({
           {shifts.map((shift) => {
             const where =
               shift.client != null
-                ? `${shift.client.firstName} ${shift.client.lastName}`
+                ? clientName(shift.client)
                 : (shift.site?.name ?? "Location TBC");
             const requestStatus = requestByShift.get(shift.id);
             return (

@@ -7,6 +7,7 @@ import { formatDate, formatHours, formatTime } from "@/lib/utils";
 import { Card } from "@/components/ui";
 import { RequestStaffForm } from "@/components/clientpoint/RequestStaffForm";
 import { SignOffForm } from "@/components/clientpoint/SignOffForm";
+import { clientName } from "@/lib/clients";
 
 export const dynamic = "force-dynamic";
 
@@ -32,12 +33,13 @@ export default async function PleasantLinkPortal({ params }: { params: Promise<{
     );
   }
 
-  const { client, agency } = link;
+  const { client, agency, contact } = link;
+  const canSign = !!contact?.isSignatory;
   const today = new Date();
   const dayStart = startOfDay(today);
   const dayEnd = endOfDay(today);
 
-  const [pending, onSite, onSiteCount, recentLedger] = await Promise.all([
+  const [pending, onSite, onSiteCount, recentLedger, rateRoles] = await Promise.all([
     prisma.timesheet.findMany({
       where: { agencyId: agency.id, status: "PENDING", shift: { clientId: client.id } },
       include: { shift: true, staff: true },
@@ -58,7 +60,10 @@ export default async function PleasantLinkPortal({ params }: { params: Promise<{
       orderBy: { startAt: "desc" },
       take: 6,
     }),
+    prisma.clientRate.findMany({ where: { clientId: client.id }, select: { role: true }, orderBy: { role: "asc" } }),
   ]);
+
+  const roles = [...new Set(rateRoles.map((r) => r.role))];
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -69,8 +74,10 @@ export default async function PleasantLinkPortal({ params }: { params: Promise<{
               <Building2 className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-base font-bold tracking-tight text-slate-900">{client.firstName} {client.lastName}</h1>
-              <p className="text-xs text-slate-500">via {agency.name} · Pleasant Link</p>
+              <h1 className="text-base font-bold tracking-tight text-slate-900">{clientName(client)}</h1>
+              <p className="text-xs text-slate-500">
+                {contact ? `${contact.name}${contact.jobTitle ? `, ${contact.jobTitle}` : ""} · ` : ""}via {agency.name}
+              </p>
             </div>
           </div>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
@@ -150,6 +157,18 @@ export default async function PleasantLinkPortal({ params }: { params: Promise<{
             <FileText className="h-4 w-4 text-amber-600" />
             <h2 className="text-sm font-semibold text-slate-900">Approve timesheets</h2>
           </div>
+          {pending.length > 0 && !canSign ? (
+            <p className="border-b border-amber-100 bg-amber-50 px-5 py-3 text-xs text-amber-900">
+              This link isn&apos;t issued to an authorised signatory, so timesheets can be viewed but
+              not signed. Ask {agency.name} for a link in your name.
+            </p>
+          ) : pending.length > 0 ? (
+            <p className="border-b border-slate-100 px-5 py-3 text-xs text-slate-500">
+              You&apos;re signing as <span className="font-semibold text-slate-700">{contact!.name}</span>
+              {contact!.jobTitle ? `, ${contact!.jobTitle}` : ""}. Your name, role and the time are
+              recorded on each timesheet and shown on the invoice evidence pack.
+            </p>
+          ) : null}
           <div className="divide-y divide-slate-100">
             {pending.length === 0 ? (
               <p className="p-5 text-sm text-slate-500">Nothing waiting for your sign-off. Timesheets appear here once a shift is done.</p>
@@ -159,11 +178,11 @@ export default async function PleasantLinkPortal({ params }: { params: Promise<{
                   <SignOffForm
                     token={token}
                     timesheetId={ts.id}
-                    clientName={`${client.firstName} ${client.lastName}`}
                     staffName={`${ts.staff.firstName} ${ts.staff.lastName}`}
                     roleTitle={ts.shift.title}
                     dateLabel={formatDate(ts.clockIn)}
                     hoursLabel={formatHours(ts.workedMins)}
+                    canSign={canSign}
                   />
                 </div>
               ))
@@ -181,7 +200,7 @@ export default async function PleasantLinkPortal({ params }: { params: Promise<{
               Submit a staffing order for a new shift. Your agency manager sees it as an open shift
               ready to be matched with the next available carer.
             </p>
-            <RequestStaffForm token={token} />
+            <RequestStaffForm token={token} roles={roles} />
           </div>
         </Card>
 

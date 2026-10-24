@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { CalendarClock, Clock, Plus, UserCheck, Users } from "lucide-react";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatDate, formatDateTime, formatTime } from "@/lib/utils";
-import { Badge, Card, EmptyState, PageHeader, inputClass } from "@/components/ui";
+import { Card, EmptyState, PageHeader, inputClass } from "@/components/ui";
 import { offerShiftAction, withdrawOfferAction } from "./actions";
 import { approveShiftRequestAction, rejectShiftRequestAction } from "@/app/(app)/shifts/requests/actions";
+import { clientName } from "@/lib/clients";
 
 export const metadata = {
-  title: "Dispatch | Pleasant",
+  title: "Dispatch",
 };
 
 export const dynamic = "force-dynamic";
@@ -31,7 +32,7 @@ export default async function DispatchPage({
 }: {
   searchParams: Promise<{ tab?: string; result?: string }>;
 }) {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const { tab = "to-cover", result } = await searchParams;
   const activeTab = TABS.some((t) => t.id === tab) ? (tab as "to-cover" | "offers" | "requests") : "to-cover";
   const requestBanner = result != null && result in REQUEST_BANNERS ? REQUEST_BANNERS[result] : null;
@@ -191,7 +192,7 @@ export default async function DispatchPage({
                     </td>
                     <td className="px-5 py-4">
                       <p className="font-medium text-slate-900">
-                        {shift.client ? `${shift.client.firstName} ${shift.client.lastName}` : "No client"}
+                        {clientName(shift.client, "No client")}
                       </p>
                       <p className="mt-0.5 text-xs text-slate-500">{shift.site?.name ?? "Unknown site"}</p>
                     </td>
@@ -336,7 +337,7 @@ export default async function DispatchPage({
                 {pendingRequests.map((req) => {
                   const where =
                     req.shift.client != null
-                      ? `${req.shift.client.firstName} ${req.shift.client.lastName}`
+                      ? clientName(req.shift.client)
                       : (req.shift.site?.name ?? "Location TBC");
                   return (
                     <tr key={req.id} className="hover:bg-slate-50">

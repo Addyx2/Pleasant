@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import { PrintButton } from "../PrintButton";
+import { clientName } from "@/lib/clients";
 
 export const metadata = { title: "Funding evidence pack" };
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export default async function FundingPackPage({ params }: { params: Promise<{ id
       client: true,
       agency: true,
       lines: {
-        include: { staff: true, timesheet: true },
+        include: { staff: true, timesheet: true, shift: { select: { isSleepIn: true } } },
         orderBy: { date: "asc" },
       },
     },
@@ -66,7 +67,7 @@ export default async function FundingPackPage({ params }: { params: Promise<{ id
               Billed to — care home
             </p>
             <p className="mt-1 text-sm font-semibold text-slate-900">
-              {client.firstName} {client.lastName}
+              {clientName(client)}
             </p>
             {client.address ? <p className="mt-1 text-xs leading-5 text-slate-600">{client.address}</p> : null}
             {client.postcode ? <p className="text-xs text-slate-600">{client.postcode}</p> : null}
@@ -147,7 +148,7 @@ export default async function FundingPackPage({ params }: { params: Promise<{ id
                       {line.staff.firstName} {line.staff.lastName}
                     </td>
                     <td className="py-3 pr-2 tabular text-right text-slate-600">
-                      {Number(line.hours).toFixed(2)}
+                      {line.shift?.isSleepIn ? "Sleep-in" : Number(line.hours).toFixed(2)}
                     </td>
                     <td className="py-3 pr-2 tabular text-right font-semibold text-slate-900">
                       {formatCurrency(Number(line.chargeAmount))}

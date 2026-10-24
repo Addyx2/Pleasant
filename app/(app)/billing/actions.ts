@@ -9,6 +9,7 @@ import {
   defaultInvoiceReference,
   invoiceTotals,
 } from "@/lib/billing";
+import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { round2 } from "@/lib/payroll/engine";
 import { createInvoiceSchema } from "@/lib/validation";
@@ -78,6 +79,7 @@ export async function createInvoiceAction(
           chargeRate: Number(ts.shift.chargeRate),
           isSleepIn: ts.shift.isSleepIn,
           sleepInRate: Number(ts.shift.sleepInRate),
+          sleepInCharge: ts.shift.sleepInCharge == null ? null : Number(ts.shift.sleepInCharge),
         },
         staff: {
           id: ts.staff.id,
@@ -144,6 +146,13 @@ export async function createInvoiceAction(
     return created;
   });
 
+  await recordAudit(user, {
+    action: "invoice.create",
+    summary: `Drafted invoice ${invoice.reference}`,
+    targetType: "Invoice",
+    targetId: invoice.id,
+  });
+
   revalidatePath("/billing");
   revalidatePath("/dashboard");
   redirect(`/billing/${invoice.id}`);
@@ -155,7 +164,7 @@ export async function setInvoiceStatusAction(formData: FormData): Promise<void> 
   const status = String(formData.get("status") ?? "");
   if (!invoiceId || !["DRAFT", "ISSUED", "PAID", "VOID"].includes(status)) return;
 
-  await prisma.invoice.updateMany({
+  const { count } = await prisma.invoice.updateMany({
     where: { id: invoiceId, agencyId: user.agencyId },
     data: {
       status: status as never,
@@ -163,6 +172,15 @@ export async function setInvoiceStatusAction(formData: FormData): Promise<void> 
       paidAt: status === "PAID" ? new Date() : null,
     },
   });
+  if (count > 0) {
+    await recordAudit(user, {
+      action: "invoice.status",
+      summary: `Marked invoice ${status.toLowerCase()}`,
+      targetType: "Invoice",
+      targetId: invoiceId,
+      metadata: { status },
+    });
+  }
 
   revalidatePath("/billing");
   revalidatePath(`/billing/${invoiceId}`);
@@ -175,9 +193,17 @@ export async function deleteInvoiceAction(formData: FormData): Promise<void> {
   const invoiceId = String(formData.get("invoiceId") ?? "");
   if (!invoiceId) return;
 
-  await prisma.invoice.deleteMany({
+  const { count } = await prisma.invoice.deleteMany({
     where: { id: invoiceId, agencyId: user.agencyId, status: "DRAFT" },
   });
+  if (count > 0) {
+    await recordAudit(user, {
+      action: "invoice.delete",
+      summary: "Deleted a draft invoice",
+      targetType: "Invoice",
+      targetId: invoiceId,
+    });
+  }
 
   revalidatePath("/billing");
   redirect("/billing");

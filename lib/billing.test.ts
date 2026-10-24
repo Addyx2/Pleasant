@@ -5,6 +5,7 @@ import {
   computeInvoiceLine,
   defaultInvoiceReference,
   invoiceTotals,
+  lineBasis,
   type BillableTimesheet,
 } from "./billing";
 
@@ -54,6 +55,30 @@ test("sleep-in shifts bill as a flat allowance", () => {
   assert.equal(line.marginAmount, Math.round((45 - line.payAmount) * 100) / 100);
 });
 
+test("sleep-ins bill their own client charge when set, keeping pay at the allowance", () => {
+  const { startAt, endAt } = TUE_0900_1700();
+  const line = computeInvoiceLine(
+    baseTimesheet({
+      shift: { id: "s-3", title: "Sleep-in", startAt, endAt, chargeRate: 24.5, isSleepIn: true, sleepInRate: 45, sleepInCharge: 85 },
+      staff: { id: "p-2", baseRate: 12.71, holidayAccrualPct: 12.07 },
+    }),
+  );
+  assert.equal(line.chargeAmount, 85);
+  assert.equal(line.payAmount, Math.round((45 + (45 * 12.07) / 100) * 100) / 100);
+  assert.equal(line.marginAmount, Math.round((85 - line.payAmount) * 100) / 100);
+});
+
+test("a null sleep-in charge falls back to billing the allowance", () => {
+  const { startAt, endAt } = TUE_0900_1700();
+  const line = computeInvoiceLine(
+    baseTimesheet({
+      shift: { id: "s-4", title: "Sleep-in", startAt, endAt, chargeRate: 24.5, isSleepIn: true, sleepInRate: 45, sleepInCharge: null },
+      staff: { id: "p-2", baseRate: 12.71, holidayAccrualPct: 12.07 },
+    }),
+  );
+  assert.equal(line.chargeAmount, 45);
+});
+
 test("rounding is consistent with the payroll engine:", () => {
   // 0 break minutes still rounds to the quarter hour.
   const line = computeInvoiceLine(baseTimesheet({ breakMins: 0 }));
@@ -91,4 +116,11 @@ test("zero VAT leaves grand total equal to charge", () => {
 test("reference numbering pads the sequence", () => {
   assert.equal(defaultInvoiceReference(new Date(2026, 8, 30), 1), "INV-202609-0001");
   assert.equal(defaultInvoiceReference(new Date(2026, 8, 30), 214), "INV-202609-0214");
+});
+test("lineBasis prices sleep-ins as one flat unit and hourly lines by the hour", () => {
+  const sleepIn = lineBasis({ hours: 8.5, chargeRate: 24.5, chargeAmount: 85, isSleepIn: true });
+  assert.deepEqual([sleepIn.quantity, sleepIn.unitAmount, sleepIn.quantityLabel, sleepIn.rateLabel], [1, 85, "Sleep-in", "Flat"]);
+  const hourly = lineBasis({ hours: 7.5, chargeRate: 24.5, chargeAmount: 183.75, isSleepIn: false });
+  assert.deepEqual([hourly.quantity, hourly.unitAmount, hourly.quantityLabel, hourly.rateLabel], [7.5, 24.5, "7.50", "£24.50/h"]);
+  assert.equal(hourly.quantity * hourly.unitAmount, 183.75);
 });

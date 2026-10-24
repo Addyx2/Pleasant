@@ -18,6 +18,10 @@ const PROTECTED_PREFIXES = [
   "/billing",
   "/billing-pack",
   "/invoice",
+  "/settings",
+  "/addons",
+  "/persona",
+  "/assist",
 ];
 
 export function middleware(request: NextRequest) {
@@ -53,5 +57,9 @@ export const config = {
     "/billing/:path*",
     "/billing-pack/:path*",
     "/invoice/:path*",
+    "/settings/:path*",
+    "/addons/:path*",
+    "/persona/:path*",
+    "/assist/:path*",
   ],
 };

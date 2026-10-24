@@ -144,6 +144,15 @@ model Agency {
   shiftOffers   ShiftOffer[]
   importSessions ImportSession[]
   agencyAddons   AgencyAddon[]
+  auditEvents    AuditEvent[]
+  clientContacts ClientContact[]
+  clientRates    ClientRate[]
+  assistConversations AssistConversation[]
+  assistAutomations   AssistAutomation[]
+
+  // Assist access policy: tool groups switched off for this agency, as
+  // "<group>:read" or "<group>:write" (e.g. "payroll:write").
+  assistDisabled String[] @default([])
 }
 
 model User {
@@ -155,6 +164,14 @@ model User {
   lastName     String
   role         Role     @default(MANAGER)
   lastLoginAt  DateTime?
+  // Bumped to revoke every outstanding session (password change, role change,
+  // removal, "sign out everywhere"). Embedded in the signed session token.
+  sessionVersion Int     @default(0)
+  // Brute-force throttling: consecutive failed sign-ins and the lockout window.
+  failedLoginCount Int   @default(0)
+  lockedUntil  DateTime?
+  // Null while active; set when an admin removes the user's access.
+  deactivatedAt DateTime?
   resetTokenHash String?
   resetTokenExpAt DateTime?
   createdAt    DateTime @default(now())
@@ -167,6 +184,9 @@ model User {
   shiftComments ShiftComment[]
   verifiedRightToWork RightToWork[] @relation("RightToWorkVerifier")
   reviewedForms OnboardingForm[] @relation("FormReviewer")
+  auditEvents AuditEvent[]
+  assistConversations AssistConversation[]
+  assistAutomations   AssistAutomation[]
 }
 
 model StaffProfile {
@@ -240,50 +260,127 @@ model StaffProfile {
   @@index([agencyId, status])
 }
 
-model Client {
-  id         String       @id @default(cuid())
-  agencyId   String
-  firstName  String
-  lastName   String
-  address    String?
-  postcode   String?
-  phone      String?
-  email      String?
-  companyName String?
-  vatNumber  String?
-  careLevel  String? // e.g. "Low", "Medium", "High", "Complex"
-  notes      String?
-  status     ClientStatus @default(ACTIVE)
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
+enum ClientType {
+  CARE_HOME
+  NURSING_HOME
+  DOMICILIARY_PROVIDER
+  SUPPORTED_LIVING
+  NHS
+  LOCAL_AUTHORITY
+  OTHER
+}
 
-  agency Agency  @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  shifts Shift[]
+// The organisation the agency supplies workers to and invoices: a care home,
+// nursing home or domiciliary care provider. Its wards/units or branches are
+// Sites; the people there (managers, signatories, accounts) are Contacts.
+model Client {
+  id               String       @id @default(cuid())
+  agencyId         String
+  // Organisation name as it appears on invoices. Nullable only until legacy
+  // rows are backfilled (scripts/backfill-clients.ts); always written by the app.
+  name             String?
+  type             ClientType   @default(CARE_HOME)
+  address          String?
+  postcode         String?
+  phone            String?
+  email            String? // accounts / invoice email
+  vatNumber        String?
+  companyNo        String?
+  cqcLocationId    String? // the home's own CQC registration, for compliance packs
+  frameworkRef     String? // framework agreement / PO reference printed on invoices
+  paymentTermsDays Int          @default(30)
+  notes            String?
+  status           ClientStatus @default(ACTIVE)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  // Legacy person-shaped fields from before clients were organisations.
+  // Read only by the backfill; no longer written.
+  firstName   String?
+  lastName    String?
+  companyName String?
+  careLevel   String?
+
+  agency   Agency          @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  shifts   Shift[]
+  sites    Site[]
+  contacts ClientContact[]
+  rates    ClientRate[]
 
   pleasantLinkTokens PleasantLinkToken[]
-  complaints ClientComplaint[]
-  confidenceRating ClientConfidenceRating?
+  complaints         ClientComplaint[]
+  confidenceRating   ClientConfidenceRating?
 
-  invoices Invoice[]
+  invoices          Invoice[]
   rotaTemplateLines RotaTemplateLine[]
-
 
   @@index([agencyId, status])
 }
 
+// A person at a client: home manager, deputy, nurse in charge, accounts.
+// Signatories can authorise timesheets through Pleasant Link.
+model ClientContact {
+  id          String   @id @default(cuid())
+  agencyId    String
+  clientId    String
+  name        String
+  jobTitle    String?
+  email       String?
+  phone       String?
+  isSignatory Boolean  @default(false)
+  isAccounts  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  agency             Agency              @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  client             Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  pleasantLinkTokens PleasantLinkToken[]
+
+  @@index([clientId])
+}
+
+// Charge-out rate card: what the client pays per hour for a role, optionally
+// specific to one site. Prefills the charge rate on new shifts.
+model ClientRate {
+  id              String   @id @default(cuid())
+  agencyId        String
+  clientId        String
+  siteId          String?
+  role            String // e.g. "Care Assistant", "Senior Carer", "Registered Nurse"
+  dayRate         Decimal  @db.Decimal(8, 2)
+  nightRate       Decimal? @db.Decimal(8, 2)
+  weekendRate     Decimal? @db.Decimal(8, 2)
+  bankHolidayRate Decimal? @db.Decimal(8, 2)
+  sleepInCharge   Decimal? @db.Decimal(8, 2) // flat client charge per sleep-in
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  site   Site?  @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+}
+
+// A ward/unit of a care home, or a branch of a domiciliary provider.
 model Site {
   id        String   @id @default(cuid())
   agencyId  String
+  clientId  String?
   name      String
   address   String?
   postcode  String?
+  notes     String? // arrival, parking, door codes
   createdAt DateTime @default(now())
 
-  agency Agency          @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  shifts Shift[]
+  agency            Agency             @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  client            Client?            @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  shifts            Shift[]
   rotaTemplateLines RotaTemplateLine[]
+  rates             ClientRate[]
 
   @@index([agencyId])
+  @@index([clientId])
 }
 
 model Shift {
@@ -307,6 +404,8 @@ model Shift {
   // Sleep-in shifts are paid a flat allowance rather than an hourly rate.
   isSleepIn    Boolean @default(false)
   sleepInRate  Decimal @db.Decimal(8, 2) @default(0)
+  // What the client is charged for a sleep-in. Null bills the carer allowance.
+  sleepInCharge Decimal? @db.Decimal(8, 2)
 
   status    ShiftStatus @default(DRAFT)
   notes     String?
@@ -589,16 +688,19 @@ model PushMessageLog {
 // -----------------------------------------------------------------------------
 
 model PleasantLinkToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   agencyId  String
   clientId  String
-  token     String   @unique
+  // The signatory this link was issued to; sign-offs are recorded in their name.
+  contactId String?
+  token     String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
-  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  agency  Agency         @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  client  Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  contact ClientContact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
   @@index([token])
 }
@@ -776,6 +878,8 @@ model RotaTemplateLine {
   breakMins   Int @default(0)
   isSleepIn   Boolean @default(false)
   sleepInRate Decimal @db.Decimal(8, 2) @default(0)
+  // What the client is charged for a sleep-in. Null bills the carer allowance.
+  sleepInCharge Decimal? @db.Decimal(8, 2)
   chargeRate  Decimal @db.Decimal(8, 2) @default(0)
   clientId    String?
   staffId     String?
@@ -849,3 +953,86 @@ model AgencyAddon {
 
 
 
+
+// Append-only trail of security-relevant and money-moving actions. Never
+// updated or deleted by the app; actor details are denormalised so the trail
+// survives the actor's removal.
+model AuditEvent {
+  id         String   @id @default(cuid())
+  agencyId   String
+  actorId    String?
+  actorEmail String?
+  action     String // dotted verb, e.g. "payroll.finalise", "team.role_change"
+  targetType String?
+  targetId   String?
+  summary    String
+  metadata   Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  actor  User?  @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([agencyId, createdAt])
+  @@index([agencyId, action])
+}
+
+// An Assist conversation. Private to the user who started it. The server
+// holds the authoritative Messages API history; the browser only ever sends
+// the next message or its decisions on pending changes.
+model AssistConversation {
+  id           String   @id @default(cuid())
+  agencyId     String
+  userId       String
+  title        String
+  messages     Json     @default("[]")
+  // Plain-English confirmation summaries, keyed by tool_use id.
+  summaries    Json     @default("{}")
+  pinned       Boolean  @default(false)
+  automationId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  agency     Agency            @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  automation AssistAutomation? @relation(fields: [automationId], references: [id], onDelete: SetNull)
+
+  @@index([userId, updatedAt])
+  @@index([automationId, createdAt])
+}
+
+// A scheduled Assist prompt. Runs unattended with read-only tools; each run
+// is saved as a conversation and can be emailed to the owner.
+model AssistAutomation {
+  id          String    @id @default(cuid())
+  agencyId    String
+  userId      String
+  name        String
+  prompt      String
+  cadence     String // DAILY | WEEKDAYS | WEEKLY
+  weekday     Int? // 0 = Sunday … 6 = Saturday, for WEEKLY
+  time        String // "HH:MM", UK time
+  enabled     Boolean   @default(true)
+  emailResult Boolean   @default(true)
+  nextRunAt   DateTime
+  lastRunAt   DateTime?
+  lastStatus  String? // OK | FAILED
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  agency Agency               @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  user   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  runs   AssistConversation[]
+
+  @@index([enabled, nextRunAt])
+  @@index([userId])
+}
+
+// Last time a background job checked in (e.g. "assist-scheduler"), so the
+// app can show whether its scheduler is actually running.
+model SystemHeartbeat {
+  key    String   @id
+  at     DateTime
+  detail String?
+}

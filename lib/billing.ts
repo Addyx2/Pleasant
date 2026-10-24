@@ -20,7 +20,10 @@ export interface BillableTimesheet {
     endAt: Date;
     chargeRate: number;
     isSleepIn: boolean;
+    /** Carer's flat sleep-in allowance (pay). */
     sleepInRate: number;
+    /** Client's flat sleep-in charge; null/undefined bills the allowance. */
+    sleepInCharge?: number | null;
   };
   staff: {
     id: string;
@@ -83,9 +86,10 @@ export function computeInvoiceLine(
   const holiday = round2(pay * (ts.staff.holidayAccrualPct / 100));
   const expenses = round2(ts.expenses);
 
+  const sleepInFlat = ts.shift.sleepInCharge ?? ts.shift.sleepInRate;
   const charge =
-    ts.shift.isSleepIn && ts.shift.sleepInRate > 0
-      ? round2(ts.shift.sleepInRate)
+    ts.shift.isSleepIn && sleepInFlat > 0
+      ? round2(sleepInFlat)
       : round2(ts.shift.chargeRate * hours);
 
   const payAmount = round2(pay + holiday + expenses);
@@ -102,6 +106,35 @@ export function computeInvoiceLine(
     chargeAmount: round2(charge),
     payAmount,
     marginAmount,
+  };
+}
+
+/**
+ * How an invoice line is priced, for display and accounting exports. Sleep-in
+ * lines are a flat charge, so their hours and hourly rate aren't what the
+ * client pays for; everything else is hours x hourly rate.
+ */
+export function lineBasis(line: {
+  hours: number;
+  chargeRate: number;
+  chargeAmount: number;
+  isSleepIn: boolean;
+}): { flat: boolean; quantity: number; unitAmount: number; quantityLabel: string; rateLabel: string } {
+  if (line.isSleepIn) {
+    return {
+      flat: true,
+      quantity: 1,
+      unitAmount: line.chargeAmount,
+      quantityLabel: "Sleep-in",
+      rateLabel: "Flat",
+    };
+  }
+  return {
+    flat: false,
+    quantity: line.hours,
+    unitAmount: line.chargeRate,
+    quantityLabel: line.hours.toFixed(2),
+    rateLabel: `£${line.chargeRate.toFixed(2)}/h`,
   };
 }
 

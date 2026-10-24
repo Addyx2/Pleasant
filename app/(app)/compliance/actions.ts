@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { normalizeAccount, normalizeSortCode } from "@/lib/payroll/bacs";
 
@@ -20,7 +20,7 @@ function revalidateStaff(staffId: string) {
 }
 
 export async function saveBankDetailsAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const staffId = String(formData.get("staffId") ?? "");
   if (!staffId) return;
 
@@ -44,7 +44,7 @@ export async function saveBankDetailsAction(formData: FormData): Promise<void> {
 }
 
 export async function saveDbsAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const staffId = String(formData.get("staffId") ?? "");
   if (!staffId) return;
 
@@ -66,7 +66,7 @@ export async function saveDbsAction(formData: FormData): Promise<void> {
 }
 
 export async function saveRightToWorkAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const staffId = String(formData.get("staffId") ?? "");
   const documentType = String(formData.get("documentType") ?? "").trim().toUpperCase();
   if (!staffId) return;
@@ -108,7 +108,7 @@ export async function saveRightToWorkAction(formData: FormData): Promise<void> {
 }
 
 export async function addTrainingAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const staffId = String(formData.get("staffId") ?? "");
   const courseName = String(formData.get("courseName") ?? "").trim();
   if (!staffId || !courseName) return;

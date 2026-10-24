@@ -39,13 +39,16 @@ export function Card({
   children,
   className,
   interactive = false,
+  id,
 }: {
   children: React.ReactNode;
   className?: string;
   interactive?: boolean;
+  id?: string;
 }) {
   return (
     <div
+      id={id}
       className={cn(
         "rounded-xl border border-slate-200 bg-white shadow-card",
         interactive &&
@@ -145,16 +148,23 @@ export function EmptyState({
   title,
   description,
   action,
+  icon: Icon,
 }: {
   title: string;
   description?: string;
   action?: React.ReactNode;
+  icon?: React.ComponentType<{ className?: string }>;
 }) {
   return (
     <div className="rounded-xl border border-dashed border-slate-300 bg-white/60 p-10 text-center">
+      {Icon ? (
+        <span className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-brand-50 text-brand-600 ring-1 ring-inset ring-brand-600/10">
+          <Icon className="h-5 w-5" />
+        </span>
+      ) : null}
       <p className="text-sm font-semibold text-slate-700">{title}</p>
-      {description ? <p className="mt-1 text-sm text-slate-500">{description}</p> : null}
-      {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
+      {description ? <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">{description}</p> : null}
+      {action ? <div className="mt-4 flex flex-wrap justify-center gap-2">{action}</div> : null}
     </div>
   );
 }

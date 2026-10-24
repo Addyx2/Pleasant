@@ -14,13 +14,25 @@ export function NewInvoiceForm({
   defaultEnd,
   defaultDueDate,
 }: {
-  clients: { id: string; name: string }[];
+  clients: { id: string; name: string; paymentTermsDays: number }[];
   defaultStart: string;
   defaultEnd: string;
   defaultDueDate: string;
 }) {
   const [state, formAction, pending] = useActionState(createInvoiceAction, initialState);
   const [clientId, setClientId] = useState("");
+  const [periodEnd, setPeriodEnd] = useState(defaultEnd);
+  const [dueDate, setDueDate] = useState(defaultDueDate);
+
+  // Due date follows the client's payment terms from the end of the period.
+  const applyTerms = (id: string, end: string) => {
+    const terms = clients.find((c) => c.id === id)?.paymentTermsDays;
+    if (terms === undefined || !end) return;
+    const due = new Date(`${end}T00:00:00`);
+    due.setDate(due.getDate() + terms);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    setDueDate(`${due.getFullYear()}-${pad(due.getMonth() + 1)}-${pad(due.getDate())}`);
+  };
 
   return (
     <form action={formAction} className="grid gap-5 sm:grid-cols-2">
@@ -31,7 +43,10 @@ export function NewInvoiceForm({
           name="clientId"
           required
           value={clientId}
-          onChange={(e) => setClientId(e.target.value)}
+          onChange={(e) => {
+            setClientId(e.target.value);
+            applyTerms(e.target.value, periodEnd);
+          }}
           className={inputClass}
         >
           <option value="">
@@ -55,11 +70,22 @@ export function NewInvoiceForm({
       </div>
       <div>
         <label className={labelClass} htmlFor="periodEnd">Period end</label>
-        <input id="periodEnd" name="periodEnd" type="date" required defaultValue={defaultEnd} className={inputClass} />
+        <input
+          id="periodEnd"
+          name="periodEnd"
+          type="date"
+          required
+          value={periodEnd}
+          onChange={(e) => {
+            setPeriodEnd(e.target.value);
+            applyTerms(clientId, e.target.value);
+          }}
+          className={inputClass}
+        />
       </div>
       <div>
         <label className={labelClass} htmlFor="dueDate">Due date</label>
-        <input id="dueDate" name="dueDate" type="date" required defaultValue={defaultDueDate} className={inputClass} />
+        <input id="dueDate" name="dueDate" type="date" required value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={inputClass} />
       </div>
       <div>
         <label className={labelClass} htmlFor="vatRatePct">VAT</label>

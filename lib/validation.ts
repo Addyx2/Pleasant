@@ -22,7 +22,7 @@ const optionalString = z
   .transform((v) => (v ? v : undefined));
 
 export const createShiftSchema = z.object({
-  title: z.string().trim().min(2, "Give the shift a title"),
+  title: optionalString,
   role: z.string().trim().min(2, "Role is required"),
   clientId: optionalString,
   siteId: optionalString,
@@ -30,9 +30,12 @@ export const createShiftSchema = z.object({
   startAt: z.coerce.date(),
   endAt: z.coerce.date(),
   breakMins: z.coerce.number().int().min(0).max(480).default(0),
-  chargeRate: z.coerce.number().min(0).default(0),
+  // Blank means "use the client's rate card".
+  chargeRate: z.coerce.number().min(0).optional(),
   isSleepIn: z.coerce.boolean().default(false),
   sleepInRate: z.coerce.number().min(0).default(0),
+  // Blank means "use the rate card", or bill the allowance if the card has none.
+  sleepInCharge: z.coerce.number().min(0).optional(),
   notes: optionalString,
 });
 
@@ -79,23 +82,64 @@ export const createStaffSchema = z.object({
   dbsExpiry: z.string().trim().optional().transform((v) => (v ? new Date(v) : undefined)),
 });
 
-export const createClientSchema = z.object({
-  firstName: z.string().trim().min(1, "First name is required"),
-  lastName: z.string().trim().min(1, "Last name is required"),
+const optionalEmail = z
+  .string()
+  .trim()
+  .email("Enter a valid email")
+  .optional()
+  .or(z.literal(""))
+  .transform((v) => (v ? v : undefined));
+
+const optionalMoney = z
+  .string()
+  .trim()
+  .optional()
+  .transform((v) => (v ? Number(v) : undefined))
+  .refine((v) => v === undefined || (Number.isFinite(v) && v >= 0 && v < 10_000), "Enter a valid rate");
+
+export const clientSchema = z.object({
+  name: z.string().trim().min(2, "Enter the home or provider's name").max(160),
+  type: z.enum(["CARE_HOME", "NURSING_HOME", "DOMICILIARY_PROVIDER", "SUPPORTED_LIVING", "NHS", "LOCAL_AUTHORITY", "OTHER"]),
   address: optionalString,
   postcode: optionalString,
   phone: optionalString,
-  email: z.string().trim().email().optional().or(z.literal("")).transform((v) => (v ? v : undefined)),
-  companyName: optionalString,
+  email: optionalEmail,
   vatNumber: optionalString,
-  careLevel: optionalString,
+  companyNo: optionalString,
+  cqcLocationId: optionalString,
+  frameworkRef: optionalString,
+  paymentTermsDays: z.coerce.number().int().min(0, "Terms can't be negative").max(180).default(30),
+  status: z.enum(clientStatuses).default("ACTIVE"),
   notes: optionalString,
 });
 
 export const createSiteSchema = z.object({
+  clientId: z.string().min(1, "Choose a client"),
   name: z.string().trim().min(1, "Name is required"),
   address: optionalString,
   postcode: optionalString,
+  notes: optionalString,
+});
+
+export const clientContactSchema = z.object({
+  clientId: z.string().min(1),
+  name: z.string().trim().min(2, "Enter the contact's name").max(120),
+  jobTitle: optionalString,
+  email: optionalEmail,
+  phone: optionalString,
+  isSignatory: z.boolean(),
+  isAccounts: z.boolean(),
+});
+
+export const clientRateSchema = z.object({
+  clientId: z.string().min(1),
+  siteId: optionalString,
+  role: z.string().trim().min(2, "Enter a role, e.g. Care Assistant").max(80),
+  dayRate: z.coerce.number().positive("Enter the day rate").max(10_000),
+  nightRate: optionalMoney,
+  weekendRate: optionalMoney,
+  bankHolidayRate: optionalMoney,
+  sleepInCharge: optionalMoney,
 });
 
 export const payrollRunSchema = z.object({

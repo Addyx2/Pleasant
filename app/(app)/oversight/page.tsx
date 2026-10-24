@@ -1,20 +1,20 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { differenceInCalendarDays, endOfDay, startOfDay } from "date-fns";
+import { differenceInCalendarDays, startOfDay } from "date-fns";
 import {
   Activity,
-  AlertTriangle,
   ArrowUpRight,
   Banknote,
   CalendarClock,
-  ClipboardCheck,
+  CalendarPlus,
   PoundSterling,
   Receipt,
   ShieldCheck,
-  Users,
 } from "lucide-react";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
+import { ActionCentre } from "./ActionCentre";
+import { Kpis } from "./Kpis";
 import { asLedgerRow, creditBandTone, creditHealth, type HomeCreditHealth } from "@/lib/credit";
 import { prisma } from "@/lib/db";
 import { nextCutoff, payDayForCutoff } from "@/lib/week";
@@ -22,35 +22,28 @@ import {
   formatCurrency,
   formatDate,
   formatDateTime,
-  formatHours,
   formatTime,
 } from "@/lib/utils";
-import { Card, EmptyState, IconTile, SkeletonCard, SkeletonTable, StatCard, Td } from "@/components/ui";
+import { buttonClass, Card, EmptyState, IconTile, SkeletonCard, SkeletonTable, subtleButtonClass, Td } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
 import { setInvoiceStatusAction } from "@/app/(app)/billing/actions";
+import { clientName } from "@/lib/clients";
 
 export const metadata = { title: "Oversight" };
 export const dynamic = "force-dynamic";
 
-function headerCopy() {
+function headerCopy(role: string) {
   return {
     greeting: "Oversight",
-    description: "A live view of the rota, approvals, billing and payroll.",
+    description:
+      role === "ADMIN"
+        ? "A live view of the rota, approvals, billing and payroll."
+        : "A live view of the rota, open shifts and approvals.",
   };
 }
 
-async function OversightHeader({ user }: { user: Awaited<ReturnType<typeof requireAdmin>> }) {
+async function OversightHeader({ user }: { user: Awaited<ReturnType<typeof requireOps>> }) {
   const today = new Date();
-  const dayStart = startOfDay(today);
-  const dayEnd = endOfDay(today);
-
-  const [shiftsToday, pendingTimesheets, unattended] = await Promise.all([
-    prisma.shift.count({
-      where: { agencyId: user.agencyId, startAt: { gte: dayStart, lte: dayEnd }, status: { not: "CANCELLED" } },
-    }),
-    prisma.timesheet.count({ where: { agencyId: user.agencyId, status: "PENDING" } }),
-    prisma.shift.count({ where: { agencyId: user.agencyId, status: "UNATTENDED" } }),
-  ]);
 
   const cutoff = nextCutoff({
     cutoffWeekday: user.agency.cutoffWeekday,
@@ -66,7 +59,7 @@ async function OversightHeader({ user }: { user: Awaited<ReturnType<typeof requi
     cutoff,
   );
 
-  const copy = headerCopy();
+  const copy = headerCopy(user.role);
 
   return (
     <div>
@@ -79,100 +72,12 @@ async function OversightHeader({ user }: { user: Awaited<ReturnType<typeof requi
       <p className="mt-2 text-sm text-slate-500">
         {user.agency.name} · {copy.description}
       </p>
-      <div className="mt-5 flex flex-wrap items-center gap-2 text-xs">
+      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
         <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-600">
-          {shiftsToday} shift{shiftsToday === 1 ? "" : "s"} today
+          Next pay day {formatDate(payDay)}
         </span>
-        <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 font-medium text-slate-600">
-          Pay on {formatDate(payDay)}
-        </span>
-        {pendingTimesheets > 0 ? (
-          <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 font-semibold text-amber-800">
-            {pendingTimesheets} timesheet{pendingTimesheets === 1 ? "" : "s"} to approve
-          </span>
-        ) : null}
-        {unattended > 0 ? (
-          <Link href="/shifts/unattended">
-            <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 font-semibold text-red-800">
-              {unattended} unattended shift{unattended === 1 ? "" : "s"} — needs a carer
-            </span>
-          </Link>
-        ) : null}
       </div>
     </div>
-  );
-}
-
-async function AsyncStatCards({ agencyId }: { agencyId: string }) {
-  const today = new Date();
-  const dayStart = startOfDay(today);
-  const dayEnd = endOfDay(today);
-
-  const [openShifts, shiftsToday, pendingTimesheets, activeStaff] = await Promise.all([
-    prisma.shift.count({ where: { agencyId, status: "OPEN" } }),
-    prisma.shift.count({
-      where: { agencyId, startAt: { gte: dayStart, lte: dayEnd }, status: { not: "CANCELLED" } },
-    }),
-    prisma.timesheet.count({ where: { agencyId, status: "PENDING" } }),
-    prisma.staffProfile.count({ where: { agencyId, status: "ACTIVE" } }),
-  ]);
-
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <StatCard
-        label="Open shifts"
-        value={String(openShifts)}
-        hint="Need a carer assigned"
-        icon={CalendarClock}
-        tone="amber"
-      />
-      <StatCard label="Shifts today" value={String(shiftsToday)} icon={CalendarClock} tone="brand" />
-      <StatCard
-        label="Awaiting approval"
-        value={String(pendingTimesheets)}
-        hint="Timesheets to review"
-        icon={ClipboardCheck}
-        tone="blue"
-      />
-      <StatCard label="Active carers" value={String(activeStaff)} icon={Users} tone="green" />
-    </div>
-  );
-}
-
-async function AsyncUnattendedAlert({ agencyId }: { agencyId: string }) {
-  const unattended = await prisma.shift.findMany({
-    where: { agencyId, status: "UNATTENDED" },
-    include: { client: true },
-    orderBy: { updatedAt: "asc" },
-    take: 5,
-  });
-
-  if (unattended.length === 0) return null;
-
-  return (
-    <Card className="border-red-200 bg-red-50/60">
-      <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <IconTile icon={AlertTriangle} tone="red" />
-          <div>
-            <p className="text-sm font-semibold text-red-900">
-              {unattended.length} unattended shift{unattended.length === 1 ? "" : "s"} need a carer now
-            </p>
-            <p className="mt-0.5 text-xs text-red-700">
-              {unattended
-                .map((s) => (s.client ? `${s.client.firstName} ${s.client.lastName}` : "Unassigned"))
-                .join(" · ")}
-            </p>
-          </div>
-        </div>
-        <Link
-          href="/shifts/unattended"
-          className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700"
-        >
-          Open triage queue <ArrowUpRight className="h-3.5 w-3.5" />
-        </Link>
-      </div>
-    </Card>
   );
 }
 
@@ -355,7 +260,7 @@ async function AsyncReceivables({ agencyId }: { agencyId: string }) {
   const hasOverdue = overdueCount > 0;
 
   return (
-    <Card className={hasOverdue ? "overflow-hidden border-red-200" : "overflow-hidden"}>
+    <Card id="receivables" className={hasOverdue ? "scroll-mt-6 overflow-hidden border-red-200" : "scroll-mt-6 overflow-hidden"}>
       <div className={`flex items-center justify-between border-b px-5 py-4 ${hasOverdue ? "border-red-100" : "border-slate-200"}`}>
         <div className="flex items-center gap-2.5">
           <IconTile icon={Banknote} tone={hasOverdue ? "red" : "blue"} className="h-8 w-8" />
@@ -433,7 +338,7 @@ async function AsyncReceivables({ agencyId }: { agencyId: string }) {
                     {health ? <CreditBadge health={health} /> : null}
                   </div>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    {invoice.client.firstName} {invoice.client.lastName}
+                    {clientName(invoice.client)}
                   </p>
                   <Link
                     href={`/billing-pack/${invoice.id}`}
@@ -501,7 +406,21 @@ async function AsyncUpcomingShifts({ agencyId }: { agencyId: string }) {
       </div>
       {upcoming.length === 0 ? (
         <div className="p-5">
-          <EmptyState title="No upcoming shifts" description="Create a shift to fill your rota." />
+          <EmptyState
+            icon={CalendarPlus}
+            title="Your rota is empty"
+            description="Add a one-off shift, or set up a recurring rota and Pleasant creates the shifts each week. Then offer them out to carers from Dispatch."
+            action={
+              <>
+                <Link href="/shifts/new" className={buttonClass}>
+                  Create a shift
+                </Link>
+                <Link href="/rota" className={subtleButtonClass}>
+                  Set up a recurring rota
+                </Link>
+              </>
+            }
+          />
         </div>
       ) : (
         <table className="w-full">
@@ -517,15 +436,19 @@ async function AsyncUpcomingShifts({ agencyId }: { agencyId: string }) {
                   </Link>
                   <p className="mt-0.5 text-xs text-slate-500">
                     {shift.client
-                      ? `${shift.client.firstName} ${shift.client.lastName}`
+                      ? clientName(shift.client)
                       : "No client"}
                   </p>
+                  <p className="mt-1 text-xs text-slate-600 sm:hidden">
+                    {formatDate(shift.startAt)} · {formatTime(shift.startAt)}–{formatTime(shift.endAt)} ·{" "}
+                    {shift.staff ? `${shift.staff.firstName} ${shift.staff.lastName}` : <span className="font-semibold text-amber-700">Unassigned</span>}
+                  </p>
                 </Td>
-                <Td>
+                <Td className="hidden sm:table-cell">
                   <p className="tabular">{formatTime(shift.startAt)} – {formatTime(shift.endAt)}</p>
-                  <p className="mt-0.5 text-xs text-slate-500">{shift.startAt.toDateString()}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">{formatDate(shift.startAt)}</p>
                 </Td>
-                <Td>
+                <Td className="hidden md:table-cell">
                   {shift.staff ? (
                     `${shift.staff.firstName} ${shift.staff.lastName}`
                   ) : (
@@ -537,63 +460,6 @@ async function AsyncUpcomingShifts({ agencyId }: { agencyId: string }) {
                 </Td>
                 <Td>
                   <StatusBadge status={shift.status} />
-                </Td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </Card>
-  );
-}
-
-async function AsyncTimesheetApprovals({ agencyId }: { agencyId: string }) {
-  const approvals = await prisma.timesheet.findMany({
-    where: { agencyId, status: "PENDING" },
-    include: { staff: true, shift: true },
-    orderBy: { clockIn: "asc" },
-    take: 5,
-  });
-
-  return (
-    <Card className="overflow-hidden">
-      <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-        <div className="flex items-center gap-2.5">
-          <IconTile icon={ClipboardCheck} tone="blue" className="h-8 w-8" />
-          <h2 className="text-sm font-semibold text-slate-900">Timesheets to approve</h2>
-        </div>
-        <Link
-          href="/timesheets"
-          className="text-xs font-semibold text-brand-700 transition hover:text-brand-800"
-        >
-          Review →
-        </Link>
-      </div>
-      {approvals.length === 0 ? (
-        <div className="p-5">
-          <EmptyState title="Nothing to approve" description="All timesheets are up to date." />
-        </div>
-      ) : (
-        <table className="w-full">
-          <tbody className="divide-y divide-slate-100">
-            {approvals.map((ts) => (
-              <tr key={ts.id} className="transition duration-100 hover:bg-slate-50/70">
-                <Td>
-                  <span className="font-medium text-slate-900">
-                    {ts.staff.firstName} {ts.staff.lastName}
-                  </span>
-                  <p className="mt-0.5 text-xs text-slate-500">{ts.shift.title}</p>
-                </Td>
-                <Td>
-                  <p className="tabular text-sm font-semibold text-slate-900">
-                    {formatHours(ts.workedMins)}
-                  </p>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    {formatDate(ts.clockIn)}
-                  </p>
-                </Td>
-                <Td>
-                  <StatusBadge status={ts.status} />
                 </Td>
               </tr>
             ))}
@@ -641,53 +507,68 @@ async function AsyncAgentActivity({ agencyId }: { agencyId: string }) {
   );
 }
 
+function Group({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{title}</h2>
+        {hint ? <p className="mt-0.5 text-xs text-slate-500">{hint}</p> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 export default async function OversightPage() {
-  const user = await requireAdmin();
+  const user = await requireOps();
+  const isAdmin = user.role === "ADMIN";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <OversightHeader user={user} />
 
-      <Suspense
-        fallback={
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-          </div>
-        }
-      >
-        <AsyncStatCards agencyId={user.agencyId} />
+      {/* The action centre is the page's focal point, so it carries its own heading. */}
+      <Suspense fallback={<SkeletonTable rows={3} />}>
+        <ActionCentre agencyId={user.agencyId} isAdmin={isAdmin} />
       </Suspense>
 
-      <Suspense fallback={null}>
-        <AsyncUnattendedAlert agencyId={user.agencyId} />
-      </Suspense>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Suspense fallback={null}>
-          <AsyncLatestPayroll agencyId={user.agencyId} />
+      <Group title="Today's operations">
+        <Suspense
+          fallback={
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </div>
+          }
+        >
+          <Kpis agencyId={user.agencyId} />
         </Suspense>
+      </Group>
 
-        <Suspense fallback={null}>
-          <AsyncBilling agencyId={user.agencyId} />
-        </Suspense>
-      </div>
-
-      <Suspense fallback={null}>
-        <AsyncReceivables agencyId={user.agencyId} />
-      </Suspense>
-
-      <div className="grid gap-6 lg:grid-cols-2">
+      <Group title="Upcoming">
         <Suspense fallback={<SkeletonTable rows={4} />}>
           <AsyncUpcomingShifts agencyId={user.agencyId} />
         </Suspense>
+      </Group>
 
-        <Suspense fallback={<SkeletonTable rows={4} />}>
-          <AsyncTimesheetApprovals agencyId={user.agencyId} />
-        </Suspense>
-      </div>
+      {/* Pay and receivables are admin-only; managers see the operational view. */}
+      {isAdmin ? (
+        <Group title="Business">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Suspense fallback={null}>
+              <AsyncLatestPayroll agencyId={user.agencyId} />
+            </Suspense>
+            <Suspense fallback={null}>
+              <AsyncBilling agencyId={user.agencyId} />
+            </Suspense>
+          </div>
+          <Suspense fallback={null}>
+            <AsyncReceivables agencyId={user.agencyId} />
+          </Suspense>
+        </Group>
+      ) : null}
 
       <Suspense fallback={null}>
         <AsyncAgentActivity agencyId={user.agencyId} />

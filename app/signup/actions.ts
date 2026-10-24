@@ -1,9 +1,9 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { z } from "zod";
 
-import { SESSION_COOKIE, createSessionToken, getSessionUser, hashPassword } from "@/lib/auth";
+import { getSessionUser, hashPassword, setSessionCookie } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { onboardingAgencySchema } from "@/lib/validation";
 
@@ -83,14 +83,13 @@ export async function createAgencyAction(
     });
   });
 
-  const store = await cookies();
-  store.set(SESSION_COOKIE, createSessionToken(user.id), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
+  await recordAudit(user, {
+    action: "agency.create",
+    summary: `Created agency ${parsed.data.agencyName}`,
+    targetType: "Agency",
+    targetId: user.agencyId,
   });
+  await setSessionCookie(user);
 
   return { ok: true };
 }

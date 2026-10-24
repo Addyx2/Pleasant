@@ -7,6 +7,7 @@ import { cache } from "react";
 
 import { SESSION_COOKIE } from "./constants";
 import { prisma } from "./db";
+import { isOpsRole } from "./permissions";
 
 export { SESSION_COOKIE };
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
@@ -26,24 +27,46 @@ function sign(payload: string): string {
   return createHmac("sha256", getSecret()).update(payload).digest("base64url");
 }
 
-export function createSessionToken(userId: string, ttlMs = SESSION_TTL_MS): string {
+// Token format: `${userId}.${sessionVersion}.${expires}.${signature}`. The
+// version lets us revoke every outstanding session for a user by bumping
+// User.sessionVersion (password reset, role change, removal, sign out everywhere).
+export function createSessionToken(
+  userId: string,
+  sessionVersion = 0,
+  ttlMs = SESSION_TTL_MS,
+): string {
   const expires = Date.now() + ttlMs;
-  const payload = `${userId}.${expires}`;
+  const payload = `${userId}.${sessionVersion}.${expires}`;
   return `${payload}.${sign(payload)}`;
 }
 
-export function verifySessionToken(token: string | undefined | null): string | null {
+export function verifySessionToken(
+  token: string | undefined | null,
+): { userId: string; version: number } | null {
   if (!token) return null;
   const parts = token.split(".");
-  if (parts.length !== 3) return null;
-  const [userId, expiresRaw, signature] = parts;
-  const expected = sign(`${userId}.${expiresRaw}`);
+  if (parts.length !== 4) return null;
+  const [userId, versionRaw, expiresRaw, signature] = parts;
+  const expected = sign(`${userId}.${versionRaw}.${expiresRaw}`);
   const a = Buffer.from(signature);
   const b = Buffer.from(expected);
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
   const expires = Number(expiresRaw);
   if (!Number.isFinite(expires) || expires < Date.now()) return null;
-  return userId;
+  const version = Number(versionRaw);
+  if (!Number.isInteger(version)) return null;
+  return { userId, version };
+}
+
+export async function setSessionCookie(user: { id: string; sessionVersion: number }) {
+  const store = await cookies();
+  store.set(SESSION_COOKIE, createSessionToken(user.id, user.sessionVersion), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: SESSION_TTL_MS / 1000,
+  });
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -56,14 +79,14 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 
 export const getSessionUser = cache(async () => {
   const store = await cookies();
-  const userId = verifySessionToken(store.get(SESSION_COOKIE)?.value);
-  if (!userId) return null;
+  const session = verifySessionToken(store.get(SESSION_COOKIE)?.value);
+  if (!session) return null;
 
   const user = await prisma.user.findUnique({
-    where: { id: userId },
+    where: { id: session.userId },
     include: { agency: true, staff: true },
   });
-  if (!user) return null;
+  if (!user || user.deactivatedAt || user.sessionVersion !== session.version) return null;
   return user;
 });
 
@@ -73,9 +96,23 @@ export async function requireUser() {
   return user;
 }
 
+function homeFor(role: string): string {
+  return role === "STAFF" ? "/workforce" : "/oversight";
+}
+
+// Back-office operations: rota, dispatch, timesheets, staff, clients, compliance.
+// Open to admins and managers.
+export async function requireOps() {
+  const user = await requireUser();
+  if (!isOpsRole(user.role)) redirect(homeFor(user.role));
+  return user;
+}
+
+// Money and account control: payroll, billing, settings, team, audit, imports.
+// Admins only.
 export async function requireAdmin() {
   const user = await requireUser();
-  if (user.role !== "ADMIN") redirect("/workforce");
+  if (user.role !== "ADMIN") redirect(homeFor(user.role));
   return user;
 }
 

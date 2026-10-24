@@ -1,10 +1,11 @@
 import Link from "next/link";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { approveShiftRequestAction, rejectShiftRequestAction } from "./actions";
+import { clientName } from "@/lib/clients";
 
 export const metadata = { title: "Shift requests" };
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export default async function ShiftRequestsPage({
 }: {
   searchParams: Promise<{ result?: string }>;
 }) {
-  await requireAdmin();
+  await requireOps();
   const { result } = await searchParams;
   const banner = result != null && result in BANNERS ? BANNERS[result] : null;
 
@@ -80,7 +81,7 @@ export default async function ShiftRequestsPage({
           {pending.map((req) => {
             const where =
               req.shift.client != null
-                ? `${req.shift.client.firstName} ${req.shift.client.lastName}`
+                ? clientName(req.shift.client)
                 : (req.shift.site?.name ?? "Location TBC");
             return (
               <Card key={req.id} className="p-5">

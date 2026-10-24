@@ -1,14 +1,15 @@
 import { AlertTriangle, Bot, CalendarClock, Clock } from "lucide-react";
 import { format } from "date-fns";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatDate, formatTime } from "@/lib/utils";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { triageShiftAction } from "../actions";
+import { clientName } from "@/lib/clients";
 
 export const metadata = {
-  title: "Unattended Shifts | Pleasant",
+  title: "Unattended Shifts",
 };
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ async function activeCampaignCount(agencyId: string) {
 }
 
 export default async function UnattendedShiftsPage() {
-  const user = await requireAdmin();
+  const user = await requireOps();
 
   const [unattended, runningCampaigns] = await Promise.all([
     prisma.shift.findMany({
@@ -110,7 +111,7 @@ export default async function UnattendedShiftsPage() {
                     </td>
                     <td className="px-5 py-4">
                       <p className="font-medium text-slate-900">
-                        {shift.client ? `${shift.client.firstName} ${shift.client.lastName}` : "No client"}
+                        {clientName(shift.client, "No client")}
                       </p>
                       <p className="mt-0.5 text-xs text-slate-500">{shift.site?.name ?? "Unknown site"}</p>
                     </td>
