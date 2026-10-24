@@ -18,6 +18,7 @@ import { toolLabel } from "./labels";
 import { ASSIST_GROUPS } from "./policy";
 import { findTool, toolsFor, type AssistTool, type ToolScope } from "./tools";
 import type { Decision } from "./types";
+import { ALLOWANCE_REACHED, getAllowance, recordUsage } from "./usage";
 
 export type { Decision };
 
@@ -188,6 +189,14 @@ export async function* runAssist(
       yield { type: "state", messages };
     }
 
+    // Checked once per turn, after any approved changes have run: a turn that
+    // starts under the cap may finish, so it overshoots by at most one turn.
+    if (call === 0 && (await getAllowance(user.agencyId)).exhausted) {
+      yield { type: "state", messages };
+      yield { type: "error", message: ALLOWANCE_REACHED };
+      return;
+    }
+
     // 2. Ask the model for its next step, streaming text to the browser.
     let message: BetaMessage | null = null;
     for (let attempt = 0; attempt < 3 && !message; attempt++) {
@@ -219,6 +228,7 @@ export async function* runAssist(
           }
         }
         message = await stream.finalMessage();
+        await recordUsage(user.agencyId, user.id, message.usage).catch((e) => console.error("assist usage not recorded", e));
       } catch (error) {
         // Only an unparseable streamed tool input is retried; API errors surface.
         if (error instanceof Anthropic.APIError || attempt >= 2) throw error;

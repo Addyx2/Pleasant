@@ -153,6 +153,10 @@ model Agency {
   // Assist access policy: tool groups switched off for this agency, as
   // "<group>:read" or "<group>:write" (e.g. "payroll:write").
   assistDisabled String[] @default([])
+  // Monthly Assist spend cap in US dollars (what the AI provider bills in).
+  // Null uses ASSIST_MONTHLY_CAP_USD. Set by Pleasant, not by the agency.
+  assistMonthlyCapUsd Int?
+  assistUsage         AssistUsage[]
 }
 
 model User {
@@ -1027,6 +1031,25 @@ model AssistAutomation {
 
   @@index([enabled, nextRunAt])
   @@index([userId])
+}
+
+// Assist model usage per person per month (UK calendar month, "2026-10").
+// Cost is estimated from list prices, in millionths of a US dollar.
+model AssistUsage {
+  agencyId         String
+  userId           String
+  month            String
+  requests         Int      @default(0)
+  inputTokens      Int      @default(0)
+  outputTokens     Int      @default(0)
+  cacheReadTokens  Int      @default(0)
+  cacheWriteTokens Int      @default(0)
+  costMicros       Int      @default(0)
+  updatedAt        DateTime @updatedAt
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@id([agencyId, month, userId])
 }
 
 // Last time a background job checked in (e.g. "assist-scheduler"), so the
