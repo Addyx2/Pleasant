@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { getBankHolidays } from "@/lib/integrations/bank-holidays";
 import {
   calculatePayslip,
   computeShiftEarnings,
@@ -96,6 +97,7 @@ export async function generatePayrollRunAction(
 
   const taxYear = taxYearFor(periodEnd);
   const roundingMins = user.agency.roundingMins ?? 15;
+  const bankHolidays = await getBankHolidays(user.agency.bankHolidayDivision);
 
   const timesheets = await prisma.timesheet.findMany({
     where: {
@@ -162,6 +164,7 @@ export async function generatePayrollRunAction(
         isSleepIn: ts.shift.isSleepIn,
         sleepInRate: Number(ts.shift.sleepInRate),
         roundingMins,
+        bankHolidays,
       });
       grossFromShifts += earnings.totalEarnings;
       paidMins += earnings.paidMins;

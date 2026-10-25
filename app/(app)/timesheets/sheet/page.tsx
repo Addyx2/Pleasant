@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getBankHolidays } from "@/lib/integrations/bank-holidays";
 import { computeShiftEarnings } from "@/lib/payroll/engine";
 import { addDays, mondayOf, parseISODate, toISODate } from "@/lib/week";
 import { formatCurrency, formatDate, formatHours, formatTime, shiftDurationMins } from "@/lib/utils";
@@ -56,6 +57,7 @@ export default async function WeeklySheetPage({
     if (dayIndex >= 0 && dayIndex < 7) byDay[dayIndex].push(shift);
   }
 
+  const bankHolidays = await getBankHolidays(user.agency.bankHolidayDivision);
   let weekMins = 0;
   let weekGross = 0;
   for (const shift of shifts) {
@@ -73,6 +75,7 @@ export default async function WeeklySheetPage({
           bankHolidayRate: staff.bankHolidayRate ? Number(staff.bankHolidayRate) : null,
         },
         isSleepIn: shift.isSleepIn,
+        bankHolidays,
         sleepInRate: Number(shift.sleepInRate),
         roundingMins: user.agency.roundingMins ?? 15,
       }).totalEarnings;

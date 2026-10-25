@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { sendOfferSms } from "@/lib/integrations/sms-offers";
 
 export async function offerShiftAction(formData: FormData): Promise<void> {
   const user = await requireOps();
@@ -21,11 +22,13 @@ export async function offerShiftAction(formData: FormData): Promise<void> {
   });
   if (!shift || !staff) return;
 
-  await prisma.shiftOffer.upsert({
+  const offer = await prisma.shiftOffer.upsert({
     where: { shiftId_staffId: { shiftId, staffId } },
     create: { agencyId: user.agencyId, shiftId, staffId },
     update: { status: "OFFERED", respondedAt: null },
   });
+  // Also by text, if the agency has SMS connected. The offer stands either way.
+  await sendOfferSms(user.agencyId, offer.id);
 
   await prisma.agentLog.create({
     data: {

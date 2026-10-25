@@ -11,6 +11,7 @@ export const AUDIT_CATEGORIES = [
   { key: "client", label: "Clients" },
   { key: "assist", label: "Assist" },
   { key: "addon", label: "Add-ons" },
+  { key: "integration", label: "Integrations" },
 ] as const;
 
 export type AuditCategory = (typeof AUDIT_CATEGORIES)[number]["key"];
@@ -34,6 +35,8 @@ const SENSITIVE = new Set([
   "invoice.status",
   "client.rate",
   "client.signatory_add",
+  "integration.connect",
+  "integration.disconnect",
 ]);
 
 export function isSensitiveAction(action: string): boolean {

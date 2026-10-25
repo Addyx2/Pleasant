@@ -157,6 +157,14 @@ model Agency {
   // Null uses ASSIST_MONTHLY_CAP_USD. Set by Pleasant, not by the agency.
   assistMonthlyCapUsd Int?
   assistUsage         AssistUsage[]
+
+  // GOV.UK bank holiday calendar used for pay and charge premiums:
+  // england-and-wales | scotland | northern-ireland
+  bankHolidayDivision String @default("england-and-wales")
+
+  integrations    Integration[]
+  integrationLogs IntegrationLog[]
+  smsMessages     SmsMessage[]
 }
 
 model User {
@@ -292,6 +300,7 @@ model Client {
   companyNo        String?
   cqcLocationId    String? // the home's own CQC registration, for compliance packs
   frameworkRef     String? // framework agreement / PO reference printed on invoices
+  xeroContactId    String? // set once the client is created in the agency's Xero
   paymentTermsDays Int          @default(30)
   notes            String?
   status           ClientStatus @default(ACTIVE)
@@ -823,6 +832,11 @@ model Invoice {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Live Xero sync: the invoice's id in Xero and when Pleasant last sent it.
+  xeroInvoiceId String?
+  xeroStatus    String? // status Pleasant last saw in Xero: DRAFT | AUTHORISED | PAID | VOIDED | DELETED
+  xeroSyncedAt  DateTime?
+
   agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
   lines  InvoiceLine[]
@@ -1050,6 +1064,80 @@ model AssistUsage {
   agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
 
   @@id([agencyId, month, userId])
+}
+
+enum IntegrationStatus {
+  CONNECTED
+  ERROR // connected, but the last call failed (e.g. expired access)
+}
+
+// A live connection from one agency to an outside service (Xero, Twilio...).
+// Disconnecting deletes the row and its credentials.
+model Integration {
+  id            String            @id @default(cuid())
+  agencyId      String
+  provider      String // key from lib/integrations/catalog.ts
+  status        IntegrationStatus @default(CONNECTED)
+  // Non-secret settings shown in the app, e.g. the SMS sender or Xero organisation.
+  config        Json              @default("{}")
+  // Credentials and tokens: AES-256-GCM encrypted JSON (lib/integrations/crypto.ts).
+  secrets       String?
+  connectedById String?
+  lastSyncAt    DateTime?
+  lastError     String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  agency Agency           @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  logs   IntegrationLog[]
+
+  @@unique([agencyId, provider])
+}
+
+model IntegrationLog {
+  id            String   @id @default(cuid())
+  integrationId String?
+  agencyId      String
+  provider      String
+  action        String // e.g. "test", "sync", "sms.out", "sms.in"
+  ok            Boolean
+  detail        String
+  createdAt     DateTime @default(now())
+
+  agency      Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  integration Integration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
+
+  @@index([agencyId, provider, createdAt])
+}
+
+// Bank holidays from the GOV.UK feed, refreshed daily by the integrations job.
+// The payroll engine also has a built-in list as a fallback.
+model BankHoliday {
+  division String // england-and-wales | scotland | northern-ireland
+  date     String // YYYY-MM-DD
+  title    String
+
+  @@id([division, date])
+}
+
+// Text messages to and from carers, e.g. shift offers answered by reply.
+model SmsMessage {
+  id         String   @id @default(cuid())
+  agencyId   String
+  staffId    String?
+  offerId    String?
+  direction  String // OUT | IN
+  phone      String // the carer's number, E.164
+  body       String
+  // OUT shift offers: the code a carer can reply with ("YES 4821").
+  code       String?
+  providerId String? // Twilio message SID
+  status     String // SENT | FAILED | RECEIVED
+  createdAt  DateTime @default(now())
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId, phone, createdAt])
 }
 
 // Last time a background job checked in (e.g. "assist-scheduler"), so the

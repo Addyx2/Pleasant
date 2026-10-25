@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getBankHolidays } from "@/lib/integrations/bank-holidays";
 import { initiatePushbotTriage } from "@/lib/pushbots/triage";
 import { clientName, resolveChargeRate, resolveSleepInCharge, toRateCardEntry } from "@/lib/clients";
 import { createShiftSchema } from "@/lib/validation";
@@ -67,7 +68,7 @@ export async function createShiftAction(
       siteId: site?.id ?? null,
       startAt: data.startAt,
       endAt: data.endAt,
-    });
+    }, await getBankHolidays(user.agency.bankHolidayDivision));
     if (!resolved) {
       return {
         error: `${clientName(client)} has no ${data.role} rate on its rate card. Enter a charge rate, or add the role to the rate card.`,

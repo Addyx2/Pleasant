@@ -5,6 +5,7 @@ import {
   FileUp,
   Fingerprint,
   LayoutDashboard,
+  Plug,
   Puzzle,
   Settings,
   Users,
@@ -102,8 +103,9 @@ export const QUICK_ACTIONS: QuickAction[] = [
 /** Agency setup, opened from the account menu rather than the sidebar. */
 export const WORKSPACE_ITEMS: NavItem[] = [
   { href: "/settings", label: "Settings", icon: Settings, keywords: "workspace team audit bank invoice" },
+  { href: "/settings/integrations", label: "Integrations", icon: Plug, keywords: "workspace xero sms twilio text bank holidays connect" },
   { href: "/import", label: "Import data", icon: FileUp, keywords: "workspace csv upload migrate" },
-  { href: "/addons", label: "Add-ons", icon: Puzzle, keywords: "workspace gateway peak integrations" },
+  { href: "/addons", label: "Add-ons", icon: Puzzle, keywords: "workspace gateway peak modules" },
 ];
 
 export function navForRole(role: string): { home: NavItem; sections: NavSection[]; workspace: NavItem[] } {

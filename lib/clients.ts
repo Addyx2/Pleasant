@@ -100,13 +100,13 @@ export function findRate(
  * night (20:00–06:00) or day covers most of its minutes, with the same
  * precedence the payroll engine uses for pay premiums.
  */
-export function shiftRateBand(startAt: Date, endAt: Date): RateBand {
+export function shiftRateBand(startAt: Date, endAt: Date, bankHolidays?: ReadonlySet<string>): RateBand {
   const totals = { DAY: 0, NIGHT: 0, WEEKEND: 0, BANK_HOLIDAY: 0 };
   const cursor = new Date(startAt);
   // Sample every 5 minutes: precise enough to pick a majority band.
   while (cursor < endAt) {
     const hour = cursor.getHours();
-    if (isBankHoliday(cursor)) totals.BANK_HOLIDAY += 1;
+    if (isBankHoliday(cursor, bankHolidays)) totals.BANK_HOLIDAY += 1;
     else if (isWeekend(cursor)) totals.WEEKEND += 1;
     else if (hour >= 20 || hour < 6) totals.NIGHT += 1;
     else totals.DAY += 1;
@@ -119,11 +119,12 @@ export function shiftRateBand(startAt: Date, endAt: Date): RateBand {
 export function resolveChargeRate(
   rates: RateCardEntry[],
   shift: { role: string; siteId?: string | null; startAt: Date; endAt: Date },
+  bankHolidays?: ReadonlySet<string>,
 ): ResolvedRate | null {
   // Sleep-ins are billed flat (see resolveSleepInCharge), not hourly.
   const entry = findRate(rates, shift.role, shift.siteId);
   if (!entry) return null;
-  const band = shiftRateBand(shift.startAt, shift.endAt);
+  const band = shiftRateBand(shift.startAt, shift.endAt, bankHolidays);
   const rate =
     band === "BANK_HOLIDAY"
       ? (entry.bankHolidayRate ?? entry.weekendRate ?? entry.dayRate)

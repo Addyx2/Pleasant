@@ -1,18 +1,10 @@
 import { NextResponse } from "next/server";
-import { addDays } from "date-fns";
 
 import { requireAdmin } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
-import { lineBasis } from "@/lib/billing";
-import {
-  buildXeroSalesInvoicesCsv,
-  xeroTaxType,
-  type XeroSalesInvoice,
-  type ZeroRateTreatment,
-} from "@/lib/billing/xero";
-import { clientName } from "@/lib/clients";
-import { formatDate } from "@/lib/utils";
+import { buildXeroSalesInvoicesCsv, type ZeroRateTreatment } from "@/lib/billing/xero";
+import { toXeroSalesInvoice, XERO_INVOICE_INCLUDE } from "@/lib/billing/xero-invoice";
 
 export const dynamic = "force-dynamic";
 
@@ -38,42 +30,11 @@ export async function GET(request: Request) {
       ...(since ? { issueDate: { gte: since } } : {}),
       lines: { some: {} },
     },
-    include: {
-      client: true,
-      lines: { include: { staff: true, shift: { select: { isSleepIn: true } } }, orderBy: { date: "asc" } },
-    },
+    include: XERO_INVOICE_INCLUDE,
     orderBy: { issueDate: "asc" },
   });
 
-  const payload: XeroSalesInvoice[] = invoices.map((invoice) => {
-    const invoiceDate = invoice.issueDate ?? invoice.createdAt;
-    return {
-      invoiceNumber: invoice.reference,
-      reference: invoice.client.frameworkRef,
-      contactName: clientName(invoice.client),
-      contactEmail: invoice.client.email,
-      contactAddress: invoice.client.address,
-      contactPostcode: invoice.client.postcode,
-      invoiceDate,
-      dueDate: invoice.dueDate ?? addDays(invoiceDate, invoice.client.paymentTermsDays),
-      currency: "GBP",
-      taxType: xeroTaxType(Number(invoice.vatRatePct), zeroRate),
-      lines: invoice.lines.map((line) => {
-        const basis = lineBasis({
-          hours: Number(line.hours),
-          chargeRate: Number(line.chargeRate),
-          chargeAmount: Number(line.chargeAmount),
-          isSleepIn: line.shift?.isSleepIn ?? false,
-        });
-        const sleepInNote = basis.flat && !/sleep-in/i.test(line.title) ? " (sleep-in)" : "";
-        return {
-          description: `${formatDate(line.date)} · ${line.title}${sleepInNote} — ${line.staff.firstName} ${line.staff.lastName}`,
-          quantity: basis.quantity,
-          unitAmount: basis.unitAmount,
-        };
-      }),
-    };
-  });
+  const payload = invoices.map((invoice) => toXeroSalesInvoice(invoice, zeroRate));
 
   await recordAudit(user, {
     action: "invoice.export",

@@ -35,6 +35,6 @@ test("sections have unique keys and icons, and features are listed as text", () 
 });
 
 test("workspace lives in the account menu and is admin-only", () => {
-  assert.deepEqual(navForRole("ADMIN").workspace.map((i) => i.href), ["/settings", "/import", "/addons"]);
+  assert.deepEqual(navForRole("ADMIN").workspace.map((i) => i.href), ["/settings", "/settings/integrations", "/import", "/addons"]);
   assert.deepEqual(navForRole("MANAGER").workspace, []);
 });

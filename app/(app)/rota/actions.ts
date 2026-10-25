@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getBankHolidays } from "@/lib/integrations/bank-holidays";
 import { isValidLine, lineDateFor, lineEndFor, parseHhMm, buildWeek } from "@/lib/rota";
 import { resolveChargeRate, resolveSleepInCharge, toRateCardEntry, type RateCardEntry } from "@/lib/clients";
 import { nextCutoff } from "@/lib/week";
@@ -150,12 +151,13 @@ export async function generateRotaWeekAction(formData: FormData): Promise<void> 
       : [];
     const cards = new Map<string, RateCardEntry[]>();
     for (const row of rateRows) cards.set(row.clientId, [...(cards.get(row.clientId) ?? []), toRateCardEntry(row)]);
+    const bankHolidays = await getBankHolidays(user.agency.bankHolidayDivision);
     const priced = (line: (typeof toInsert)[number]["line"], startAt: Date, endAt: Date) => {
       const card = line.clientId ? (cards.get(line.clientId) ?? []) : [];
       const chargeRate =
         Number(line.chargeRate) > 0
           ? Number(line.chargeRate)
-          : (resolveChargeRate(card, { role: line.role, siteId: line.siteId, startAt, endAt })?.rate ?? 0);
+          : (resolveChargeRate(card, { role: line.role, siteId: line.siteId, startAt, endAt }, bankHolidays)?.rate ?? 0);
       const sleepInCharge = line.isSleepIn
         ? line.sleepInCharge != null
           ? Number(line.sleepInCharge)

@@ -335,6 +335,8 @@ export interface ShiftEarningsInput {
    * "enter all hours to the nearest 1/4 hour"). 0 = exact minutes.
    */
   roundingMins?: number;
+  /** Bank holiday dates ("YYYY-MM-DD") for the agency's nation. Defaults to the built-in list. */
+  bankHolidays?: ReadonlySet<string>;
 }
 
 /** Rounds minutes to the nearest increment (e.g. 15 for quarter hours). */
@@ -403,7 +405,7 @@ export function computeShiftEarnings(input: ShiftEarningsInput): ShiftEarningsRe
         : hour >= night.startHour || hour < night.endHour;
 
     let category: Category;
-    if (isBankHoliday(cursor)) category = "BANK_HOLIDAY";
+    if (isBankHoliday(cursor, input.bankHolidays)) category = "BANK_HOLIDAY";
     else if (isWeekend(cursor)) category = "WEEKEND";
     else if (isNight) category = "NIGHT";
     else category = "NORMAL";
