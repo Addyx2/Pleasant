@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { pushWorkspaceActivity } from "@/lib/workspace-activity";
 
 import { refreshBankHolidays } from "./bank-holidays";
 import { syncXero } from "./xero/sync";
@@ -32,6 +33,27 @@ export async function runIntegrationJobs(options: { budgetMs?: number } = {}) {
     if (Date.now() - started > budget) break;
     const result = await syncXero(integration);
     done.push(`xero ${integration.agencyId}: ${result.ok ? "ok" : "failed"}`);
+  }
+
+  // Aultrum Workspace summaries, hourly, for agencies whose people use Aultrum ID.
+  const beat = await prisma.systemHeartbeat.findUnique({ where: { key: "workspace-activity" } });
+  if (!beat || Date.now() - beat.at.getTime() > XERO_EVERY_MS) {
+    const agencies = await prisma.user.findMany({
+      where: { aultrumSub: { not: null }, deactivatedAt: null },
+      distinct: ["agencyId"],
+      select: { agencyId: true },
+      take: 200,
+    });
+    for (const { agencyId } of agencies) {
+      if (Date.now() - started > budget) break;
+      await pushWorkspaceActivity(agencyId);
+    }
+    await prisma.systemHeartbeat.upsert({
+      where: { key: "workspace-activity" },
+      create: { key: "workspace-activity", at: new Date(), detail: `${agencies.length} agencies` },
+      update: { at: new Date(), detail: `${agencies.length} agencies` },
+    });
+    done.push(`workspace: ${agencies.length}`);
   }
 
   await prisma.systemHeartbeat.upsert({

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { removeMembership, reportMembership } from "@/lib/aultrum-id";
 import { hashPassword, requireAdmin, type SessionUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
@@ -142,6 +143,11 @@ export async function setAccessAction(formData: FormData): Promise<void> {
     targetType: "User",
     targetId: member.id,
   });
+  // Keep Aultrum Workspace in step: removed people no longer see the agency there.
+  if (member.aultrumSub) {
+    if (enable) await reportMembership(member.aultrumSub, admin.agency, member.role);
+    else await removeMembership(member.aultrumSub, admin.agencyId);
+  }
   revalidatePath("/settings/team");
 }
 

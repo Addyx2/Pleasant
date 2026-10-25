@@ -184,6 +184,9 @@ model User {
   lockedUntil  DateTime?
   // Null while active; set when an admin removes the user's access.
   deactivatedAt DateTime?
+  // Their Aultrum ID ("sub"), once they've linked it by confirming their password.
+  // One user per Aultrum ID is enforced when linking (lib/aultrum-signin.ts).
+  aultrumSub   String?
   resetTokenHash String?
   resetTokenExpAt DateTime?
   createdAt    DateTime @default(now())
@@ -199,6 +202,8 @@ model User {
   auditEvents AuditEvent[]
   assistConversations AssistConversation[]
   assistAutomations   AssistAutomation[]
+
+  @@index([aultrumSub])
 }
 
 model StaffProfile {
