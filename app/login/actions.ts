@@ -12,6 +12,8 @@ import { loginSchema } from "@/lib/validation";
 
 export interface LoginState {
   error?: string;
+  /** Echoed back so the form keeps it after a failed attempt (React resets forms after an action). */
+  email?: string;
 }
 
 // Compared against when the email is unknown so response time doesn't reveal
@@ -22,13 +24,15 @@ export async function loginAction(
   _prev: LoginState,
   formData: FormData,
 ): Promise<LoginState> {
+  const typedEmail = String(formData.get("email") ?? "");
+  const fail = (error: string): LoginState => ({ error, email: typedEmail });
   const parsed = loginSchema.safeParse({
-    email: formData.get("email"),
+    email: typedEmail,
     password: formData.get("password"),
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Check your details and try again" };
+    return fail(parsed.error.issues[0]?.message ?? "Check your details and try again");
   }
 
   const email = parsed.data.email.toLowerCase();
@@ -36,14 +40,14 @@ export async function loginAction(
 
   if (!user) {
     await verifyPassword(parsed.data.password, DUMMY_HASH);
-    return { error: "Incorrect email or password" };
+    return fail("Incorrect email or password");
   }
 
   if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
     const minutes = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60_000);
-    return {
-      error: `Too many failed attempts. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}, or reset your password.`,
-    };
+    return fail(
+      `Too many failed attempts. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}, or reset your password.`,
+    );
   }
 
   const valid = await verifyPassword(parsed.data.password, user.passwordHash);
@@ -68,7 +72,7 @@ export async function loginAction(
         });
       }
     }
-    return { error: "Incorrect email or password" };
+    return fail("Incorrect email or password");
   }
 
   await prisma.user.update({

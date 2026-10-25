@@ -1,5 +1,6 @@
-// England & Wales bank holidays (the default for healthcare agencies).
-// Source: GOV.UK bank holidays. Extend as new years are published.
+// England & Wales bank holidays, built in as a fallback. The live calendar
+// for each nation comes from the GOV.UK feed (lib/integrations/bank-holidays.ts)
+// and is passed in by callers.
 
 const BANK_HOLIDAYS: Record<number, string[]> = {
   2025: [
@@ -41,12 +42,12 @@ function toKey(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-const lookup = new Set<string>(
-  Object.values(BANK_HOLIDAYS).flat(),
-);
+export const BUILT_IN_BANK_HOLIDAYS: readonly string[] = Object.values(BANK_HOLIDAYS).flat();
 
-export function isBankHoliday(date: Date): boolean {
-  return lookup.has(toKey(date));
+const builtIn = new Set<string>(BUILT_IN_BANK_HOLIDAYS);
+
+export function isBankHoliday(date: Date, holidays: ReadonlySet<string> = builtIn): boolean {
+  return holidays.has(toKey(date));
 }
 
 export function isWeekend(date: Date): boolean {

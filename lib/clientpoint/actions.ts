@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
+import { agencyBankHolidays } from "@/lib/integrations/bank-holidays";
 import { revalidatePath } from "next/cache";
 import { resolveChargeRate, toRateCardEntry } from "@/lib/clients";
 import { validatePleasantLink } from "./pleasant-link";
@@ -69,7 +70,11 @@ export async function requestShifts(token: string, role: string, startAt: Date, 
 
     // Price the request from the client's rate card so it isn't invoiced at £0.
     const rates = await prisma.clientRate.findMany({ where: { clientId: linkSession.clientId } });
-    const resolved = resolveChargeRate(rates.map(toRateCardEntry), { role, startAt: start, endAt: end });
+    const resolved = resolveChargeRate(
+      rates.map(toRateCardEntry),
+      { role, startAt: start, endAt: end },
+      await agencyBankHolidays(linkSession.agencyId),
+    );
 
     // Creates an OPEN shift ready for triage
     const shift = await prisma.shift.create({

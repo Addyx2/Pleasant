@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getBankHolidays } from "@/lib/integrations/bank-holidays";
 import { computeShiftEarnings } from "@/lib/payroll/engine";
 import { formatCurrency, formatDateTime, formatHours, shiftDurationMins } from "@/lib/utils";
 import { Card, PageHeader, StatCard, Td, Th, buttonClass, inputClass, labelClass, subtleButtonClass } from "@/components/ui";
@@ -39,6 +40,7 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
   if (!shift) notFound();
 
   const duration = shiftDurationMins(shift.startAt, shift.endAt);
+  const bankHolidays = await getBankHolidays(user.agency.bankHolidayDivision);
   const earnings =
     shift.staff &&
     computeShiftEarnings({
@@ -52,6 +54,7 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
         bankHolidayRate: shift.staff.bankHolidayRate ? Number(shift.staff.bankHolidayRate) : null,
       },
       isSleepIn: shift.isSleepIn,
+      bankHolidays,
       sleepInRate: Number(shift.sleepInRate),
       roundingMins: user.agency.roundingMins ?? 15,
     });

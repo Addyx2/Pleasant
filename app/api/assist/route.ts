@@ -8,6 +8,7 @@ import { z } from "zod";
 import { MAX_HISTORY, runAssist } from "@/lib/assist/agent";
 import { isWriteTool, ownedConversation, saveMessages } from "@/lib/assist/store";
 import { titleFrom } from "@/lib/assist/transcript";
+import { ALLOWANCE_REACHED, getAllowance } from "@/lib/assist/usage";
 import type { StreamEvent } from "@/lib/assist/types";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -84,6 +85,11 @@ export async function POST(request: Request) {
   }
   if (decisions && (pending.length === 0 || !pending.every((id) => decisions[id]))) {
     return Response.json({ error: "There's nothing waiting for those decisions." }, { status: 409 });
+  }
+  // Checked before saving a new message, so it isn't left unanswered. Decisions
+  // still go through, so changes the user approved get made.
+  if (message && (await getAllowance(user.agencyId)).exhausted) {
+    return Response.json({ error: ALLOWANCE_REACHED }, { status: 429 });
   }
   if (history.length >= MAX_HISTORY) {
     return Response.json({ error: "This conversation is too long. Start a new one." }, { status: 413 });

@@ -153,6 +153,18 @@ model Agency {
   // Assist access policy: tool groups switched off for this agency, as
   // "<group>:read" or "<group>:write" (e.g. "payroll:write").
   assistDisabled String[] @default([])
+  // Monthly Assist spend cap in US dollars (what the AI provider bills in).
+  // Null uses ASSIST_MONTHLY_CAP_USD. Set by Pleasant, not by the agency.
+  assistMonthlyCapUsd Int?
+  assistUsage         AssistUsage[]
+
+  // GOV.UK bank holiday calendar used for pay and charge premiums:
+  // england-and-wales | scotland | northern-ireland
+  bankHolidayDivision String @default("england-and-wales")
+
+  integrations    Integration[]
+  integrationLogs IntegrationLog[]
+  smsMessages     SmsMessage[]
 }
 
 model User {
@@ -172,6 +184,9 @@ model User {
   lockedUntil  DateTime?
   // Null while active; set when an admin removes the user's access.
   deactivatedAt DateTime?
+  // Their Aultrum ID ("sub"), once they've linked it by confirming their password.
+  // One user per Aultrum ID is enforced when linking (lib/aultrum-signin.ts).
+  aultrumSub   String?
   resetTokenHash String?
   resetTokenExpAt DateTime?
   createdAt    DateTime @default(now())
@@ -187,6 +202,8 @@ model User {
   auditEvents AuditEvent[]
   assistConversations AssistConversation[]
   assistAutomations   AssistAutomation[]
+
+  @@index([aultrumSub])
 }
 
 model StaffProfile {
@@ -288,6 +305,7 @@ model Client {
   companyNo        String?
   cqcLocationId    String? // the home's own CQC registration, for compliance packs
   frameworkRef     String? // framework agreement / PO reference printed on invoices
+  xeroContactId    String? // set once the client is created in the agency's Xero
   paymentTermsDays Int          @default(30)
   notes            String?
   status           ClientStatus @default(ACTIVE)
@@ -819,6 +837,11 @@ model Invoice {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Live Xero sync: the invoice's id in Xero and when Pleasant last sent it.
+  xeroInvoiceId String?
+  xeroStatus    String? // status Pleasant last saw in Xero: DRAFT | AUTHORISED | PAID | VOIDED | DELETED
+  xeroSyncedAt  DateTime?
+
   agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
   lines  InvoiceLine[]
@@ -1027,6 +1050,99 @@ model AssistAutomation {
 
   @@index([enabled, nextRunAt])
   @@index([userId])
+}
+
+// Assist model usage per person per month (UK calendar month, "2026-10").
+// Cost is estimated from list prices, in millionths of a US dollar.
+model AssistUsage {
+  agencyId         String
+  userId           String
+  month            String
+  requests         Int      @default(0)
+  inputTokens      Int      @default(0)
+  outputTokens     Int      @default(0)
+  cacheReadTokens  Int      @default(0)
+  cacheWriteTokens Int      @default(0)
+  costMicros       Int      @default(0)
+  updatedAt        DateTime @updatedAt
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@id([agencyId, month, userId])
+}
+
+enum IntegrationStatus {
+  CONNECTED
+  ERROR // connected, but the last call failed (e.g. expired access)
+}
+
+// A live connection from one agency to an outside service (Xero, Twilio...).
+// Disconnecting deletes the row and its credentials.
+model Integration {
+  id            String            @id @default(cuid())
+  agencyId      String
+  provider      String // key from lib/integrations/catalog.ts
+  status        IntegrationStatus @default(CONNECTED)
+  // Non-secret settings shown in the app, e.g. the SMS sender or Xero organisation.
+  config        Json              @default("{}")
+  // Credentials and tokens: AES-256-GCM encrypted JSON (lib/integrations/crypto.ts).
+  secrets       String?
+  connectedById String?
+  lastSyncAt    DateTime?
+  lastError     String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  agency Agency           @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  logs   IntegrationLog[]
+
+  @@unique([agencyId, provider])
+}
+
+model IntegrationLog {
+  id            String   @id @default(cuid())
+  integrationId String?
+  agencyId      String
+  provider      String
+  action        String // e.g. "test", "sync", "sms.out", "sms.in"
+  ok            Boolean
+  detail        String
+  createdAt     DateTime @default(now())
+
+  agency      Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  integration Integration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
+
+  @@index([agencyId, provider, createdAt])
+}
+
+// Bank holidays from the GOV.UK feed, refreshed daily by the integrations job.
+// The payroll engine also has a built-in list as a fallback.
+model BankHoliday {
+  division String // england-and-wales | scotland | northern-ireland
+  date     String // YYYY-MM-DD
+  title    String
+
+  @@id([division, date])
+}
+
+// Text messages to and from carers, e.g. shift offers answered by reply.
+model SmsMessage {
+  id         String   @id @default(cuid())
+  agencyId   String
+  staffId    String?
+  offerId    String?
+  direction  String // OUT | IN
+  phone      String // the carer's number, E.164
+  body       String
+  // OUT shift offers: the code a carer can reply with ("YES 4821").
+  code       String?
+  providerId String? // Twilio message SID
+  status     String // SENT | FAILED | RECEIVED
+  createdAt  DateTime @default(now())
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId, phone, createdAt])
 }
 
 // Last time a background job checked in (e.g. "assist-scheduler"), so the

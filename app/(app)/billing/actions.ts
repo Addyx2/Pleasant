@@ -11,6 +11,7 @@ import {
 } from "@/lib/billing";
 import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { syncInvoiceToXero } from "@/lib/integrations/xero/sync";
 import { round2 } from "@/lib/payroll/engine";
 import { createInvoiceSchema } from "@/lib/validation";
 import type { ActionState } from "@/app/(app)/shifts/actions";
@@ -180,6 +181,8 @@ export async function setInvoiceStatusAction(formData: FormData): Promise<void> 
       targetId: invoiceId,
       metadata: { status },
     });
+    // Issued and voided invoices go to Xero straight away when it's connected.
+    if (status === "ISSUED" || status === "VOID") await syncInvoiceToXero(user.agencyId, invoiceId);
   }
 
   revalidatePath("/billing");

@@ -36,8 +36,8 @@ export function CommandPalette({ role }: { role: string }) {
   const listRef = useRef<HTMLUListElement>(null);
 
   const staticEntries = useMemo<Entry[]>(() => {
-    const { home, sections, workspace } = navForRole(role);
-    const pages = [home, ...sections.flatMap((s) => s.items), ...workspace].map((item) => ({
+    const { home, pages: navPages, workspace } = navForRole(role);
+    const pages = [home, ...navPages, ...workspace].map((item) => ({
       key: `page:${item.href}`,
       group: "Go to",
       label: item.label,
