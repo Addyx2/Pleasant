@@ -13,20 +13,30 @@ test("activeHref picks the most specific match", () => {
 });
 
 test("managers don't see finance or workspace admin in navigation", () => {
-  const labels = navForRole("MANAGER").sections.flatMap((s) => s.items.map((i) => i.href));
+  const labels = navForRole("MANAGER").pages.map((i) => i.href);
   assert.ok(labels.includes("/shifts"));
   assert.ok(!labels.includes("/payroll"));
   assert.ok(!labels.includes("/settings"));
   assert.ok(!quickActionsForRole("MANAGER").some((a) => a.href.startsWith("/settings")));
 });
 
+test("the sidebar is grouped Pleasant / Persona / Elements", () => {
+  const admin = navForRole("ADMIN").groups;
+  assert.deepEqual(admin.map((g) => g.label), ["Pleasant", "Persona", "Elements"]);
+  assert.deepEqual(admin[1].links.map((l) => l.label), ["Overview", "Assist"]);
+  assert.deepEqual(admin[2].links.map((l) => l.label), ["Gateway", "Peak", "All Elements"]);
+  // Elements are admin-only, so managers see Pleasant and Persona.
+  assert.deepEqual(navForRole("MANAGER").groups.map((g) => g.label), ["Pleasant", "Persona"]);
+  assert.deepEqual(navForRole("STAFF").groups, []);
+});
+
 test("sections have unique keys and icons, and features are listed as text", () => {
-  const { sections } = navForRole("ADMIN");
+  const sections = navForRole("ADMIN").groups.flatMap((g) => g.sections);
   const keys = sections.map((s) => s.key);
   assert.equal(new Set(keys).size, keys.length);
   assert.deepEqual(
     sections.map((s) => s.title),
-    ["Shifts", "People", "Clientpointe", "Finance", "Persona"],
+    ["Shifts", "People", "Clientpointe", "Finance"],
   );
   for (const s of sections) {
     assert.ok(s.icon, `${s.title} has no icon`);
@@ -35,6 +45,6 @@ test("sections have unique keys and icons, and features are listed as text", () 
 });
 
 test("workspace lives in the account menu and is admin-only", () => {
-  assert.deepEqual(navForRole("ADMIN").workspace.map((i) => i.href), ["/settings", "/settings/integrations", "/import", "/addons"]);
+  assert.deepEqual(navForRole("ADMIN").workspace.map((i) => i.href), ["/settings", "/settings/integrations", "/import"]);
   assert.deepEqual(navForRole("MANAGER").workspace, []);
 });

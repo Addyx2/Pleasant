@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 
-import { activeHref, navForRole, type NavItem, type NavSection } from "@/lib/navigation";
+import { activeHref, navForRole, type NavGroup, type NavItem, type NavSection } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 import { useSidebar } from "./SidebarShell";
@@ -89,7 +89,7 @@ const railButton = (active: boolean) =>
   );
 
 /** Icon-only sidebar: each section opens a fly-out with its features on hover, focus or click. */
-function RailNav({ home, sections, current }: { home: NavItem; sections: NavSection[]; current: string | null }) {
+function RailNav({ groups, current }: { groups: NavGroup[]; current: string | null }) {
   const pathname = usePathname();
   const [fly, setFly] = useState<{ key: string; top: number } | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -111,61 +111,71 @@ function RailNav({ home, sections, current }: { home: NavItem; sections: NavSect
   useEffect(() => setFly(null), [pathname]);
   useEffect(() => cancelClose, []);
 
-  const HomeIcon = home.icon;
   return (
     <nav aria-label="Main" className="flex flex-col items-center gap-1">
-      <Link
-        href={home.href}
-        prefetch={false}
-        aria-label={home.label}
-        title={home.label}
-        aria-current={current === home.href ? "page" : undefined}
-        className={railButton(current === home.href)}
-      >
-        {HomeIcon ? <HomeIcon className="h-4 w-4" /> : null}
-      </Link>
-      {sections.map((section) => {
-        const isOpen = fly?.key === section.key;
-        const holdsActive = section.items.some((i) => i.href === current);
-        return (
-          <div
-            key={section.key}
-            onMouseLeave={scheduleClose}
-            onBlur={(e) => {
-              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) scheduleClose();
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") setFly(null);
-            }}
-          >
-            <button
-              type="button"
-              aria-label={section.title}
-              aria-expanded={isOpen}
-              onMouseEnter={(e) => openFor(section, e.currentTarget)}
-              onFocus={(e) => openFor(section, e.currentTarget)}
-              onClick={(e) => openFor(section, e.currentTarget)}
-              className={railButton(holdsActive)}
-            >
-              <section.icon className="h-4 w-4" />
-            </button>
-            {isOpen ? (
-              <div
-                onMouseEnter={cancelClose}
-                style={{ top: fly.top }}
-                className="fixed left-[4.5rem] z-40 w-52 rounded-xl border border-slate-200 bg-white p-1.5 shadow-pop"
+      {groups.map((group, index) => (
+        <div key={group.key} role="group" aria-label={group.label} className="flex flex-col items-center gap-1">
+          {index > 0 ? <span className="my-1.5 h-px w-6 bg-slate-200" aria-hidden="true" /> : null}
+          {group.links.map((link) => {
+            const Icon = link.icon;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                prefetch={false}
+                aria-label={`${group.label}: ${link.label}`}
+                title={`${group.label} · ${link.label}`}
+                aria-current={current === link.href ? "page" : undefined}
+                className={railButton(current === link.href)}
               >
-                <p className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                  {section.title}
-                </p>
-                {section.items.map((item) => (
-                  <NavLink key={item.href} item={item} active={current === item.href} onNavigate={() => setFly(null)} />
-                ))}
+                {Icon ? <Icon className="h-4 w-4" /> : null}
+              </Link>
+            );
+          })}
+          {group.sections.map((section) => {
+            const isOpen = fly?.key === section.key;
+            const holdsActive = section.items.some((i) => i.href === current);
+            return (
+              <div
+                key={section.key}
+                onMouseLeave={scheduleClose}
+                onBlur={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) scheduleClose();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setFly(null);
+                }}
+              >
+                <button
+                  type="button"
+                  aria-label={section.title}
+                  aria-expanded={isOpen}
+                  onMouseEnter={(e) => openFor(section, e.currentTarget)}
+                  onFocus={(e) => openFor(section, e.currentTarget)}
+                  onClick={(e) => openFor(section, e.currentTarget)}
+                  className={railButton(holdsActive)}
+                >
+                  <section.icon className="h-4 w-4" />
+                </button>
+                {isOpen ? (
+                  <div
+                    onMouseEnter={cancelClose}
+                    style={{ top: fly.top }}
+                    className="fixed left-[4.5rem] z-40 w-52 rounded-xl border border-slate-200 bg-white p-1.5 shadow-pop"
+                  >
+                    <p className="px-3 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                      {section.title}
+                    </p>
+                    {section.items.map((item) => (
+                      <NavLink key={item.href} item={item} active={current === item.href} onNavigate={() => setFly(null)} />
+                    ))}
+                  </div>
+                ) : null}
               </div>
-            ) : null}
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      ))}
     </nav>
   );
 }
@@ -173,16 +183,28 @@ function RailNav({ home, sections, current }: { home: NavItem; sections: NavSect
 export function AppNav({ role, allowRail = false }: { role: string; allowRail?: boolean }) {
   const pathname = usePathname();
   const { rail } = useSidebar();
-  const { home, sections } = navForRole(role);
-  const current = activeHref(pathname, [home.href, ...sections.flatMap((s) => s.items.map((i) => i.href))]);
+  const { groups } = navForRole(role);
+  const current = activeHref(
+    pathname,
+    groups.flatMap((g) => [...g.links.map((l) => l.href), ...g.sections.flatMap((s) => s.items.map((i) => i.href))]),
+  );
 
-  if (allowRail && rail) return <RailNav home={home} sections={sections} current={current} />;
+  if (allowRail && rail) return <RailNav groups={groups} current={current} />;
 
   return (
-    <nav aria-label="Main" className="flex flex-col gap-1">
-      <NavLink item={home} active={current === home.href} />
-      {sections.map((section) => (
-        <Section key={section.key} section={section} current={current} />
+    <nav aria-label="Main" className="flex flex-col gap-5">
+      {groups.map((group) => (
+        <div key={group.key} role="group" aria-labelledby={`nav-group-${group.key}`} className="flex flex-col gap-1">
+          <p id={`nav-group-${group.key}`} className="px-3 pb-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            {group.label}
+          </p>
+          {group.links.map((link) => (
+            <NavLink key={link.href} item={link} active={current === link.href} />
+          ))}
+          {group.sections.map((section) => (
+            <Section key={section.key} section={section} current={current} />
+          ))}
+        </div>
       ))}
     </nav>
   );

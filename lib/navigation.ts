@@ -4,10 +4,13 @@ import {
   CalendarClock,
   FileUp,
   Fingerprint,
+  Headset,
   LayoutDashboard,
+  LayoutGrid,
   Plug,
-  Puzzle,
   Settings,
+  Sparkles,
+  Trophy,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -74,15 +77,30 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/billing", label: "Invoices", keywords: "billing invoice receivables xero" },
     ],
   },
-  {
-    key: "persona",
-    title: "Persona",
-    icon: Fingerprint,
-    items: [
-      { href: "/persona", label: "Overview", keywords: "persona ai suite competence compliance readiness layers" },
-      { href: "/persona/assist", label: "Assist", keywords: "persona ai agent chat history automations connections" },
-    ],
-  },
+];
+
+// The sidebar has three groups: Pleasant itself, then Persona (Aultrum's AI)
+// and Elements (Aultrum's modules) as they run inside it.
+export type NavGroupKey = "pleasant" | "persona" | "elements";
+
+export interface NavGroup {
+  key: NavGroupKey;
+  label: string;
+  /** Top-level links with icons. */
+  links: NavItem[];
+  /** Collapsible sections of features listed as text. */
+  sections: NavSection[];
+}
+
+export const PERSONA_LINKS: NavItem[] = [
+  { href: "/persona", label: "Overview", icon: Fingerprint, keywords: "persona ai suite competence compliance readiness layers" },
+  { href: "/persona/assist", label: "Assist", icon: Sparkles, keywords: "persona ai agent chat history automations connections" },
+];
+
+export const ELEMENT_LINKS: NavItem[] = [
+  { href: "/addons/gateway", label: "Gateway", icon: Headset, keywords: "elements contact centre calls conversations" },
+  { href: "/addons/peak", label: "Peak", icon: Trophy, keywords: "elements rewards recognition points" },
+  { href: "/addons", label: "All Elements", icon: LayoutGrid, keywords: "elements modules add-ons install marketplace" },
 ];
 
 export interface QuickAction {
@@ -105,15 +123,28 @@ export const WORKSPACE_ITEMS: NavItem[] = [
   { href: "/settings", label: "Settings", icon: Settings, keywords: "workspace team audit bank invoice" },
   { href: "/settings/integrations", label: "Integrations", icon: Plug, keywords: "workspace xero sms twilio text bank holidays connect" },
   { href: "/import", label: "Import data", icon: FileUp, keywords: "workspace csv upload migrate" },
-  { href: "/addons", label: "Add-ons", icon: Puzzle, keywords: "workspace gateway peak modules" },
 ];
 
-export function navForRole(role: string): { home: NavItem; sections: NavSection[]; workspace: NavItem[] } {
+export function navForRole(role: string): {
+  home: NavItem;
+  groups: NavGroup[];
+  /** Every sidebar page other than home, for search. */
+  pages: NavItem[];
+  workspace: NavItem[];
+} {
+  const allowed = (items: NavItem[]) => items.filter((i) => canAccess(role, i.href));
+  const sections = NAV_SECTIONS.map((s) => ({ ...s, items: allowed(s.items) })).filter((s) => s.items.length > 0);
+  const groups: NavGroup[] = (
+    [
+      { key: "pleasant", label: "Pleasant", links: allowed([HOME_ITEM]), sections },
+      { key: "persona", label: "Persona", links: allowed(PERSONA_LINKS), sections: [] },
+      { key: "elements", label: "Elements", links: allowed(ELEMENT_LINKS), sections: [] },
+    ] satisfies NavGroup[]
+  ).filter((g) => g.links.length + g.sections.length > 0);
   return {
     home: HOME_ITEM,
-    sections: NAV_SECTIONS.map((s) => ({ ...s, items: s.items.filter((i) => canAccess(role, i.href)) })).filter(
-      (s) => s.items.length > 0,
-    ),
+    groups,
+    pages: groups.flatMap((g) => [...g.links, ...g.sections.flatMap((s) => s.items)]).filter((i) => i.href !== HOME_ITEM.href),
     workspace: WORKSPACE_ITEMS.filter((i) => canAccess(role, i.href)),
   };
 }

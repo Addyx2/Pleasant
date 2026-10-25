@@ -6,7 +6,7 @@ import { Card, PageHeader, buttonClass, subtleButtonClass } from "@/components/u
 import { getAvailableAddons } from "@/lib/addons";
 import { installAddonAction, uninstallAddonAction } from "./actions";
 
-export const metadata = { title: "Add-ons" };
+export const metadata = { title: "Elements" };
 
 const ICONS = {
   GATEWAY: Headset,
@@ -23,8 +23,8 @@ export default async function AddonsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Add-ons Suite"
-        description="Optional modules that plug into Pleasant to extend scheduling and payroll."
+        title="Elements"
+        description="Aultrum modules that run inside Pleasant. Switch on the ones your agency uses."
       />
 
       {installed.length > 0 ? (
@@ -45,7 +45,7 @@ export default async function AddonsPage() {
                     <form action={uninstallAddonAction}>
                       <input type="hidden" name="key" value={addon.key} />
                       <button type="submit" className={subtleButtonClass}>
-                        Uninstall
+                        Switch off
                       </button>
                     </form>
                   </div>
@@ -66,7 +66,7 @@ export default async function AddonsPage() {
       ) : null}
 
       <div className="space-y-4">
-        <h2 className="text-sm font-semibold text-slate-700">Marketplace</h2>
+        <h2 className="text-sm font-semibold text-slate-700">Available</h2>
         {available.length === 0 ? (
           <Card className="border-dashed p-6">
             <div className="flex items-center gap-3">
@@ -74,8 +74,8 @@ export default async function AddonsPage() {
                 <Puzzle className="h-5 w-5" />
               </span>
               <div>
-                <p className="text-sm font-semibold text-slate-700">All add-ons installed</p>
-                <p className="text-sm text-slate-500">Your addons suite is up to date.</p>
+                <p className="text-sm font-semibold text-slate-700">Every Element is switched on</p>
+                <p className="text-sm text-slate-500">There are no more Elements to add yet.</p>
               </div>
             </div>
           </Card>
@@ -93,7 +93,7 @@ export default async function AddonsPage() {
                       <input type="hidden" name="key" value={addon.key} />
                       <button type="submit" className={buttonClass}>
                         <Plus className="h-4 w-4" />
-                        Install
+                        Switch on
                       </button>
                     </form>
                   </div>
@@ -112,9 +112,9 @@ export default async function AddonsPage() {
             <Puzzle className="h-5 w-5" />
           </span>
           <div>
-            <p className="text-sm font-semibold text-slate-700">More add-ons in the works</p>
+            <p className="text-sm font-semibold text-slate-700">More Elements in the works</p>
             <p className="text-sm text-slate-500">
-              Compliance, Metrics, and Tender are being designed. Ask your account manager for the roadmap.
+              Compliance and Metrics are being designed. Ask your account manager for the roadmap.
             </p>
           </div>
         </div>
