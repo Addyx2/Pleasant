@@ -1,16 +1,68 @@
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, createPrivateKey, createPublicKey, generateKeyPairSync, randomBytes, timingSafeEqual } from "node:crypto";
 
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { createRemoteJWKSet, exportJWK, importPKCS8, jwtVerify, SignJWT, type JWK } from "jose";
+
+import { serviceKey } from "@/lib/service-keys";
 
 // "Sign in with Aultrum ID": Pleasant is an OpenID Connect client of
 // id.aultrum.co.uk (authorization code flow with PKCE). Pleasant keeps its
 // own users, roles and sessions; a user links their Aultrum ID once by
 // confirming their Pleasant password, after which either sign-in works.
+//
+// Nothing to set up: when deployed, Pleasant talks to https://id.aultrum.co.uk
+// as client aid_pleasant, and proves it is Pleasant by signing its requests
+// with a key it makes for itself and publishes at /.well-known/jwks.json
+// (private_key_jwt). AULTRUM_ID_URL, AULTRUM_ID_CLIENT_ID and
+// AULTRUM_ID_CLIENT_SECRET override that, e.g. for local development.
 
-const issuer = () => (process.env.AULTRUM_ID_URL ?? "").replace(/\/+$/, "");
+const live = process.env.NODE_ENV === "production" && process.env.AULTRUM_LOCAL !== "1";
+const issuer = () => (process.env.AULTRUM_ID_URL ?? (live ? "https://id.aultrum.co.uk" : "")).replace(/\/+$/, "");
+const clientId = () => process.env.AULTRUM_ID_CLIENT_ID ?? "aid_pleasant";
 
 export function aultrumIdConfigured(): boolean {
-  return !!(process.env.AULTRUM_ID_URL && process.env.AULTRUM_ID_CLIENT_ID && process.env.AULTRUM_ID_CLIENT_SECRET);
+  return !!issuer();
+}
+
+let reachable: { ok: boolean; at: number } | null = null;
+
+/** Whether to offer the button: Aultrum ID is set up and answering (checked at most once a minute). */
+export async function aultrumIdAvailable(): Promise<boolean> {
+  if (!aultrumIdConfigured()) return false;
+  if (reachable && Date.now() - reachable.at < 60_000) return reachable.ok;
+  const ok = await fetch(`${issuer()}/.well-known/openid-configuration`, { signal: AbortSignal.timeout(2_000) })
+    .then((r) => r.ok)
+    .catch(() => false);
+  reachable = { ok, at: Date.now() };
+  return ok;
+}
+
+// Pleasant's own signing key, made once and kept in the database.
+async function clientKey() {
+  const pem = await serviceKey("aultrum-client-key", () =>
+    generateKeyPairSync("rsa", { modulusLength: 2048 }).privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
+  );
+  const publicJwk = await exportJWK(createPublicKey(createPrivateKey(pem)));
+  const kid = createHash("sha256").update(`${publicJwk.n}.${publicJwk.e}`).digest("base64url").slice(0, 16);
+  return { kid, privateKey: await importPKCS8(pem, "RS256"), publicJwk: { ...publicJwk, kid, alg: "RS256", use: "sig" } as JWK };
+}
+
+/** The public half of Pleasant's key, served at /.well-known/jwks.json for Aultrum ID to check signatures with. */
+export async function publicJwks(): Promise<{ keys: JWK[] }> {
+  return { keys: [(await clientKey()).publicJwk] };
+}
+
+/** A short-lived JWT proving the request comes from Pleasant (private_key_jwt). */
+async function clientAssertion(audience: string): Promise<string> {
+  const key = await clientKey();
+  return new SignJWT({})
+    .setProtectedHeader({ alg: "RS256", kid: key.kid, typ: "JWT" })
+    .setIssuer(clientId())
+    .setSubject(clientId())
+    .setAudience(audience)
+    .setIssuedAt()
+    .setExpirationTime("2m")
+    .setJti(randomBytes(16).toString("base64url"))
+    .sign(key.privateKey);
 }
 
 export const AULTRUM_STATE_COOKIE = "pleasant_aid_state";
@@ -62,7 +114,7 @@ export function newSignIn(redirectUri: string, next: string | null) {
   const url = new URL(`${issuer()}/authorize`);
   url.search = new URLSearchParams({
     response_type: "code",
-    client_id: process.env.AULTRUM_ID_CLIENT_ID ?? "",
+    client_id: clientId(),
     redirect_uri: redirectUri,
     scope: "openid profile email",
     state: pending.state,
@@ -81,18 +133,25 @@ export interface AultrumIdentity {
 
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 
-function basicAuth() {
-  const id = encodeURIComponent(process.env.AULTRUM_ID_CLIENT_ID ?? "");
-  const sec = encodeURIComponent(process.env.AULTRUM_ID_CLIENT_SECRET ?? "");
-  return `Basic ${Buffer.from(`${id}:${sec}`).toString("base64")}`;
+/** With a client secret configured, HTTP Basic; otherwise none (Pleasant signs an assertion instead). */
+function basicAuth(): string | null {
+  const sec = process.env.AULTRUM_ID_CLIENT_SECRET;
+  if (!sec) return null;
+  return `Basic ${Buffer.from(`${encodeURIComponent(clientId())}:${encodeURIComponent(sec)}`).toString("base64")}`;
 }
 
 /** Exchanges the code and verifies the ID token (signature, issuer, audience, expiry, nonce). */
 export async function completeSignIn(code: string, redirectUri: string, pending: PendingSignIn): Promise<AultrumIdentity> {
+  const basic = basicAuth();
+  const form = new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: redirectUri, code_verifier: pending.verifier });
+  if (!basic) {
+    form.set("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer");
+    form.set("client_assertion", await clientAssertion(`${issuer()}/token`));
+  }
   const res = await fetch(`${issuer()}/token`, {
     method: "POST",
-    headers: { Authorization: basicAuth(), "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: redirectUri, code_verifier: pending.verifier }).toString(),
+    headers: { ...(basic ? { Authorization: basic } : {}), "Content-Type": "application/x-www-form-urlencoded" },
+    body: form.toString(),
     signal: AbortSignal.timeout(10_000),
   });
   const json = (await res.json().catch(() => ({}))) as { id_token?: string; error?: string };
@@ -101,7 +160,7 @@ export async function completeSignIn(code: string, redirectUri: string, pending:
   jwks ??= createRemoteJWKSet(new URL(`${issuer()}/jwks`));
   const { payload } = await jwtVerify(json.id_token, jwks, {
     issuer: issuer(),
-    audience: process.env.AULTRUM_ID_CLIENT_ID,
+    audience: clientId(),
     algorithms: ["RS256"],
   });
   if (payload.nonce !== pending.nonce) throw new Error("Aultrum ID nonce mismatch");
@@ -114,7 +173,7 @@ async function productApi(method: "PUT" | "POST" | "DELETE", path: string, body:
   try {
     const res = await fetch(`${issuer()}/api/v1${path}`, {
       method,
-      headers: { Authorization: basicAuth(), "Content-Type": "application/json" },
+      headers: { Authorization: basicAuth() ?? `Bearer ${await clientAssertion(`${issuer()}/api/v1`)}`, "Content-Type": "application/json" },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(8_000),
     });

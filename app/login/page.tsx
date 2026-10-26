@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { aultrumIdConfigured } from "@/lib/aultrum-id";
+import { aultrumIdAvailable } from "@/lib/aultrum-id";
 import { DEMO_MODE } from "@/lib/constants";
 
 import { LoginForm } from "./LoginForm";
@@ -22,7 +22,7 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string; aultrum?: string }>;
 }) {
   const { next, aultrum } = await searchParams;
-  const aultrumOn = aultrumIdConfigured();
+  const aultrumOn = await aultrumIdAvailable();
   const aultrumError = aultrum ? AULTRUM_ERRORS[aultrum] : undefined;
 
   return (
