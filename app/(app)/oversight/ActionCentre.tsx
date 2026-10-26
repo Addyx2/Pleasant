@@ -270,21 +270,22 @@ export async function ActionCentre({ agencyId, isAdmin }: { agencyId: string; is
         <button type="submit" className={secondaryClass}>Mark done</button>
       </form>
     );
-    if (ev.type === "gateway.absence.reported") {
-      items.push({
-        key: `el-${ev.id}`, severity: "critical", icon: PhoneCall,
-        title: `Absence reported: ${who}`,
-        detail: [s("shift"), s("reason"), `via Gateway ${ago}`].filter(Boolean).join(" · "),
-        fix: <FixLink href="/shifts" severity="critical">Find cover</FixLink>,
-        secondary: done,
-      });
-    } else if (ev.type === "gateway.cover.requested") {
-      const slot = [s("date"), s("startTime") && s("endTime") ? `${s("startTime")}–${s("endTime")}` : null].filter(Boolean).join(" ");
+    const reach = s("reachOn");
+    const call = reach && reach.startsWith("+") ? <a href={`tel:${reach}`} className={fixClass("warning")}>Call back <ArrowRight className="h-3.5 w-3.5" /></a> : null;
+    if (ev.type === "gateway.enquiry.received") {
       items.push({
         key: `el-${ev.id}`, severity: "warning", icon: PhoneCall,
-        title: `Cover requested: ${s("organisation") ?? who}`,
-        detail: [slot, s("role"), s("location"), s("details"), `via Gateway ${ago}`].filter(Boolean).join(" · "),
-        fix: <FixLink href="/shifts/new" severity="warning">Create shift</FixLink>,
+        title: `New enquiry: ${s("name") ?? who}${s("organisation") ? `, ${s("organisation")}` : ""}`,
+        detail: [s("topic"), s("details"), reach, `via Gateway ${ago}`].filter(Boolean).join(" · "),
+        fix: call ?? <FixLink href="/addons/gateway" severity="warning">Open Gateway</FixLink>,
+        secondary: done,
+      });
+    } else if (ev.type === "gateway.message.left") {
+      items.push({
+        key: `el-${ev.id}`, severity: "warning", icon: PhoneCall,
+        title: `Message from ${s("name") ?? who}${s("forWhom") ? ` for ${s("forWhom")}` : ""}`,
+        detail: [s("message"), reach, `via Gateway ${ago}`].filter(Boolean).join(" · "),
+        fix: call ?? <FixLink href="/addons/gateway" severity="warning">Open Gateway</FixLink>,
         secondary: done,
       });
     } else if (ev.type === "gateway.handover.requested") {

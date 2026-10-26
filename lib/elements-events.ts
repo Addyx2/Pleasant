@@ -16,8 +16,8 @@ const str = (v: unknown) => (typeof v === "string" ? v : undefined);
 /** Events that need a person in the agency, shown in Oversight until marked done. */
 function attention(event: ElementsWebhook): { needsAttention: boolean; urgent: boolean } {
   switch (event.type) {
-    case "gateway.absence.reported":
-    case "gateway.cover.requested":
+    case "gateway.enquiry.received":
+    case "gateway.message.left":
       return { needsAttention: true, urgent: false };
     case "gateway.handover.requested":
       return { needsAttention: true, urgent: event.data.urgent === true };
