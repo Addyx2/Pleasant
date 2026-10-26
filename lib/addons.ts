@@ -1,6 +1,8 @@
 import { prisma } from "./db";
 import { revalidatePath } from "next/cache";
 
+import { ElementsError, installElement, uninstallElement } from "./elements";
+
 export type AddonKey = "GATEWAY" | "PEAK";
 
 export type AddonDefinition = {
@@ -65,28 +67,42 @@ export async function ensureAddonEntitlement(agencyId: string, key: AddonKey) {
   });
 }
 
-export async function installAddon(agencyId: string, key: AddonKey) {
-  await ensureAddonEntitlement(agencyId, key);
+/**
+ * Switch an Element on for the agency in the Elements console, then here.
+ * Returns a message for the user when the console couldn't be reached.
+ */
+export async function installAddon(agency: { id: string; name: string }, key: AddonKey): Promise<string | null> {
+  await ensureAddonEntitlement(agency.id, key);
+  let installationId: string;
+  try {
+    installationId = await installElement(agency, key);
+  } catch (error) {
+    if (error instanceof ElementsError) return error.message;
+    throw error;
+  }
   await prisma.agencyAddon.update({
-    where: { agencyId_key: { agencyId, key } },
-    data: { installed: true, installedAt: new Date() },
+    where: { agencyId_key: { agencyId: agency.id, key } },
+    data: { installed: true, installedAt: new Date(), elementsInstallationId: installationId },
   });
   revalidatePath("/addons");
+  return null;
 }
 
-export async function uninstallAddon(agencyId: string, key: AddonKey) {
+export async function uninstallAddon(agencyId: string, key: AddonKey): Promise<string | null> {
   await ensureAddonEntitlement(agencyId, key);
+  const row = await prisma.agencyAddon.findUnique({ where: { agencyId_key: { agencyId, key } }, select: { elementsInstallationId: true } });
+  if (row?.elementsInstallationId) {
+    try {
+      await uninstallElement(row.elementsInstallationId);
+    } catch (error) {
+      if (error instanceof ElementsError) return error.message;
+      throw error;
+    }
+  }
   await prisma.agencyAddon.update({
     where: { agencyId_key: { agencyId, key } },
     data: { installed: false, installedAt: null },
   });
   revalidatePath("/addons");
-}
-
-export async function toggleAddon(agencyId: string, key: AddonKey, installed: boolean) {
-  if (installed) {
-    await installAddon(agencyId, key);
-  } else {
-    await uninstallAddon(agencyId, key);
-  }
+  return null;
 }

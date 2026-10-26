@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth";
+import { installationFor } from "@/lib/elements";
 import { WorkersPwaTags } from "@/components/WorkersPwaTags";
 import { WorkforceNav } from "./nav";
 
@@ -19,6 +20,7 @@ export const viewport: Viewport = {
 export default async function WorkforceLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   if (user.role !== "STAFF") redirect("/oversight");
+  const peak = Boolean(await installationFor(user.agencyId, "PEAK"));
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col">
@@ -48,7 +50,7 @@ export default async function WorkforceLayout({ children }: { children: React.Re
 
       <main className="flex-1 px-5 pb-28 pt-5">{children}</main>
 
-      <WorkforceNav />
+      <WorkforceNav peak={peak} />
     </div>
   );
 }

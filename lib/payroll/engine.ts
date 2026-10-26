@@ -192,6 +192,11 @@ export interface PayslipInput {
   otherDeductions?: number;
   /** Non-taxable expense reimbursements (mileage/travel) added to net pay. */
   expenses?: number;
+  /**
+   * Taxable one-off payments outside shift pay, such as a Peak reward cashed
+   * out. Taxed with the period's pay; holiday pay doesn't accrue on them.
+   */
+  additions?: { label: string; amount: number }[];
 }
 
 export interface PayslipLineResult {
@@ -231,7 +236,11 @@ export function calculatePayslip(input: PayslipInput): PayslipResult {
       ? round2(Math.max(0, input.holidayPay))
       : round2(gross * (staff.holidayAccrualPct / 100));
 
-  const taxablePay = round2(gross + holidayPay);
+  const additions = (input.additions ?? [])
+    .map((a) => ({ label: a.label, amount: round2(a.amount) }))
+    .filter((a) => a.amount > 0);
+  const additionsTotal = round2(additions.reduce((sum, a) => sum + a.amount, 0));
+  const taxablePay = round2(gross + holidayPay + additionsTotal);
 
   // PAYE: annualise the period, compute annual tax, de-annualise.
   const annualGross = taxablePay * PERIODS_PER_YEAR[period];
@@ -271,6 +280,7 @@ export function calculatePayslip(input: PayslipInput): PayslipResult {
     ...(holidayPay > 0
       ? [{ type: "EARNING" as const, label: "Holiday pay", rate: staff.holidayAccrualPct, amount: holidayPay }]
       : []),
+    ...additions.map((a) => ({ type: "EARNING" as const, label: a.label, amount: a.amount })),
     ...(expenses > 0
       ? [{ type: "EARNING" as const, label: "Expenses — mileage/travel (non-taxable)", amount: expenses }]
       : []),
@@ -292,7 +302,7 @@ export function calculatePayslip(input: PayslipInput): PayslipResult {
   ];
 
   return {
-    grossPay: gross,
+    grossPay: round2(gross + additionsTotal),
     holidayPay,
     expenses,
     taxablePay,

@@ -8,11 +8,15 @@ import {
   CalendarClock,
   CheckCircle2,
   ClipboardCheck,
+  Gift,
+  Headset,
+  PhoneCall,
   ShieldAlert,
   UserRoundX,
 } from "lucide-react";
 
 import { decideTimesheetAction } from "@/app/(app)/timesheets/actions";
+import { resolveElementsEventAction } from "./actions";
 import { CLIENT_NAME_SELECT, clientName } from "@/lib/clients";
 import { expiryState } from "@/lib/compliance";
 import { prisma } from "@/lib/db";
@@ -60,7 +64,7 @@ export async function ActionCentre({ agencyId, isAdmin }: { agencyId: string; is
   const now = new Date();
   const soon = addHours(now, 48);
 
-  const [unattended, openSoon, timesheets, clients, staff, overdue] = await Promise.all([
+  const [unattended, openSoon, timesheets, clients, staff, overdue, fromElements] = await Promise.all([
     prisma.shift.findMany({
       where: { agencyId, status: "UNATTENDED" },
       select: { id: true, title: true, startAt: true, client: { select: CLIENT_NAME_SELECT } },
@@ -118,6 +122,11 @@ export async function ActionCentre({ agencyId, isAdmin }: { agencyId: string; is
           select: { grandTotal: true, dueDate: true },
         })
       : Promise.resolve([]),
+    prisma.elementsEvent.findMany({
+      where: { agencyId, needsAttention: true, resolvedAt: null },
+      orderBy: [{ urgent: "desc" }, { createdAt: "asc" }],
+      take: 6,
+    }),
   ]);
 
   const items: ActionItem[] = [];
@@ -247,6 +256,58 @@ export async function ActionCentre({ agencyId, isAdmin }: { agencyId: string; is
         </Link>
       ) : undefined,
     });
+  }
+
+  // Raised by Gateway (calls, texts, web chat) and Peak (perks to give).
+  for (const ev of fromElements) {
+    const data = (ev.data ?? {}) as Record<string, unknown>;
+    const s = (k: string) => (typeof data[k] === "string" && data[k] ? (data[k] as string) : null);
+    const who = s("contactName") ?? s("name") ?? (s("contact")?.startsWith("web:") ? "A web chat visitor" : s("contact")) ?? "Someone";
+    const ago = formatDistanceToNowStrict(ev.createdAt, { addSuffix: true });
+    const done = (
+      <form action={resolveElementsEventAction}>
+        <input type="hidden" name="id" value={ev.id} />
+        <button type="submit" className={secondaryClass}>Mark done</button>
+      </form>
+    );
+    if (ev.type === "gateway.absence.reported") {
+      items.push({
+        key: `el-${ev.id}`, severity: "critical", icon: PhoneCall,
+        title: `Absence reported: ${who}`,
+        detail: [s("shift"), s("reason"), `via Gateway ${ago}`].filter(Boolean).join(" · "),
+        fix: <FixLink href="/shifts" severity="critical">Find cover</FixLink>,
+        secondary: done,
+      });
+    } else if (ev.type === "gateway.cover.requested") {
+      const slot = [s("date"), s("startTime") && s("endTime") ? `${s("startTime")}–${s("endTime")}` : null].filter(Boolean).join(" ");
+      items.push({
+        key: `el-${ev.id}`, severity: "warning", icon: PhoneCall,
+        title: `Cover requested: ${s("organisation") ?? who}`,
+        detail: [slot, s("role"), s("location"), s("details"), `via Gateway ${ago}`].filter(Boolean).join(" · "),
+        fix: <FixLink href="/shifts/new" severity="warning">Create shift</FixLink>,
+        secondary: done,
+      });
+    } else if (ev.type === "gateway.handover.requested") {
+      items.push({
+        key: `el-${ev.id}`, severity: ev.urgent ? "critical" : "warning", icon: Headset,
+        title: `${ev.urgent ? "Urgent: " : ""}${who} needs a person`,
+        detail: [s("reason"), `via Gateway ${ago}`].filter(Boolean).join(" · "),
+        fix: <FixLink href="/addons/gateway" severity={ev.urgent ? "critical" : "warning"}>Open Gateway</FixLink>,
+        secondary: done,
+      });
+    } else if (ev.type === "peak.reward.redeemed") {
+      items.push({
+        key: `el-${ev.id}`, severity: "warning", icon: Gift,
+        title: `Give ${who} their reward: ${s("reward") ?? "a perk"}`,
+        detail: `Approved in Peak${s("approvedBy") ? ` by ${s("approvedBy")}` : ""} ${ago}`,
+        fix: (
+          <form action={resolveElementsEventAction}>
+            <input type="hidden" name="id" value={ev.id} />
+            <button type="submit" className={fixClass("warning")}><CheckCircle2 className="h-3.5 w-3.5" /> Given</button>
+          </form>
+        ),
+      });
+    }
   }
 
   items.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "critical" ? -1 : 1));

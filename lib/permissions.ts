@@ -30,8 +30,13 @@ export const ADMIN_ONLY_PREFIXES = [
   "/addons",
 ] as const;
 
+// Inside an admin-only area, pages managers use day to day: Gateway's inbox
+// and Peak's approvals. Switching Elements on and off stays with admins.
+export const MANAGER_PAGES = ["/addons/gateway", "/addons/peak"] as const;
+
 export function canAccess(role: string, href: string): boolean {
   if (!isOpsRole(role)) return false;
   if (role === "ADMIN") return true;
+  if (MANAGER_PAGES.some((p) => href === p || href.startsWith(`${p}/`))) return true;
   return !ADMIN_ONLY_PREFIXES.some((p) => href === p || href.startsWith(`${p}/`));
 }

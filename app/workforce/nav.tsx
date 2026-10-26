@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, ClipboardCheck, UserRound, Zap } from "lucide-react";
+import { CalendarDays, ClipboardCheck, Trophy, UserRound, Zap } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -13,13 +13,17 @@ const TABS = [
   { href: "/workforce/profile", label: "Profile", icon: UserRound },
 ];
 
-export function WorkforceNav() {
+const PEAK_TAB = { href: "/workforce/peak", label: "Peak", icon: Trophy };
+
+export function WorkforceNav({ peak = false }: { peak?: boolean }) {
   const pathname = usePathname();
+  // Peak sits before Profile when the agency has switched it on.
+  const tabs = peak ? [...TABS.slice(0, 3), PEAK_TAB, TABS[3]] : TABS;
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex w-full max-w-md items-stretch">
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const active = pathname === tab.href;
           return (
             <Link

@@ -25,8 +25,10 @@ test("the sidebar is grouped Pleasant / Persona / Elements", () => {
   assert.deepEqual(admin.map((g) => g.label), ["Pleasant", "Persona", "Elements"]);
   assert.deepEqual(admin[1].links.map((l) => l.label), ["Overview", "Assist"]);
   assert.deepEqual(admin[2].links.map((l) => l.label), ["Gateway", "Peak", "All Elements"]);
-  // Elements are admin-only, so managers see Pleasant and Persona.
-  assert.deepEqual(navForRole("MANAGER").groups.map((g) => g.label), ["Pleasant", "Persona"]);
+  // Managers use Gateway and Peak day to day; only admins switch Elements on and off.
+  const manager = navForRole("MANAGER").groups;
+  assert.deepEqual(manager.map((g) => g.label), ["Pleasant", "Persona", "Elements"]);
+  assert.deepEqual(manager[2].links.map((l) => l.label), ["Gateway", "Peak"]);
   assert.deepEqual(navForRole("STAFF").groups, []);
 });
 

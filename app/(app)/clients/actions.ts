@@ -9,6 +9,9 @@ import { prisma } from "@/lib/db";
 import { generatePleasantLink } from "@/lib/clientpoint/pleasant-link";
 import { clientContactSchema, clientRateSchema, clientSchema, createSiteSchema } from "@/lib/validation";
 import type { ActionState } from "@/app/(app)/shifts/actions";
+import { after } from "next/server";
+import { sendElementEvent } from "@/lib/elements";
+import { contactPerson } from "@/lib/elements-sync";
 
 function clientFields(formData: FormData) {
   return clientSchema.safeParse({
@@ -178,6 +181,9 @@ export async function createContactAction(_prev: ActionState, formData: FormData
       isAccounts: d.isAccounts,
     },
   });
+  if (contact.phone) {
+    after(() => sendElementEvent(user.agencyId, "GATEWAY", "platform.person.updated", contactPerson(contact, client.name)));
+  }
   if (d.isSignatory) {
     await recordAudit(user, {
       action: "client.signatory_add",
@@ -228,6 +234,7 @@ export async function deleteContactAction(formData: FormData): Promise<void> {
     }),
     prisma.clientContact.delete({ where: { id: contact.id } }),
   ]);
+  after(() => sendElementEvent(user.agencyId, "GATEWAY", "platform.person.removed", { personId: `contact:${contact.id}` }));
   await recordAudit(user, {
     action: "client.contact_remove",
     summary: `Removed contact ${contact.name}`,

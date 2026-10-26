@@ -19,6 +19,11 @@ export default async function PayrollPage() {
     include: { _count: { select: { payslips: true } } },
     orderBy: { periodEnd: "desc" },
   });
+  const waiting = await prisma.payAddition.aggregate({
+    where: { agencyId: user.agencyId, payrollRunId: null },
+    _count: true,
+    _sum: { amount: true },
+  });
 
   // Weekly cycle: Mon–Sun period, Monday 4pm cutoff, Friday pay day.
   const monday = mondayOf(new Date());
@@ -41,6 +46,12 @@ export default async function PayrollPage() {
         title="Payroll"
         description={`Approved, client-authorised timesheets only. Next cutoff ${weekdayName(user.agency.cutoffWeekday)} ${formatDateTime(cutoff)} for pay day ${formatDate(payDay)}.`}
       />
+
+      {waiting._count > 0 ? (
+        <p role="status" className="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900">
+          {waiting._count} Peak reward{waiting._count === 1 ? "" : "s"} ({formatCurrency(Number(waiting._sum.amount ?? 0))}) will be added to the next run, as taxable pay, for carers who have approved timesheets in it.
+        </p>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="overflow-x-auto p-0 lg:col-span-2">
