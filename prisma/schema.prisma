@@ -1152,3 +1152,11 @@ model SystemHeartbeat {
   at     DateTime
   detail String?
 }
+
+// Keys Pleasant makes for itself on first use and keeps here, e.g. the key it
+// signs its Aultrum ID requests with, so deploying needs no keys in settings.
+model ServiceKey {
+  name      String   @id
+  value     String
+  createdAt DateTime @default(now())
+}
