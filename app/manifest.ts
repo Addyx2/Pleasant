@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/workforce",
     display: "standalone",
     background_color: "#ffffff",
-    theme_color: "#237670",
+    theme_color: "#7c3aed",
     icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml" }],
   };
 }

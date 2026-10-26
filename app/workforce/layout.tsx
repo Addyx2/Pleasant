@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#237670",
+  themeColor: "#7c3aed",
 };
 
 export default async function WorkforceLayout({ children }: { children: React.ReactNode }) {
