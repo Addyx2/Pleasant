@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { installationFor } from "@/lib/elements";
 import { WorkersPwaTags } from "@/components/WorkersPwaTags";
 import { WorkforceNav } from "./nav";
+import { AppMark } from "@/components/Brand";
 
 export const metadata: Metadata = {
   title: { default: "Pleasant Workers", template: "%s · Pleasant Workers" },
@@ -29,9 +30,7 @@ export default async function WorkforceLayout({ children }: { children: React.Re
       <header className="sticky top-0 z-20 border-b border-slate-100 bg-white/90 px-5 pb-3 pt-5 backdrop-blur">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-base font-bold text-white">
-              P
-            </span>
+            <AppMark className="h-9 w-9" />
             <div className="leading-tight">
               <p className="font-display text-[15px] font-bold tracking-tight text-slate-900">
                 Pleasant Workers

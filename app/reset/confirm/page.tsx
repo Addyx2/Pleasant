@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ResetConfirmForm } from "./ResetConfirmForm";
+import { AppMark } from "@/components/Brand";
 
 export const metadata = { title: "Choose a new password" };
 
@@ -15,9 +16,7 @@ export default async function ResetConfirmPage({
     <main className="flex min-h-screen items-center justify-center px-6 py-16">
       <div className="w-full max-w-sm">
         <Link href="/" className="flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-lg font-bold text-white">
-            P
-          </span>
+          <AppMark className="h-9 w-9" />
           <span className="text-lg font-semibold tracking-tight">Pleasant</span>
         </Link>
 

@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import { PrintButton } from "../PrintButton";
 import { clientName } from "@/lib/clients";
+import { AppMark } from "@/components/Brand";
 
 export const metadata = { title: "Funding evidence pack" };
 export const dynamic = "force-dynamic";
@@ -47,9 +48,7 @@ export default async function FundingPackPage({ params }: { params: Promise<{ id
 
         <header className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-sm font-bold text-white">
-              P
-            </div>
+            <AppMark className="h-10 w-10" />
             <div>
               <p className="font-display text-lg font-bold tracking-tight">Pleasant</p>
               <p className="text-xs text-slate-500">Funding evidence pack</p>
