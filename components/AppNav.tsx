@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   LayoutDashboard,
+  Receipt,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -50,10 +51,11 @@ const CATEGORIES = [
     ],
   },
   {
-    title: "CLIENTPOINT",
+    title: "SUPPLY",
     items: [
-      { href: "/clients", label: "Clientpoint CRM", icon: Building2 },
+      { href: "/clients", label: "Supply (Clients)", icon: Building2 },
       { href: "/shifts/requests", label: "Shift Requests", icon: CheckCircle2 },
+      { href: "/billing", label: "Invoices & Billing", icon: Receipt },
     ],
   },
   {

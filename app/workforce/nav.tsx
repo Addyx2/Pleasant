@@ -2,41 +2,42 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, ClipboardCheck, UserRound, Zap } from "lucide-react";
+import { CalendarDays, Zap, CalendarRange, Sparkles, ShieldCheck } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { href: "/workforce", label: "My shifts", icon: CalendarDays },
-  { href: "/workforce/open-shifts", label: "Open shifts", icon: Zap },
-  { href: "/workforce/timesheets", label: "Timesheets", icon: ClipboardCheck },
-  { href: "/workforce/profile", label: "Profile", icon: UserRound },
+  { href: "/workforce", label: "Shifts", icon: CalendarDays },
+  { href: "/workforce/open-shifts", label: "Pool", icon: Zap },
+  { href: "/workforce/calendar", label: "Calendar", icon: CalendarRange },
+  { href: "/workforce/peak", label: "Peak", icon: Sparkles },
+  { href: "/workforce/passport", label: "Passport", icon: ShieldCheck },
 ];
 
 export function WorkforceNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur">
+    <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur-md">
       <div className="mx-auto flex w-full max-w-md items-stretch">
         {TABS.map((tab) => {
-          const active = pathname === tab.href;
+          const active = pathname === tab.href || (tab.href !== "/workforce" && pathname.startsWith(tab.href));
           return (
             <Link
               key={tab.href}
               href={tab.href}
               className={cn(
-                "flex flex-1 flex-col items-center gap-1 py-3 text-[11px] font-medium transition",
-                active ? "text-brand-700" : "text-slate-400 hover:text-slate-600",
+                "flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-medium transition",
+                active ? "text-slate-900 font-bold" : "text-slate-400 hover:text-slate-600",
               )}
             >
               <span
                 className={cn(
-                  "flex h-7 w-12 items-center justify-center rounded-full transition",
-                  active ? "bg-brand-50" : "",
+                  "flex h-7 w-10 items-center justify-center rounded-full transition",
+                  active ? "bg-slate-900 text-white shadow-xs" : "text-slate-500",
                 )}
               >
-                <tab.icon className="h-5 w-5" />
+                <tab.icon className="h-4 w-4" />
               </span>
               {tab.label}
             </Link>

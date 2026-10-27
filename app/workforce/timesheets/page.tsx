@@ -1,9 +1,8 @@
-import { format, startOfWeek } from "date-fns";
+import { startOfWeek } from "date-fns";
 
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { formatCurrency } from "@/lib/utils";
-import { StatusBadge } from "@/components/status";
+import { TimesheetRow } from "./TimesheetRow";
 
 export const metadata = { title: "Timesheets" };
 export const dynamic = "force-dynamic";
@@ -29,7 +28,7 @@ export default async function WorkforceTimesheetsPage() {
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const thisWeek = all.filter((t) => t.clockIn >= weekStart);
   const weekHours = thisWeek.reduce((acc, t) => acc + t.workedMins / 60, 0);
-  const needsSignOff = all.filter((t) => t.clockOut && !t.candidateSignedAt).length;
+  const needsSignOff = all.filter((t) => t.clockOut && !t.clientAuthAt).length;
   const awaitingApproval = all.filter((t) => t.status === "PENDING").length;
 
   return (
@@ -59,32 +58,7 @@ export default async function WorkforceTimesheetsPage() {
             <p className="text-sm text-slate-600">No timesheets yet — clock in on a shift to get started.</p>
           </div>
         ) : (
-          all.map((ts) => {
-            const where =
-              ts.shift.client != null
-                ? `${ts.shift.client.firstName} ${ts.shift.client.lastName}`
-                : (ts.shift.site?.name ?? "Location TBC");
-            return (
-              <div key={ts.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-slate-900">{ts.shift.title}</p>
-                    <p className="mt-0.5 text-sm text-slate-600">{where}</p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {format(ts.clockIn, "EEE d MMM")} ·{" "}
-                      {ts.workedMins > 0 ? `${(ts.workedMins / 60).toFixed(1)} h worked` : "not clocked out"}
-                    </p>
-                    {Number(ts.expenses) > 0 ? (
-                      <p className="mt-0.5 text-xs font-medium text-slate-600">
-                        Expenses {formatCurrency(Number(ts.expenses))}
-                      </p>
-                    ) : null}
-                  </div>
-                  <StatusBadge status={ts.status} />
-                </div>
-              </div>
-            );
-          })
+          all.map((ts) => <TimesheetRow key={ts.id} timesheet={ts as any} />)
         )}
       </section>
 
