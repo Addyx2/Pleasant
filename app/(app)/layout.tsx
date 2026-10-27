@@ -10,6 +10,7 @@ import { SidebarShell, SidebarToggle } from "@/components/SidebarShell";
 import { requireUser } from "@/lib/auth";
 import { CLOSED_COOKIE, RAIL_COOKIE } from "@/lib/sidebar";
 import { isOpsRole } from "@/lib/permissions";
+import { AppMark } from "@/components/Brand";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
@@ -33,9 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
         <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex group-data-[sidebar=rail]/shell:w-16">
           <div className="flex items-center gap-3 pl-6 pr-3 pt-6 group-data-[sidebar=rail]/shell:flex-col group-data-[sidebar=rail]/shell:gap-2 group-data-[sidebar=rail]/shell:px-0">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-b from-brand-500 to-brand-700 text-base font-bold text-white shadow-btn">
-              P
-            </span>
+            <AppMark className="h-9 w-9" />
             <div className="min-w-0 flex-1 leading-tight group-data-[sidebar=rail]/shell:hidden">
               <p className="font-display text-[15px] font-bold tracking-tight text-slate-900">Pleasant</p>
               <p className="truncate text-xs text-slate-500">{user.agency.name}</p>

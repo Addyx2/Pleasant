@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { PrintButton } from "@/app/billing-pack/PrintButton";
 import { clientName } from "@/lib/clients";
+import { AppMark } from "@/components/Brand";
 
 export const metadata = { title: "Invoice" };
 export const dynamic = "force-dynamic";
@@ -48,9 +49,7 @@ export default async function PrintableInvoicePage({
         <header className="flex items-start justify-between gap-6 border-b border-slate-200 pb-6">
           <div>
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">
-                P
-              </div>
+              <AppMark className="h-9 w-9" />
               <p className="font-display text-lg font-bold tracking-tight">Pleasant</p>
             </div>
             <div className="mt-3 space-y-0.5 text-xs leading-5 text-slate-600">

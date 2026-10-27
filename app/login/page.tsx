@@ -4,6 +4,7 @@ import { aultrumIdAvailable } from "@/lib/aultrum-id";
 import { DEMO_MODE } from "@/lib/constants";
 
 import { LoginForm } from "./LoginForm";
+import { AppMark } from "@/components/Brand";
 
 export const metadata = { title: "Sign in" };
 export const dynamic = "force-dynamic";
@@ -29,9 +30,7 @@ export default async function LoginPage({
     <main className="flex min-h-screen items-center justify-center px-6 py-16">
       <div className="w-full max-w-sm">
         <Link href="/" className="flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-lg font-bold text-white">
-            P
-          </span>
+          <AppMark className="h-9 w-9" />
           <span className="text-lg font-semibold tracking-tight">Pleasant</span>
         </Link>
 

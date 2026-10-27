@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Card } from "@/components/ui";
 import { PrintButton } from "@/components/PrintButton";
+import { AppMark } from "@/components/Brand";
 
 export const dynamic = "force-dynamic";
 
@@ -50,9 +51,7 @@ export default async function PayslipPage({
         <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-6">
           <div>
             <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-lg font-bold text-white">
-                P
-              </span>
+              <AppMark className="h-9 w-9" />
               <span className="text-lg font-semibold tracking-tight">{user.agency.name}</span>
             </div>
             <p className="mt-2 text-xs text-slate-500">

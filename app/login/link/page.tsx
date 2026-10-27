@@ -6,6 +6,7 @@ import { AULTRUM_LINK_COOKIE, openCookie } from "@/lib/aultrum-id";
 
 import type { PendingLink } from "./actions";
 import { LinkForm } from "./LinkForm";
+import { AppMark } from "@/components/Brand";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Link your Aultrum ID" };
@@ -16,7 +17,7 @@ export default async function LinkPage() {
   return (
     <main className="flex min-h-screen items-center justify-center px-6 py-16">
       <div className="w-full max-w-sm">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-lg font-bold text-white">P</span>
+        <AppMark className="h-9 w-9" />
         <h1 className="mt-8 text-2xl font-semibold tracking-tight">Link your Aultrum ID</h1>
         <p className="mt-1 text-sm text-slate-600">
           You&apos;re signed in to Aultrum ID as <strong className="font-medium text-slate-900">{pending.email}</strong>. Confirm

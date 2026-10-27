@@ -6,6 +6,7 @@ import { Menu, Search, X } from "lucide-react";
 import { AccountMenu } from "./AccountMenu";
 import { AppNav } from "./AppNav";
 import { openCommandPalette } from "./CommandPalette";
+import { AppMark } from "@/components/Brand";
 
 interface MobileHeaderProps {
   user: {
@@ -26,9 +27,7 @@ export function MobileHeader({ user }: MobileHeaderProps) {
     <>
       <header className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white/90 px-4 py-3.5 backdrop-blur-md lg:hidden">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-b from-brand-500 to-brand-700 text-sm font-bold text-white shadow-btn">
-            P
-          </span>
+          <AppMark className="h-9 w-9" />
           <div className="leading-tight">
             <p className="font-display text-sm font-bold tracking-tight text-slate-900">Pleasant</p>
             <p className="truncate text-xs text-slate-500 max-w-[160px]">{user.agency.name}</p>
@@ -68,9 +67,7 @@ export function MobileHeader({ user }: MobileHeaderProps) {
           <div className="fixed inset-y-0 right-0 flex w-full max-w-xs flex-col bg-white shadow-2xl transition-transform duration-300">
             <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
               <div className="flex items-center gap-3">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-xs font-bold text-white">
-                  P
-                </span>
+                <AppMark className="h-8 w-8" />
                 <div>
                   <p className="font-display text-sm font-bold text-slate-900">Pleasant</p>
                   <p className="truncate text-xs text-slate-500 max-w-[140px]">
