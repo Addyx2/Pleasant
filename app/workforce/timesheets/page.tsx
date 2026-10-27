@@ -2,13 +2,7 @@ import { startOfWeek } from "date-fns";
 
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-<<<<<<< HEAD
 import { TimesheetRow } from "./TimesheetRow";
-=======
-import { formatCurrency } from "@/lib/utils";
-import { StatusBadge } from "@/components/status";
-import { clientName } from "@/lib/clients";
->>>>>>> 8928f1291b1c80878df8c83c5d771647a73a8224
 
 export const metadata = { title: "Timesheets" };
 export const dynamic = "force-dynamic";
@@ -64,36 +58,7 @@ export default async function WorkforceTimesheetsPage() {
             <p className="text-sm text-slate-600">No timesheets yet — clock in on a shift to get started.</p>
           </div>
         ) : (
-<<<<<<< HEAD
           all.map((ts) => <TimesheetRow key={ts.id} timesheet={ts as any} />)
-=======
-          all.map((ts) => {
-            const where =
-              ts.shift.client != null
-                ? clientName(ts.shift.client)
-                : (ts.shift.site?.name ?? "Location TBC");
-            return (
-              <div key={ts.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-slate-900">{ts.shift.title}</p>
-                    <p className="mt-0.5 text-sm text-slate-600">{where}</p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {format(ts.clockIn, "EEE d MMM")} ·{" "}
-                      {ts.workedMins > 0 ? `${(ts.workedMins / 60).toFixed(1)} h worked` : "not clocked out"}
-                    </p>
-                    {Number(ts.expenses) > 0 ? (
-                      <p className="mt-0.5 text-xs font-medium text-slate-600">
-                        Expenses {formatCurrency(Number(ts.expenses))}
-                      </p>
-                    ) : null}
-                  </div>
-                  <StatusBadge status={ts.status} />
-                </div>
-              </div>
-            );
-          })
->>>>>>> 8928f1291b1c80878df8c83c5d771647a73a8224
         )}
       </section>
 
