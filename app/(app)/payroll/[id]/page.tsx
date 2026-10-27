@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Download, FileText } from "lucide-react";
+import { Banknote, Download, FileText } from "lucide-react";
 
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -126,6 +126,12 @@ export default async function PayrollRunPage({ params }: { params: Promise<{ id:
           <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 px-5 py-4">
             <Link href={`/payroll/${run.id}/export`} className={subtleButtonClass}>
               <Download className="h-4 w-4" /> Download RTI file (FPS-ready CSV)
+            </Link>
+            <Link href={`/payroll/${run.id}/payments`} className={subtleButtonClass}>
+              <Banknote className="h-4 w-4" /> Download bank payments CSV
+            </Link>
+            <Link href={`/payroll/${run.id}/std18`} className={subtleButtonClass}>
+              <FileText className="h-4 w-4" /> Download BACS STD18
             </Link>
             <p className="max-w-md text-xs text-slate-500">
               Accountant-friendly Full Payment Submission file covering every PAYE carer on

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import Link from "next/link";
 import { endOfDay, startOfDay } from "date-fns";
 import {
@@ -284,3 +285,13 @@ export default async function DashboardPage() {
     </div>
   );
 }
+=======
+import { redirect } from "next/navigation";
+
+export const metadata = { title: "Oversight" };
+export const dynamic = "force-dynamic";
+
+export default function DashboardPage() {
+  redirect("/oversight");
+}
+>>>>>>> 8928f1291b1c80878df8c83c5d771647a73a8224

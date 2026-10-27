@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
-import { hashPassword, requireAdmin } from "@/lib/auth";
+import { hashPassword, requireOps } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { issuePasswordToken, randomPassword } from "@/lib/password";
@@ -19,7 +20,7 @@ export async function createInviteAction(
   _prev: InviteState,
   formData: FormData,
 ): Promise<InviteState> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const staffId = String(formData.get("staffId") ?? "");
 
   const staff = await prisma.staffProfile.findFirst({
@@ -61,6 +62,13 @@ export async function createInviteAction(
     to: staff.email,
     subject: "Your Pleasant carer account",
     text: `Hi ${staff.firstName},\n\n${user.agency.name} has invited you to Pleasant. Open this link to set a password and get the carer app:\n\n${link}\n\nThe link is valid for 6 hours.`,
+  });
+
+  await recordAudit(user, {
+    action: "staff.invite",
+    summary: `Invited ${staff.firstName} ${staff.lastName} to the carer app`,
+    targetType: "StaffProfile",
+    targetId: staff.id,
   });
 
   revalidatePath("/staff");

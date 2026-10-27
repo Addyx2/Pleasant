@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getBankHolidays } from "@/lib/integrations/bank-holidays";
 import { computeShiftEarnings } from "@/lib/payroll/engine";
 import { formatCurrency, formatDateTime, formatHours, shiftDurationMins } from "@/lib/utils";
 import { Card, PageHeader, StatCard, Td, Th, buttonClass, inputClass, labelClass, subtleButtonClass } from "@/components/ui";
@@ -17,12 +18,13 @@ import {
   saveClientAuthAction,
   saveExpensesAction,
 } from "../../timesheets/actions";
+import { clientName } from "@/lib/clients";
 
 export const dynamic = "force-dynamic";
 
 export default async function ShiftDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const user = await requireAdmin();
+  const user = await requireOps();
 
   const [shift, staff] = await Promise.all([
     prisma.shift.findFirst({
@@ -38,6 +40,7 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
   if (!shift) notFound();
 
   const duration = shiftDurationMins(shift.startAt, shift.endAt);
+  const bankHolidays = await getBankHolidays(user.agency.bankHolidayDivision);
   const earnings =
     shift.staff &&
     computeShiftEarnings({
@@ -51,12 +54,16 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
         bankHolidayRate: shift.staff.bankHolidayRate ? Number(shift.staff.bankHolidayRate) : null,
       },
       isSleepIn: shift.isSleepIn,
+      bankHolidays,
       sleepInRate: Number(shift.sleepInRate),
       roundingMins: user.agency.roundingMins ?? 15,
     });
 
   const locked = shift.status === "COMPLETED" || shift.status === "CANCELLED";
-  const charge = Number(shift.chargeRate) * (duration / 60);
+  // Mirrors lib/billing.ts: sleep-ins bill a flat charge (or the allowance if none is set).
+  const sleepInFlat = Number(shift.sleepInCharge ?? shift.sleepInRate);
+  const charge =
+    shift.isSleepIn && sleepInFlat > 0 ? sleepInFlat : Number(shift.chargeRate) * (duration / 60);
 
   return (
     <div className="space-y-6">
@@ -77,7 +84,11 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
           value={earnings ? formatCurrency(earnings.totalEarnings) : "—"}
           hint={shift.staff ? "Before tax and NI" : "Assign a carer"}
         />
-        <StatCard label="Client charge (est.)" value={formatCurrency(charge)} hint={`${formatCurrency(Number(shift.chargeRate))}/hr`} />
+        <StatCard
+          label="Client charge (est.)"
+          value={formatCurrency(charge)}
+          hint={shift.isSleepIn ? "Flat sleep-in charge" : `${formatCurrency(Number(shift.chargeRate))}/hr`}
+        />
         <StatCard
           label="Margin (est.)"
           value={earnings ? formatCurrency(charge - earnings.totalEarnings) : "—"}
@@ -91,16 +102,16 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
             <StatusBadge status={shift.status} />
           </div>
           <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Detail label="Client" value={shift.client ? `${shift.client.firstName} ${shift.client.lastName}` : "—"} />
+            <Detail label="Client" value={clientName(shift.client, "—")} />
             <Detail label="Site" value={shift.site?.name ?? "—"} />
             <Detail label="Starts" value={formatDateTime(shift.startAt)} />
             <Detail label="Ends" value={formatDateTime(shift.endAt)} />
             <Detail label="Carer" value={shift.staff ? `${shift.staff.firstName} ${shift.staff.lastName}` : "Unassigned"} />
             <Detail
-              label="Pay"
+              label="Rate"
               value={
                 shift.isSleepIn
-                  ? `Sleep-in · ${formatCurrency(Number(shift.sleepInRate))} flat`
+                  ? `Sleep-in · ${formatCurrency(Number(shift.sleepInRate))} carer / ${formatCurrency(sleepInFlat)} client`
                   : `${formatCurrency(Number(shift.chargeRate))}/hr charge`
               }
             />

@@ -2,7 +2,27 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { SESSION_COOKIE } from "./lib/constants";
 
-const PROTECTED_PREFIXES = ["/dashboard", "/shifts", "/timesheets", "/staff", "/clients", "/payroll", "/workforce"];
+const PROTECTED_PREFIXES = [
+  "/dashboard",
+  "/oversight",
+  "/shifts",
+  "/timesheets",
+  "/staff",
+  "/clients",
+  "/payroll",
+  "/workforce",
+  "/dispatch",
+  "/rota",
+  "/compliance",
+  "/import",
+  "/billing",
+  "/billing-pack",
+  "/invoice",
+  "/settings",
+  "/addons",
+  "/persona",
+  "/assist",
+];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -21,5 +41,25 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/shifts/:path*", "/timesheets/:path*", "/staff/:path*", "/clients/:path*", "/payroll/:path*", "/workforce/:path*"],
+  matcher: [
+    "/dashboard/:path*",
+    "/oversight/:path*",
+    "/shifts/:path*",
+    "/timesheets/:path*",
+    "/staff/:path*",
+    "/clients/:path*",
+    "/payroll/:path*",
+    "/workforce/:path*",
+    "/dispatch/:path*",
+    "/rota/:path*",
+    "/compliance/:path*",
+    "/import/:path*",
+    "/billing/:path*",
+    "/billing-pack/:path*",
+    "/invoice/:path*",
+    "/settings/:path*",
+    "/addons/:path*",
+    "/persona/:path*",
+    "/assist/:path*",
+  ],
 };

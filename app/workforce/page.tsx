@@ -7,12 +7,14 @@ import { nextCutoff, payDayForCutoff, weekdayName } from "@/lib/week";
 import { formatCurrency, formatDate, formatDateTime, formatTime } from "@/lib/utils";
 import { StatusBadge } from "@/components/status";
 import { SignOffForm } from "@/components/SignOffForm";
+import { respondToOfferAction } from "@/app/workforce/offers/actions";
 import {
   clockInFormAction,
   clockOutAction,
   saveCandidateSignatureAction,
   saveClientAuthAction,
 } from "@/app/(app)/timesheets/actions";
+import { clientName, type NamedClient } from "@/lib/clients";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +68,17 @@ export default async function WorkforceHomePage() {
     cutoff,
   );
 
+  const offers = await prisma.shiftOffer.findMany({
+    where: { agencyId: user.agencyId, staffId: profile.id, status: "OFFERED" },
+    include: {
+      shift: {
+        include: { client: true, site: true },
+      },
+    },
+    orderBy: { offeredAt: "desc" },
+    take: 10,
+  });
+
   return (
     <div className="space-y-5">
       <div className="rounded-3xl bg-brand-600 p-5 text-white">
@@ -77,6 +90,54 @@ export default async function WorkforceHomePage() {
           to be paid on <strong className="font-semibold text-white">{formatDate(payDay)}</strong>.
         </p>
       </div>
+
+      {offers.length > 0 ? (
+        <section className="space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Shift offers
+          </h2>
+          {offers.map((offer) => (
+            <div key={offer.id} className="rounded-3xl border border-brand-200 bg-brand-50 p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-slate-900">{offer.shift.title}</p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {offer.shift.client
+                      ? clientName(offer.shift.client)
+                      : (offer.shift.site?.name ?? "Location TBC")}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {formatDate(offer.shift.startAt)} · {formatTime(offer.shift.startAt)} –{" "}
+                    {formatTime(offer.shift.endAt)}
+                  </p>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <form action={respondToOfferAction}>
+                    <input type="hidden" name="offerId" value={offer.id} />
+                    <input type="hidden" name="accept" value="1" />
+                    <button
+                      type="submit"
+                      className="rounded-full bg-brand-600 px-4 py-2 text-sm font-semibold text-white active:scale-[0.98]"
+                    >
+                      Accept
+                    </button>
+                  </form>
+                  <form action={respondToOfferAction}>
+                    <input type="hidden" name="offerId" value={offer.id} />
+                    <input type="hidden" name="accept" value="0" />
+                    <button
+                      type="submit"
+                      className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 active:scale-[0.98]"
+                    >
+                      Decline
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          ))}
+        </section>
+      ) : null}
 
       <section className="space-y-3">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -124,7 +185,7 @@ type ShiftWithRelations = {
   chargeRate: unknown;
   status: string;
   notes: string | null;
-  client: { firstName: string; lastName: string } | null;
+  client: NamedClient | null;
   site: { name: string } | null;
   timesheet: {
     id: string;
@@ -139,9 +200,8 @@ type ShiftWithRelations = {
 function ShiftCard({ shift }: { shift: ShiftWithRelations }) {
   const ts = shift.timesheet;
   const where =
-    shift.client != null
-      ? `${shift.client.firstName} ${shift.client.lastName}`
-      : (shift.site?.name ?? "Location TBC");
+    [shift.client ? clientName(shift.client) : null, shift.site?.name].filter(Boolean).join(" · ") ||
+    "Location TBC";
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">

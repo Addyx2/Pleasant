@@ -6,6 +6,8 @@ import { requireUser, type SessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { shiftDurationMins } from "@/lib/utils";
 import { clientAuthSchema, expensesSchema, signOffSchema } from "@/lib/validation";
+import { after } from "next/server";
+import { reportClockIn, reportShiftCompleted } from "@/lib/elements-sync";
 
 function refreshTimesheetPaths() {
   revalidatePath("/timesheets");
@@ -13,6 +15,7 @@ function refreshTimesheetPaths() {
   revalidatePath("/workforce");
   revalidatePath("/shifts");
   revalidatePath("/dashboard");
+  revalidatePath("/oversight");
 }
 
 /** Carers acting as staff may only touch their own shifts and timesheets. */
@@ -39,7 +42,7 @@ export async function clockInFormAction(formData: FormData): Promise<void> {
   if (!shift || !shift.staffId || shift.timesheet) return;
   if (!mayAccessShift(user, shift.staffId)) return;
 
-  await prisma.timesheet.create({
+  const timesheet = await prisma.timesheet.create({
     data: {
       agencyId: user.agencyId,
       shiftId: shift.id,
@@ -51,6 +54,7 @@ export async function clockInFormAction(formData: FormData): Promise<void> {
   });
 
   await prisma.shift.update({ where: { id: shift.id }, data: { status: "IN_PROGRESS" } });
+  after(() => reportClockIn(user.agencyId, timesheet.id));
 
   refreshTimesheetPaths();
   revalidatePath(`/shifts/${shiftId}`);
@@ -116,6 +120,7 @@ export async function decideTimesheetAction(formData: FormData): Promise<void> {
 
   if (decision === "APPROVED") {
     await prisma.shift.update({ where: { id: timesheet.shiftId }, data: { status: "COMPLETED" } });
+    after(() => reportShiftCompleted(user.agencyId, timesheet.id));
   }
 
   refreshTimesheetPaths();

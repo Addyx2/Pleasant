@@ -7,15 +7,26 @@ function at(year: number, month: number, day: number, hour: number, minute = 0) 
   return new Date(year, month, day, hour, minute, 0, 0);
 }
 
+/** A date `offsetDays` from now, preserving the clock time. Month-safe. */
+function daysFromNow(offsetDays: number, hour = 12, minute = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  d.setHours(hour, minute, 0, 0);
+  return d;
+}
+
 async function main() {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
 
-  const existing = await prisma.agency.findUnique({ where: { slug: "brightwater-care" } });
-  if (existing) {
-    await prisma.agency.delete({ where: { id: existing.id } });
-  }
+const existing = await prisma.agency.findUnique({ where: { slug: "brightwater-care" } });
+if (existing) {
+  // InvoiceLine.staffId is onDelete: Restrict, so the agency's billing history
+  // has to be cleared explicitly before the agency (and its staff) can go.
+  await prisma.invoice.deleteMany({ where: { agencyId: existing.id } });
+  await prisma.agency.delete({ where: { id: existing.id } });
+}
 
   const agency = await prisma.agency.create({
     data: {
@@ -26,6 +37,12 @@ async function main() {
       address: "12 Riverside Way",
       postcode: "BS1 4AB",
       payrollRef: "123/AB45678",
+      companyNo: "09876543",
+      vatNumber: "GB123456789",
+      invoiceEmail: "billing@brightwatercare.co.uk",
+      bankSortCode: "401162",
+      bankAccount: "31234567",
+      bankAccountName: "Brightwater Care Ltd",
       payFrequency: "WEEKLY",
       cutoffWeekday: 1,
       cutoffTime: "16:00",
@@ -47,6 +64,17 @@ async function main() {
     },
   });
 
+  await prisma.user.create({
+    data: {
+      agencyId: agency.id,
+      email: "manager@pleasant.demo",
+      passwordHash,
+      firstName: "Daniel",
+      lastName: "Reyes",
+      role: "MANAGER",
+    },
+  });
+
   interface StaffSeed {
     firstName: string;
     lastName: string;
@@ -62,6 +90,10 @@ async function main() {
     pensionEnrolled: boolean;
     engagementType?: string;
     ltdCompanyName?: string;
+    bankName?: string;
+    accountName?: string;
+    sortCode?: string;
+    bankAcct?: string;
   }
 
   const staffSeed: StaffSeed[] = [
@@ -77,6 +109,10 @@ async function main() {
       taxCode: "1257L",
       niNumber: "QQ123456C",
       pensionEnrolled: true,
+      bankName: "Barclays",
+      accountName: "Grace Miller",
+      sortCode: "20-00-00",
+      bankAcct: "10203040",
     },
     {
       firstName: "Tunde",
@@ -90,6 +126,10 @@ async function main() {
       taxCode: "1257L",
       niNumber: "QQ123457D",
       pensionEnrolled: true,
+      bankName: "Barclays",
+      accountName: "Tunde Adeyemi",
+      sortCode: "20-18-26",
+      bankAcct: "55667788",
     },
     {
       firstName: "Priya",
@@ -146,6 +186,10 @@ async function main() {
           pensionEnrolled: person.pensionEnrolled,
           engagementType: person.engagementType ?? "PAYE",
           ltdCompanyName: person.ltdCompanyName ?? null,
+          bankName: person.bankName ?? null,
+          accountName: person.accountName ?? null,
+          sortCode: person.sortCode ?? null,
+          bankAcct: person.bankAcct ?? null,
           holidayAccrualPct: 12.07,
           startDate: at(year - 1, 2, 1, 9),
         },
@@ -168,23 +212,98 @@ async function main() {
     },
   });
 
-  const sites = await Promise.all(
-    [
-      { name: "Meadow View Care Home", address: "8 Meadow Lane", postcode: "BS2 7QT" },
-      { name: "Oakfield Supported Living", address: "44 Oakfield Road", postcode: "BS3 1LN" },
-    ].map((site) => prisma.site.create({ data: { agencyId: agency.id, ...site } })),
-  );
+  // Clients are the organisations the agency supplies: two homes and a
+  // domiciliary provider, each with units/branches, contacts and a rate card.
+  const clientSeeds = [
+    {
+      name: "Meadow View Care Home",
+      type: "CARE_HOME" as const,
+      address: "8 Meadow Lane, Bristol",
+      postcode: "BS2 7QT",
+      email: "accounts@meadowviewcare.co.uk",
+      phone: "0117 496 0101",
+      cqcLocationId: "1-1023456789",
+      frameworkRef: "MV-FA-2026",
+      paymentTermsDays: 30,
+      units: [
+        { name: "Rowan Unit (residential)", notes: "Report to the senior on duty. Parking at the rear." },
+        { name: "Willow Unit (dementia)", notes: "Keypad entry — code from the nurse in charge." },
+      ],
+      contacts: [
+        { name: "Jane Whitfield", jobTitle: "Home Manager", email: "jane.whitfield@meadowviewcare.co.uk", isSignatory: true, isAccounts: false },
+        { name: "Tom Reid", jobTitle: "Deputy Manager", email: "tom.reid@meadowviewcare.co.uk", isSignatory: true, isAccounts: false },
+        { name: "Accounts", jobTitle: "Accounts payable", email: "accounts@meadowviewcare.co.uk", isSignatory: false, isAccounts: true },
+      ],
+      rates: [
+        { role: "Care Assistant", dayRate: 24.5, nightRate: 25.75, weekendRate: 26.5, bankHolidayRate: 36.75, sleepInCharge: 95 },
+        { role: "Senior Care Assistant", dayRate: 26.5, nightRate: 27.75, weekendRate: 28.5, bankHolidayRate: 39.75 },
+      ],
+    },
+    {
+      name: "Oakfield Nursing Home",
+      type: "NURSING_HOME" as const,
+      address: "44 Oakfield Road, Bristol",
+      postcode: "BS3 1LN",
+      email: "finance@oakfieldnursing.co.uk",
+      phone: "0117 496 0202",
+      cqcLocationId: "1-2034567891",
+      frameworkRef: null,
+      paymentTermsDays: 14,
+      units: [{ name: "Ground Floor Nursing", notes: "Nurse in charge hands over at the station." }],
+      contacts: [
+        { name: "Dr. Amelia Grant", jobTitle: "Clinical Lead", email: "amelia.grant@oakfieldnursing.co.uk", isSignatory: true, isAccounts: false },
+        { name: "Finance team", jobTitle: null, email: "finance@oakfieldnursing.co.uk", isSignatory: false, isAccounts: true },
+      ],
+      rates: [
+        { role: "Care Assistant", dayRate: 24.5, nightRate: 26, weekendRate: 26.5, bankHolidayRate: 36.75 },
+        { role: "Registered Nurse", dayRate: 42, nightRate: 45, weekendRate: 46, bankHolidayRate: 63 },
+      ],
+    },
+    {
+      name: "Brightpath Homecare Ltd",
+      type: "DOMICILIARY_PROVIDER" as const,
+      address: "Unit 3, Temple Quay, Bristol",
+      postcode: "BS1 6EA",
+      email: "invoices@brightpathhomecare.co.uk",
+      phone: "0117 496 0303",
+      cqcLocationId: "1-3045678912",
+      frameworkRef: "PO-BHC-118",
+      paymentTermsDays: 30,
+      units: [{ name: "Bristol North branch", notes: "Collect the call rota and keys from the branch office." }],
+      contacts: [
+        { name: "Marcus Lee", jobTitle: "Registered Manager", email: "marcus.lee@brightpathhomecare.co.uk", isSignatory: true, isAccounts: true },
+      ],
+      rates: [{ role: "Care Assistant", dayRate: 24.5, nightRate: 26.5, weekendRate: 27, bankHolidayRate: 36.75, sleepInCharge: 85 }],
+    },
+  ];
 
-  const clients = await Promise.all(
-    [
-      { firstName: "Margaret", lastName: "Hughes", careLevel: "High", postcode: "BS1 5TR" },
-      { firstName: "Arthur", lastName: "Bell", careLevel: "Medium", postcode: "BS2 8PL" },
-      { firstName: "Sofia", lastName: "Reyes", careLevel: "Complex", postcode: "BS3 4DW" },
-    ].map((client) => prisma.client.create({ data: { agencyId: agency.id, ...client } })),
-  );
+  const clients = [];
+  const clientUnits: { id: string; name: string }[][] = [];
+  for (const { units, contacts, rates, ...details } of clientSeeds) {
+    const client = await prisma.client.create({
+      data: {
+        agencyId: agency.id,
+        ...details,
+        contacts: { create: contacts.map((c) => ({ agencyId: agency.id, ...c })) },
+        rates: { create: rates.map((r) => ({ agencyId: agency.id, ...r })) },
+      },
+    });
+    const created = [];
+    for (const unit of units) {
+      created.push(
+        await prisma.site.create({
+          data: { agencyId: agency.id, clientId: client.id, address: details.address, postcode: details.postcode, ...unit },
+        }),
+      );
+    }
+    clients.push(client);
+    clientUnits.push(created);
+  }
+  const siteFor = (client: number, site: number) => clientUnits[client][site % clientUnits[client].length];
 
   type ShiftSeed = {
-    day: number;
+    day: number | null;
+    daysFromNow: number;
     startHour: number;
     endHour: number;
     staff: string | null;
@@ -199,48 +318,68 @@ async function main() {
   };
 
   const shiftSeeds: ShiftSeed[] = [
-    { day: 3, startHour: 8, endHour: 14, staff: grace.id, client: 0, site: 0, title: "Morning care — Margaret" },
-    { day: 4, startHour: 20, endHour: 8, staff: grace.id, client: 2, site: 0, title: "Night shift — Sofia" },
-    { day: 5, startHour: 9, endHour: 17, staff: tunde.id, client: 1, site: 1, title: "Day support — Arthur", expenses: 12.4, expenseNotes: "Mileage — 28 miles @ 45p" },
-    { day: 6, startHour: 22, endHour: 7, staff: priya.id, client: 2, site: 0, title: "Sleep-in — Sofia", isSleepIn: true, sleepInRate: 45 },
-    { day: 8, startHour: 8, endHour: 14, staff: tunde.id, client: 0, site: 0, title: "Morning care — Margaret" },
-    { day: 9, startHour: 14, endHour: 22, staff: priya.id, client: 2, site: 1, title: "Afternoon support — Sofia" },
-    { day: 10, startHour: 9, endHour: 17, staff: grace.id, client: 1, site: 1, title: "Day support — Arthur" },
-    { day: 11, startHour: 8, endHour: 14, staff: daniel.id, client: 0, site: 0, title: "Morning care — Margaret" },
-    { day: 12, startHour: 20, endHour: 8, staff: priya.id, client: 2, site: 0, title: "Night shift — Sofia" },
-    { day: 13, startHour: 9, endHour: 17, staff: elena.id, client: 1, site: 1, title: "Day support — Arthur (Ltd)" },
-    { day: Math.min(now.getDate() + 1, 28), startHour: 9, endHour: 17, staff: null, client: 1, site: 1, title: "Day support — Arthur" },
-    { day: Math.min(now.getDate() + 2, 28), startHour: 8, endHour: 14, staff: null, client: 0, site: 0, title: "Morning care — Margaret" },
+    { day: 3, daysFromNow: 0, startHour: 8, endHour: 14, staff: grace.id, client: 1, site: 0, title: "Day shift — nursing" },
+    { day: 4, daysFromNow: 0, startHour: 20, endHour: 8, staff: grace.id, client: 1, site: 0, title: "Night shift — nursing" },
+    { day: 5, daysFromNow: 0, startHour: 9, endHour: 17, staff: tunde.id, client: 1, site: 1, title: "Day shift — nursing", expenses: 12.4, expenseNotes: "Mileage — 28 miles @ 45p" },
+    { day: 6, daysFromNow: 0, startHour: 22, endHour: 7, staff: priya.id, client: 2, site: 0, title: "Sleep-in — Bristol North", isSleepIn: true, sleepInRate: 45 },
+    { day: 8, daysFromNow: 0, startHour: 8, endHour: 14, staff: tunde.id, client: 0, site: 0, title: "Morning care — Rowan Unit" },
+    { day: 9, daysFromNow: 0, startHour: 14, endHour: 22, staff: priya.id, client: 2, site: 1, title: "Afternoon support — Bristol North" },
+    { day: 10, daysFromNow: 0, startHour: 9, endHour: 17, staff: grace.id, client: 1, site: 1, title: "Day shift — nursing" },
+    { day: 11, daysFromNow: 0, startHour: 8, endHour: 14, staff: daniel.id, client: 0, site: 0, title: "Morning care — Rowan Unit" },
+    { day: 12, daysFromNow: 0, startHour: 20, endHour: 8, staff: priya.id, client: 2, site: 0, title: "Night shift — Bristol North" },
+    { day: 13, daysFromNow: 0, startHour: 9, endHour: 17, staff: elena.id, client: 1, site: 1, title: "Day shift — nursing (Ltd)" },
+    // Upcoming, still unassigned so dispatch has live cover to offer.
+    { day: null, daysFromNow: 1, startHour: 9, endHour: 17, staff: null, client: 1, site: 1, title: "Day shift — nursing" },
+    { day: null, daysFromNow: 2, startHour: 8, endHour: 14, staff: null, client: 0, site: 0, title: "Morning care — Rowan Unit" },
+    { day: null, daysFromNow: 3, startHour: 20, endHour: 8, staff: null, client: 2, site: 0, title: "Night shift — Bristol North" },
+    // Upcoming and already assigned, so the carer app has forward-looking shifts.
+    { day: null, daysFromNow: 2, startHour: 18, endHour: 22, staff: tunde.id, client: 0, site: 0, title: "Evening shift — Rowan Unit" },
+    { day: null, daysFromNow: 4, startHour: 7, endHour: 15, staff: priya.id, client: 2, site: 0, title: "Morning care — Bristol North" },
   ];
 
   const plannedMins = (s: ShiftSeed) => {
-    const start = at(year, month, s.day, s.startHour);
-    let end = at(year, month, s.day, s.endHour);
-    if (s.endHour <= s.startHour) end = at(year, month, s.day + 1, s.endHour);
+    const start = seedStart(s);
+    const end = seedEnd(s);
+    if (s.endHour <= s.startHour) {
+      return Math.round((end.getTime() + 24 * 60 * 60 * 1000 - start.getTime()) / 60000);
+    }
     return Math.round((end.getTime() - start.getTime()) / 60000);
   };
 
+  function seedStart(s: ShiftSeed) {
+    return s.day === null ? daysFromNow(s.daysFromNow, s.startHour) : at(year, month, s.day, s.startHour);
+  }
+
+  function seedEnd(s: ShiftSeed) {
+    const base = seedStart(s);
+    const e = new Date(base);
+    e.setHours(s.endHour, 0, 0, 0);
+    return e;
+  }
+
   for (const seed of shiftSeeds) {
-    const startAt = at(year, month, seed.day, seed.startHour);
-    let endAt = at(year, month, seed.day, seed.endHour);
-    if (seed.endHour <= seed.startHour) endAt = at(year, month, seed.day + 1, seed.endHour);
+    const startAt = seedStart(seed);
+    let endAt = seedEnd(seed);
+    if (seed.endHour <= seed.startHour) endAt = new Date(endAt.getTime() + 24 * 60 * 60 * 1000);
     const breakMins = seed.breakMins ?? (plannedMins(seed) > 360 ? 30 : 0);
 
     const shift = await prisma.shift.create({
       data: {
         agencyId: agency.id,
         clientId: clients[seed.client].id,
-        siteId: sites[seed.site].id,
+        siteId: siteFor(seed.client, seed.site).id,
         staffId: seed.staff,
         title: seed.title,
         role: seed.staff === grace.id ? "Registered Nurse" : "Care Assistant",
         startAt,
         endAt,
         breakMins,
-        chargeRate: 24.5,
+        chargeRate: seed.staff === grace.id ? 42 : 24.5,
         isSleepIn: seed.isSleepIn ?? false,
         sleepInRate: seed.sleepInRate ?? 0,
-        status: seed.staff ? "COMPLETED" : "OPEN",
+        sleepInCharge: seed.isSleepIn ? 85 : null,
+        // Future assigned shifts are still upcoming, not finished.
+        status: !seed.staff ? "OPEN" : startAt < now ? "COMPLETED" : "ASSIGNED",
       },
     });
 
@@ -260,8 +399,8 @@ async function main() {
           expenses: seed.expenses ?? 0,
           expenseNotes: seed.expenseNotes ?? null,
           candidateSignedAt: startAt,
-          clientAuthName: "J. Whitfield",
-          clientAuthPosition: "Home Manager",
+          clientAuthName: seed.client === 1 ? "Dr. Amelia Grant" : seed.client === 2 ? "Marcus Lee" : "Jane Whitfield",
+          clientAuthPosition: seed.client === 1 ? "Clinical Lead" : seed.client === 2 ? "Registered Manager" : "Home Manager",
           clientAuthAt: endAt,
         },
       });
@@ -272,12 +411,12 @@ async function main() {
     data: {
       agencyId: agency.id,
       clientId: clients[0].id,
-      siteId: sites[0].id,
+      siteId: siteFor(0, 0).id,
       staffId: tunde.id,
-      title: "Evening care — Margaret",
+      title: "Evening care — Rowan Unit",
       role: "Care Assistant",
-      startAt: at(year, month, Math.min(now.getDate(), 27), 18),
-      endAt: at(year, month, Math.min(now.getDate(), 27), 22),
+      startAt: daysFromNow(2, 18),
+      endAt: daysFromNow(2, 22),
       breakMins: 0,
       chargeRate: 24.5,
       status: "ASSIGNED",
@@ -289,8 +428,8 @@ async function main() {
       agencyId: agency.id,
       shiftId: pending.id,
       staffId: tunde.id,
-      clockIn: at(year, month, Math.min(now.getDate(), 27), 18),
-      clockOut: at(year, month, Math.min(now.getDate(), 27), 22),
+      clockIn: daysFromNow(2, 18),
+      clockOut: daysFromNow(2, 22),
       breakMins: 0,
       workedMins: 240,
       status: "PENDING",
@@ -299,7 +438,12 @@ async function main() {
 
   // Open-shift marketplace: seed a couple of pending carer requests for demo.
   const openShifts = await prisma.shift.findMany({
-    where: { agencyId: agency.id, status: "OPEN", staffId: null },
+    where: {
+      agencyId: agency.id,
+      status: "OPEN",
+      staffId: null,
+      startAt: { gte: new Date() },
+    },
     orderBy: { startAt: "asc" },
     take: 2,
   });
@@ -324,8 +468,99 @@ async function main() {
     });
   }
 
-  console.log("Seeded Brightwater Care.");
-  console.log("Manager: admin@pleasant.demo / pleasant123");
+  // A settled payroll run and a couple of issued invoices, so the payroll
+  // and billing/Xero flows have real records to work against.
+  const payrollStart = daysFromNow(-21);
+  const payrollEnd = daysFromNow(-14);
+  const payrollRun = await prisma.payrollRun.create({
+    data: {
+      agencyId: agency.id,
+      reference: `${payrollStart.getFullYear()}-${String(payrollStart.getMonth() + 1).padStart(2, "0")}-M1`,
+      periodStart: payrollStart,
+      periodEnd: payrollEnd,
+      payDate: daysFromNow(-7),
+      taxYear: `${new Date().getFullYear()}/${String(new Date().getFullYear() + 1).slice(2)}`,
+      status: "PAID",
+      grossTotal: 940,
+      payeTotal: 120,
+      niTotal: 60,
+      pensionTotal: 45,
+      netTotal: 715,
+      employerNiTotal: 68.4,
+      payslips: {
+        create: [
+          {
+            staffId: tunde.id,
+            timesheetHours: 37.5,
+            grossPay: 610,
+            taxablePay: 610,
+            paye: 76.25,
+            niEmployee: 32.11,
+            pensionEmployee: 30.5,
+            pensionEmployer: 30.5,
+            employerNi: 36.6,
+            netPay: 471.14,
+            taxCode: "1257L",
+          },
+          {
+            staffId: grace.id,
+            timesheetHours: 26,
+            grossPay: 330,
+            taxablePay: 330,
+            paye: 43.75,
+            niEmployee: 17.33,
+            pensionEmployee: 14.5,
+            pensionEmployer: 14.5,
+            employerNi: 19.4,
+            netPay: 254.42,
+            taxCode: "1257L",
+          },
+        ],
+      },
+    },
+  });
+
+  for (const [index, client] of [clients[0], clients[1]].entries()) {
+    const invoiceHours = index === 0 ? 42.5 : 18;
+    const chargeAmount = index === 0 ? 1041.25 : 441;
+    const payAmount = index === 0 ? 610 : 330;
+    await prisma.invoice.create({
+      data: {
+        agencyId: agency.id,
+        clientId: client.id,
+        reference: `INV-${daysFromNow(-20).getFullYear()}${String(index + 1).padStart(2, "0")}-0${index + 1}`,
+        periodStart: payrollStart,
+        periodEnd: payrollEnd,
+        issueDate: daysFromNow(-19),
+        dueDate: daysFromNow(-5),
+        paidAt: daysFromNow(-7),
+        status: index === 0 ? "ISSUED" : "PAID",
+        hoursTotal: invoiceHours,
+        chargeTotal: chargeAmount,
+        payTotal: payAmount,
+        marginTotal: chargeAmount - payAmount,
+        vatRatePct: 0,
+        vatTotal: 0,
+        grandTotal: chargeAmount,
+        lines: {
+          create: {
+            staffId: tunde.id,
+            date: payrollEnd,
+            title: "Completed care visits",
+            hours: invoiceHours,
+            chargeRate: 24.5,
+            chargeAmount,
+            payAmount,
+            marginAmount: chargeAmount - payAmount,
+          },
+        },
+      },
+    });
+  }
+
+  console.log(`Seeded Brightwater Care (payroll ${payrollRun.reference}).`);
+  console.log("Admin: admin@pleasant.demo / pleasant123");
+  console.log("Manager (operations only): manager@pleasant.demo / pleasant123");
   console.log("Carer: tunde.adeyemi@brightwatercare.co.uk / pleasant123");
 }
 

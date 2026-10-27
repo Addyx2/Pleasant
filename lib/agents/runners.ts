@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
  * Dispatches a new task to the Runners queue.
  * This acts as the background job queue for the platform.
  */
-export async function dispatchRunnerTask(agencyId: string, title: string, payload: any) {
+export async function dispatchRunnerTask(agencyId: string, title: string, payload: unknown) {
   const task = await prisma.agentTask.create({
     data: {
       agencyId,
@@ -83,11 +83,11 @@ export async function processRunnerTasks() {
         }
       });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle failure
       await prisma.agentTask.update({
         where: { id: task.id },
-        data: { status: "FAILED", payload: JSON.stringify({ error: error.message }) },
+        data: { status: "FAILED", payload: JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }) },
       });
       
       await prisma.agentLog.create({
@@ -95,7 +95,7 @@ export async function processRunnerTasks() {
           agencyId: task.agencyId,
           agentName: "RUNNERS",
           action: "TASK_FAILED",
-          details: `Task '${task.title}' failed: ${error.message}`,
+          details: `Task '${task.title}' failed: ${error instanceof Error ? error.message : "Unknown error"}`,
           status: "ERROR",
         }
       });

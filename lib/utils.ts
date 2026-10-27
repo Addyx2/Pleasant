@@ -65,3 +65,15 @@ export function initials(firstName: string, lastName: string): string {
 export function shiftDurationMins(startAt: Date, endAt: Date): number {
   return Math.max(0, Math.round((endAt.getTime() - startAt.getTime()) / 60000));
 }
+
+/**
+ * Only allow same-origin relative paths as post-login destinations. Rejects
+ * protocol-relative (`//evil.com`) and backslash (`/\evil.com`) tricks that
+ * browsers resolve to another origin.
+ */
+export function safeNextPath(next: string | null | undefined): string | null {
+  if (!next || !next.startsWith("/")) return null;
+  if (next.startsWith("//") || next.startsWith("/\\")) return null;
+  if (/[\u0000-\u001f]/.test(next)) return null;
+  return next;
+}

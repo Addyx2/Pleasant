@@ -1,9 +1,11 @@
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/db";
 
 /**
  * Initiates an automated Pushbot Triage Campaign for an Unattended or Open shift.
  */
-export async function initiatePushbotTriage(shiftId: string, requestedByUserId: string) {
+export async function initiatePushbotTriage(shiftId: string, _requestedByUserId: string) {
   // 1. Fetch the target shift
   const shift = await prisma.shift.findUnique({
     where: { id: shiftId },
@@ -74,9 +76,9 @@ export async function initiatePushbotTriage(shiftId: string, requestedByUserId: 
  * Processes a worker's reply to a Pushbot offer.
  * Implements atomic locking to prevent race conditions (double booking).
  */
-export async function handlePushbotReply(campaignId: string, staffId: string, response: string) {
+export async function handlePushbotReply(campaignId: string, staffId: string, _response: string) {
   // We use a transaction to lock the shift row to prevent double booking.
-  const result = await prisma.$transaction(async (tx: any) => {
+  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const campaign = await tx.pushbotCampaign.findUnique({
       where: { id: campaignId },
       include: { shift: true },

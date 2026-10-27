@@ -8,6 +8,8 @@ export const prisma =
     log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
   });
 
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
+// Reuse a single client per process in every environment. On serverless
+// (Vercel) this keeps a warm instance across invocations and avoids opening a
+// fresh Postgres connection on every request; in development it survives Fast
+// Refresh. Always point DATABASE_URL at a pooled endpoint in production.
+globalForPrisma.prisma = prisma;

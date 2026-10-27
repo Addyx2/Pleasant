@@ -14,7 +14,7 @@ const TABS = [
   { href: "/workforce/passport", label: "Passport", icon: ShieldCheck },
 ];
 
-export function WorkforceNav() {
+export function WorkforceNav({ peak = false }: { peak?: boolean }) {
   const pathname = usePathname();
 
   return (

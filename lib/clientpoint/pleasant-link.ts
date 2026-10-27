@@ -5,7 +5,12 @@ import { prisma } from "@/lib/db";
  * Generates a secure, passwordless magic link token for a client.
  * Tokens expire in 24 hours by default.
  */
-export async function generatePleasantLink(agencyId: string, clientId: string, expiresInHours = 24) {
+export async function generatePleasantLink(
+  agencyId: string,
+  clientId: string,
+  contactId: string | null,
+  expiresInHours = 24,
+) {
   const token = randomBytes(32).toString("hex");
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + expiresInHours);
@@ -14,6 +19,7 @@ export async function generatePleasantLink(agencyId: string, clientId: string, e
     data: {
       agencyId,
       clientId,
+      contactId,
       token,
       expiresAt,
     },
@@ -32,6 +38,7 @@ export async function validatePleasantLink(token: string) {
     include: {
       client: true,
       agency: true,
+      contact: true,
     },
   });
 

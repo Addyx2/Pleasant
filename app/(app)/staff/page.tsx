@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatCurrency, initials } from "@/lib/utils";
 import { Card, EmptyState, PageHeader, Td, Th, buttonClass, subtleButtonClass } from "@/components/ui";
@@ -12,7 +12,7 @@ export const metadata = { title: "Staff" };
 export const dynamic = "force-dynamic";
 
 export default async function StaffPage() {
-  const user = await requireAdmin();
+  const user = await requireOps();
 
   const staff = await prisma.staffProfile.findMany({
     where: { agencyId: user.agencyId },
@@ -64,9 +64,12 @@ export default async function StaffPage() {
                         {initials(member.firstName, member.lastName)}
                       </span>
                       <div>
-                        <p className="font-medium text-slate-900">
+                        <Link
+                          href={`/staff/${member.id}`}
+                          className="font-medium text-slate-900 hover:underline"
+                        >
                           {member.firstName} {member.lastName}
-                        </p>
+                        </Link>
                         <p className="text-xs text-slate-500">{member.email ?? member.phone ?? "—"}</p>
                       </div>
                     </div>
@@ -96,6 +99,9 @@ export default async function StaffPage() {
                   </Td>
                   <Td>
                     <div className="flex items-center gap-2">
+                      <Link href={`/staff/${member.id}`} className={subtleButtonClass}>
+                        Details
+                      </Link>
                       <Link href={`/staff/invite/${member.id}`} className={subtleButtonClass}>
                         Invite
                       </Link>

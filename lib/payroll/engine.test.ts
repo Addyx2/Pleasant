@@ -190,3 +190,30 @@ test("unpaid breaks reduce paid minutes", () => {
   assert.equal(result.paidMins, 420);
   assert.equal(result.totalEarnings, 70);
 });
+
+test("taxable additions such as Peak rewards are taxed with the period's pay but don't accrue holiday", () => {
+  const staff = {
+    taxCode: "1257L",
+    pensionEnrolled: false,
+    pensionEmployeePct: 5,
+    pensionEmployerPct: 3,
+    holidayAccrualPct: 12.07,
+  };
+  const base = calculatePayslip({ grossEarnings: 2000, period: "MONTHLY", taxYear: "2026/27", staff });
+  const withReward = calculatePayslip({
+    grossEarnings: 2000,
+    period: "MONTHLY",
+    taxYear: "2026/27",
+    staff,
+    additions: [{ label: "Peak reward: Cash out £20", amount: 20 }, { label: "Nothing", amount: 0 }],
+  });
+  assert.equal(withReward.holidayPay, base.holidayPay);
+  assert.equal(withReward.taxablePay, Math.round((base.taxablePay + 20) * 100) / 100);
+  assert.equal(withReward.grossPay, base.grossPay + 20);
+  assert.ok(withReward.paye >= base.paye, "the reward is taxed");
+  assert.ok(withReward.netPay > base.netPay && withReward.netPay < base.netPay + 20, "net pay rises by the reward less tax and NI");
+  const lines = withReward.lines.filter((l) => l.label.startsWith("Peak reward"));
+  assert.equal(lines.length, 1);
+  assert.equal(lines[0].amount, 20);
+  assert.equal(withReward.lines.some((l) => l.label === "Nothing"), false);
+});

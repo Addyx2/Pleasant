@@ -39,13 +39,16 @@ export function Card({
   children,
   className,
   interactive = false,
+  id,
 }: {
   children: React.ReactNode;
   className?: string;
   interactive?: boolean;
+  id?: string;
 }) {
   return (
     <div
+      id={id}
       className={cn(
         "rounded-xl border border-slate-200 bg-white shadow-card",
         interactive &&
@@ -145,16 +148,23 @@ export function EmptyState({
   title,
   description,
   action,
+  icon: Icon,
 }: {
   title: string;
   description?: string;
   action?: React.ReactNode;
+  icon?: React.ComponentType<{ className?: string }>;
 }) {
   return (
     <div className="rounded-xl border border-dashed border-slate-300 bg-white/60 p-10 text-center">
+      {Icon ? (
+        <span className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-brand-50 text-brand-600 ring-1 ring-inset ring-brand-600/10">
+          <Icon className="h-5 w-5" />
+        </span>
+      ) : null}
       <p className="text-sm font-semibold text-slate-700">{title}</p>
-      {description ? <p className="mt-1 text-sm text-slate-500">{description}</p> : null}
-      {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
+      {description ? <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">{description}</p> : null}
+      {action ? <div className="mt-4 flex flex-wrap justify-center gap-2">{action}</div> : null}
     </div>
   );
 }
@@ -208,6 +218,31 @@ export function SkeletonTable({ rows = 5 }: { rows?: number }) {
         </div>
       </div>
     </Card>
+  );
+}
+
+export function PageSkeleton({
+  cards = 3,
+  rows = 6,
+}: {
+  cards?: number;
+  rows?: number;
+}) {
+  return (
+    <div className="space-y-6" aria-busy="true" aria-live="polite">
+      <div className="space-y-2">
+        <Skeleton className="h-7 w-56" />
+        <Skeleton className="h-4 w-80 max-w-full" />
+      </div>
+      {cards > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: cards }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      ) : null}
+      <SkeletonTable rows={rows} />
+    </div>
   );
 }
 

@@ -3,25 +3,27 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 function refresh() {
+  revalidatePath("/dispatch");
   revalidatePath("/shifts/requests");
   revalidatePath("/shifts");
+  revalidatePath("/shifts/calendar");
   revalidatePath("/workforce/open-shifts");
   revalidatePath("/workforce");
   revalidatePath("/dashboard");
 }
 
 export async function approveShiftRequestAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const requestId = String(formData.get("requestId") ?? "");
 
   const req = await prisma.shiftRequest.findFirst({
     where: { id: requestId, status: "PENDING", agencyId: user.agencyId },
   });
-  if (!req) redirect("/shifts/requests");
+  if (!req) redirect("/dispatch?tab=requests");
 
   // If the shift was assigned elsewhere in the meantime, decline the request.
   const shiftAlreadyTaken = await prisma.shift.count({
@@ -33,7 +35,7 @@ export async function approveShiftRequestAction(formData: FormData): Promise<voi
       data: { status: "REJECTED" },
     });
     refresh();
-    redirect("/shifts/requests?result=taken");
+    redirect("/dispatch?tab=requests&result=taken");
   }
 
   await prisma.$transaction([
@@ -49,11 +51,11 @@ export async function approveShiftRequestAction(formData: FormData): Promise<voi
   ]);
 
   refresh();
-  redirect("/shifts/requests?result=approved");
+  redirect("/dispatch?tab=requests&result=approved");
 }
 
 export async function rejectShiftRequestAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const requestId = String(formData.get("requestId") ?? "");
 
   await prisma.shiftRequest.updateMany({
@@ -62,5 +64,5 @@ export async function rejectShiftRequestAction(formData: FormData): Promise<void
   });
 
   refresh();
-  redirect("/shifts/requests?result=rejected");
+  redirect("/dispatch?tab=requests&result=rejected");
 }

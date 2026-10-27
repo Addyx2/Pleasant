@@ -2,16 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireAdmin } from "@/lib/auth";
+import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { createStaffSchema } from "@/lib/validation";
 import type { ActionState } from "@/app/(app)/shifts/actions";
+import { after } from "next/server";
+import { sendElementEvent } from "@/lib/elements";
+import { carerPerson } from "@/lib/elements-sync";
 
 export async function createStaffAction(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const user = await requireAdmin();
+  const user = await requireOps();
 
   const parsed = createStaffSchema.safeParse({
     firstName: formData.get("firstName"),
@@ -33,6 +36,12 @@ export async function createStaffAction(
     pensionEnrolled: formData.get("pensionEnrolled") === "on",
     pensionEmployeePct: formData.get("pensionEmployeePct") || 5,
     pensionEmployerPct: formData.get("pensionEmployerPct") || 3,
+    bankName: formData.get("bankName"),
+    accountName: formData.get("accountName"),
+    sortCode: formData.get("sortCode"),
+    bankAcct: formData.get("bankAcct"),
+    dbsNumber: formData.get("dbsNumber"),
+    dbsExpiry: formData.get("dbsExpiry"),
   });
 
   if (!parsed.success) {
@@ -41,7 +50,7 @@ export async function createStaffAction(
 
   const data = parsed.data;
 
-  await prisma.staffProfile.create({
+  const created = await prisma.staffProfile.create({
     data: {
       agencyId: user.agencyId,
       firstName: data.firstName,
@@ -63,9 +72,16 @@ export async function createStaffAction(
       pensionEnrolled: data.pensionEnrolled,
       pensionEmployeePct: data.pensionEmployeePct,
       pensionEmployerPct: data.pensionEmployerPct,
+      bankName: data.bankName ?? null,
+      accountName: data.accountName ?? null,
+      sortCode: data.sortCode ?? null,
+      bankAcct: data.bankAcct ?? null,
+      dbsNumber: data.dbsNumber ?? null,
+      dbsExpiry: data.dbsExpiry ?? null,
       status: "ACTIVE",
     },
   });
+  if (created.phone) after(() => sendElementEvent(user.agencyId, "GATEWAY", "platform.person.updated", carerPerson(created)));
 
   revalidatePath("/staff");
   revalidatePath("/dashboard");
@@ -73,7 +89,7 @@ export async function createStaffAction(
 }
 
 export async function setStaffStatusAction(formData: FormData): Promise<void> {
-  const user = await requireAdmin();
+  const user = await requireOps();
   const staffId = String(formData.get("staffId") ?? "");
   const status = String(formData.get("status") ?? "");
   if (!staffId || !["ACTIVE", "INACTIVE", "ON_LEAVE"].includes(status)) return;

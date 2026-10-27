@@ -1,11 +1,36 @@
 import React from "react";
 import { Sparkles, CreditCard, ArrowUpRight, Flame, Gift, ShieldCheck } from "lucide-react";
 
+import { ElementScreen } from "@/components/ElementScreen";
+import { requireUser } from "@/lib/auth";
+import { installationFor } from "@/lib/elements";
+
 export const metadata = {
   title: "Peak Rewards & Wallet",
 };
 
-export default function WorkforcePeakPage() {
+export default async function WorkforcePeakPage() {
+  const user = await requireUser();
+  const installationId = user.staff ? await installationFor(user.agencyId, "PEAK") : null;
+
+  if (installationId && user.staff) {
+    return (
+      <div className="px-1 pb-28 pt-2">
+        <ElementScreen
+          installationId={installationId}
+          title="Your Peak points"
+          className="h-[calc(100dvh-12rem)] min-h-[520px]"
+          user={{
+            id: user.id,
+            name: `${user.staff.firstName} ${user.staff.lastName}`,
+            role: "member",
+            personId: user.staff.id,
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5 pb-8 font-sans">
       <div className="flex items-center justify-between">

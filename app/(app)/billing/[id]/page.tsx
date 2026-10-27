@@ -2,12 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { requireAdmin } from "@/lib/auth";
+import { lineBasis } from "@/lib/billing";
 import { prisma } from "@/lib/db";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Card, IconTile, PageHeader, StatCard, Td, Th, buttonClass } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
 import { deleteInvoiceAction, setInvoiceStatusAction } from "../actions";
 import { Landmark, PackageCheck, Receipt, TrendingUp } from "lucide-react";
+import { clientName } from "@/lib/clients";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +22,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
     include: {
       client: true,
       lines: {
-        include: { staff: true },
+        include: { staff: true, shift: { select: { isSleepIn: true } } },
         orderBy: { date: "asc" },
       },
     },
@@ -36,10 +38,23 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
     <div className="space-y-6">
       <PageHeader
         title={`Invoice ${invoice.reference}`}
-        description={`${invoice.client.firstName} ${invoice.client.lastName} · ${formatDate(invoice.periodStart)} – ${formatDate(invoice.periodEnd)}${invoice.dueDate ? ` · due ${formatDate(invoice.dueDate)}` : ""}`}
+        description={`${clientName(invoice.client)} · ${formatDate(invoice.periodStart)} – ${formatDate(invoice.periodEnd)}${invoice.dueDate ? ` · due ${formatDate(invoice.dueDate)}` : ""}`}
         action={
           <div className="flex items-center gap-3">
             <StatusBadge status={invoice.status} />
+            {invoice.status === "ISSUED" || invoice.status === "PAID" ? (
+              <>
+                <Link href={`/invoice/${invoice.id}`} className={buttonClass}>
+                  Printable invoice
+                </Link>
+                <Link
+                  href={`/billing-pack/${invoice.id}`}
+                  className="text-sm font-medium text-brand-700 hover:underline"
+                >
+                  Lender pack
+                </Link>
+              </>
+            ) : null}
             <Link href="/billing" className="text-sm font-medium text-brand-700 hover:underline">
               Back to billing
             </Link>
@@ -127,15 +142,22 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {invoice.lines.map((line) => (
+            {invoice.lines.map((line) => {
+              const basis = lineBasis({
+                  hours: Number(line.hours),
+                  chargeRate: Number(line.chargeRate),
+                  chargeAmount: Number(line.chargeAmount),
+                  isSleepIn: line.shift?.isSleepIn ?? false,
+                });
+              return (
               <tr key={line.id} className="hover:bg-slate-50">
                 <Td className="tabular">{formatDate(line.date)}</Td>
                 <Td className="text-slate-900">{line.title}</Td>
                 <Td className="text-slate-900">
                   {line.staff.firstName} {line.staff.lastName}
                 </Td>
-                <Td className="tabular">{Number(line.hours).toFixed(2)}</Td>
-                <Td className="tabular">{formatCurrency(Number(line.chargeRate))}/h</Td>
+                <Td className="tabular">{basis.quantityLabel}</Td>
+                <Td className="tabular">{basis.flat ? "Flat" : `${formatCurrency(basis.unitAmount)}/h`}</Td>
                 <Td className="tabular font-semibold text-slate-900">
                   {formatCurrency(Number(line.chargeAmount))}
                 </Td>
@@ -150,7 +172,8 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
                   {formatCurrency(Number(line.marginAmount))}
                 </Td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
           <tfoot>
             <tr className="border-t border-slate-200 bg-slate-50/70">

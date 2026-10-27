@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireAdmin } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/db";
+import { getBankHolidays } from "@/lib/integrations/bank-holidays";
 import {
   calculatePayslip,
   computeShiftEarnings,
@@ -95,6 +97,7 @@ export async function generatePayrollRunAction(
 
   const taxYear = taxYearFor(periodEnd);
   const roundingMins = user.agency.roundingMins ?? 15;
+  const bankHolidays = await getBankHolidays(user.agency.bankHolidayDivision);
 
   const timesheets = await prisma.timesheet.findMany({
     where: {
@@ -108,6 +111,12 @@ export async function generatePayrollRunAction(
   if (timesheets.length === 0) {
     return { error: "No approved timesheets fall inside this period" };
   }
+
+  // Taxable payments waiting for a payslip, such as Peak rewards cashed out.
+  const additions = await prisma.payAddition.findMany({
+    where: { agencyId: user.agencyId, payrollRunId: null, staffId: { in: [...new Set(timesheets.map((t) => t.staffId))] } },
+    orderBy: { createdAt: "asc" },
+  });
 
   // Group approved timesheets by carer.
   const byStaff = new Map<string, typeof timesheets>();
@@ -161,6 +170,7 @@ export async function generatePayrollRunAction(
         isSleepIn: ts.shift.isSleepIn,
         sleepInRate: Number(ts.shift.sleepInRate),
         roundingMins,
+        bankHolidays,
       });
       grossFromShifts += earnings.totalEarnings;
       paidMins += earnings.paidMins;
@@ -183,8 +193,13 @@ export async function generatePayrollRunAction(
       ...v,
     }));
 
+    const extras = additions
+      .filter((a) => a.staffId === staffId)
+      .map((a) => ({ label: a.label, amount: Number(a.amount) }));
+    const extrasTotal = round2(extras.reduce((sum, a) => sum + a.amount, 0));
+
     const result = isLtd
-      ? ltdPayslip(grossFromShifts, expenseTotal, breakdown)
+      ? ltdPayslip(grossFromShifts + extrasTotal, expenseTotal, [...breakdown, ...extras.map((a) => ({ label: a.label, mins: 0, amount: a.amount }))])
       : calculatePayslip({
           grossEarnings: round2(grossFromShifts),
           period,
@@ -198,6 +213,7 @@ export async function generatePayrollRunAction(
             holidayAccrualPct: Number(staff.holidayAccrualPct),
           },
           expenses: round2(expenseTotal),
+          additions: extras,
         });
 
     grossTotal += result.grossPay;
@@ -281,7 +297,24 @@ export async function generatePayrollRunAction(
       });
     }
 
+    // Attach the additions to this run, so they are paid exactly once. If
+    // another run took them in the meantime, nothing from this run is saved.
+    if (additions.length > 0) {
+      const attached = await tx.payAddition.updateMany({
+        where: { id: { in: additions.map((a) => a.id) }, payrollRunId: null },
+        data: { payrollRunId: created.id },
+      });
+      if (attached.count !== additions.length) throw new Error("Pay additions changed while the run was generated. Try again.");
+    }
+
     return created;
+  });
+
+  await recordAudit(user, {
+    action: "payroll.generate",
+    summary: `Generated pay run ${run.reference}`,
+    targetType: "PayrollRun",
+    targetId: run.id,
   });
 
   revalidatePath("/payroll");
@@ -295,10 +328,19 @@ export async function setPayrollStatusAction(formData: FormData): Promise<void> 
   const status = String(formData.get("status") ?? "");
   if (!runId || !["DRAFT", "APPROVED", "FINALISED", "PAID"].includes(status)) return;
 
-  await prisma.payrollRun.updateMany({
+  const { count } = await prisma.payrollRun.updateMany({
     where: { id: runId, agencyId: user.agencyId },
     data: { status: status as never },
   });
+  if (count > 0) {
+    await recordAudit(user, {
+      action: "payroll.status",
+      summary: `Moved pay run to ${status.toLowerCase()}`,
+      targetType: "PayrollRun",
+      targetId: runId,
+      metadata: { status },
+    });
+  }
 
   revalidatePath("/payroll");
   revalidatePath(`/payroll/${runId}`);
@@ -309,9 +351,17 @@ export async function deletePayrollRunAction(formData: FormData): Promise<void> 
   const runId = String(formData.get("runId") ?? "");
   if (!runId) return;
 
-  await prisma.payrollRun.deleteMany({
+  const { count } = await prisma.payrollRun.deleteMany({
     where: { id: runId, agencyId: user.agencyId, status: "DRAFT" },
   });
+  if (count > 0) {
+    await recordAudit(user, {
+      action: "payroll.delete",
+      summary: "Deleted a draft pay run",
+      targetType: "PayrollRun",
+      targetId: runId,
+    });
+  }
 
   revalidatePath("/payroll");
   redirect("/payroll");
