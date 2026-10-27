@@ -112,6 +112,12 @@ export async function generatePayrollRunAction(
     return { error: "No approved timesheets fall inside this period" };
   }
 
+  // Taxable payments waiting for a payslip, such as Peak rewards cashed out.
+  const additions = await prisma.payAddition.findMany({
+    where: { agencyId: user.agencyId, payrollRunId: null, staffId: { in: [...new Set(timesheets.map((t) => t.staffId))] } },
+    orderBy: { createdAt: "asc" },
+  });
+
   // Group approved timesheets by carer.
   const byStaff = new Map<string, typeof timesheets>();
   for (const ts of timesheets) {
@@ -187,8 +193,13 @@ export async function generatePayrollRunAction(
       ...v,
     }));
 
+    const extras = additions
+      .filter((a) => a.staffId === staffId)
+      .map((a) => ({ label: a.label, amount: Number(a.amount) }));
+    const extrasTotal = round2(extras.reduce((sum, a) => sum + a.amount, 0));
+
     const result = isLtd
-      ? ltdPayslip(grossFromShifts, expenseTotal, breakdown)
+      ? ltdPayslip(grossFromShifts + extrasTotal, expenseTotal, [...breakdown, ...extras.map((a) => ({ label: a.label, mins: 0, amount: a.amount }))])
       : calculatePayslip({
           grossEarnings: round2(grossFromShifts),
           period,
@@ -202,6 +213,7 @@ export async function generatePayrollRunAction(
             holidayAccrualPct: Number(staff.holidayAccrualPct),
           },
           expenses: round2(expenseTotal),
+          additions: extras,
         });
 
     grossTotal += result.grossPay;
@@ -283,6 +295,16 @@ export async function generatePayrollRunAction(
           },
         },
       });
+    }
+
+    // Attach the additions to this run, so they are paid exactly once. If
+    // another run took them in the meantime, nothing from this run is saved.
+    if (additions.length > 0) {
+      const attached = await tx.payAddition.updateMany({
+        where: { id: { in: additions.map((a) => a.id) }, payrollRunId: null },
+        data: { payrollRunId: created.id },
+      });
+      if (attached.count !== additions.length) throw new Error("Pay additions changed while the run was generated. Try again.");
     }
 
     return created;

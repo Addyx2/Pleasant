@@ -2,6 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+
+import { syncGatewayDirectory } from "@/lib/elements-sync";
 
 import { requireAdmin } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
@@ -267,6 +270,8 @@ export async function commitImportAction(formData: FormData): Promise<void> {
   }
 
   if (created > 0) {
+    // New carers and contacts: let Gateway recognise them.
+    after(() => syncGatewayDirectory(user.agencyId).catch((e) => console.error("gateway sync failed", e)));
     await recordAudit(user, {
       action: "import.commit",
       summary: `Imported ${created} record${created === 1 ? "" : "s"} (${skipped} skipped)`,

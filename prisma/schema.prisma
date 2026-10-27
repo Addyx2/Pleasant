@@ -144,6 +144,8 @@ model Agency {
   shiftOffers   ShiftOffer[]
   importSessions ImportSession[]
   agencyAddons   AgencyAddon[]
+  elementsEvents ElementsEvent[]
+  payAdditions   PayAddition[]
   auditEvents    AuditEvent[]
   clientContacts ClientContact[]
   clientRates    ClientRate[]
@@ -274,6 +276,7 @@ model StaffProfile {
   invoiceLines InvoiceLine[]
 
 
+  payAdditions PayAddition[]
   @@index([agencyId, status])
 }
 
@@ -537,6 +540,7 @@ model PayrollRun {
 
   agency   Agency    @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   payslips Payslip[]
+  payAdditions PayAddition[]
 
   @@unique([agencyId, reference])
   @@index([agencyId, status])
@@ -965,6 +969,8 @@ model AgencyAddon {
   active      Boolean   @default(true) // purchased/entitled
   expiresAt   DateTime?
   installedAt DateTime?
+  /// The installation in the Elements console (canvas.aultrum.co.uk) that runs it.
+  elementsInstallationId String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -1159,4 +1165,45 @@ model ServiceKey {
   name      String   @id
   value     String
   createdAt DateTime @default(now())
+}
+
+
+// Events from Aultrum Elements (Gateway and Peak), e.g. an absence reported by
+// phone. Those that need someone show in Oversight until they are marked done.
+model ElementsEvent {
+  id             String    @id @default(cuid())
+  agencyId       String
+  /// The Elements event ID, so a redelivered webhook is only recorded once.
+  eventId        String    @unique
+  type           String
+  data           Json      @default("{}")
+  needsAttention Boolean   @default(false)
+  urgent         Boolean   @default(false)
+  resolvedAt     DateTime?
+  resolvedBy     String?
+  createdAt      DateTime  @default(now())
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId, needsAttention, resolvedAt])
+}
+
+// Money to add to a carer's next payslip from outside their timesheets, such
+// as a Peak reward they cashed out. Taxable; attached to the run that pays it.
+model PayAddition {
+  id           String   @id @default(cuid())
+  agencyId     String
+  staffId      String
+  label        String
+  amount       Decimal  @db.Decimal(12, 2)
+  /// e.g. "peak:<redemption id>", so the same reward is never paid twice.
+  sourceRef    String   @unique
+  payrollRunId String?
+  createdAt    DateTime @default(now())
+
+  agency     Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  staff      StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  payrollRun PayrollRun?  @relation(fields: [payrollRunId], references: [id], onDelete: SetNull)
+
+  @@index([agencyId, payrollRunId])
 }

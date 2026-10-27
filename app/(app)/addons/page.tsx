@@ -13,8 +13,9 @@ const ICONS = {
   PEAK: Sparkles,
 };
 
-export default async function AddonsPage() {
+export default async function AddonsPage({ searchParams }: { searchParams: Promise<{ error?: string; on?: string }> }) {
   const user = await requireAdmin();
+  const { error, on } = await searchParams;
   const addons = await getAvailableAddons(user.agencyId);
 
   const installed = addons.filter((a) => a.installed);
@@ -26,6 +27,15 @@ export default async function AddonsPage() {
         title="Elements"
         description="Aultrum modules that run inside Pleasant. Switch on the ones your agency uses."
       />
+      {error ? (
+        <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{error.slice(0, 300)}</p>
+      ) : on === "GATEWAY" || on === "PEAK" ? (
+        <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {on === "GATEWAY"
+            ? "Gateway is on. Your carers' and client contacts' numbers are being sent so it recognises them. Set its phone number and web chat in the Elements console."
+            : "Peak is on. Carers earn points as they clock in on time and their timesheets are approved, and see them in the Pleasant Workers app."}
+        </p>
+      ) : null}
 
       {installed.length > 0 ? (
         <div className="space-y-4">

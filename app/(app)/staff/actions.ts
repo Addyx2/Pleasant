@@ -6,6 +6,9 @@ import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { createStaffSchema } from "@/lib/validation";
 import type { ActionState } from "@/app/(app)/shifts/actions";
+import { after } from "next/server";
+import { sendElementEvent } from "@/lib/elements";
+import { carerPerson } from "@/lib/elements-sync";
 
 export async function createStaffAction(
   _prev: ActionState,
@@ -47,7 +50,7 @@ export async function createStaffAction(
 
   const data = parsed.data;
 
-  await prisma.staffProfile.create({
+  const created = await prisma.staffProfile.create({
     data: {
       agencyId: user.agencyId,
       firstName: data.firstName,
@@ -78,6 +81,7 @@ export async function createStaffAction(
       status: "ACTIVE",
     },
   });
+  if (created.phone) after(() => sendElementEvent(user.agencyId, "GATEWAY", "platform.person.updated", carerPerson(created)));
 
   revalidatePath("/staff");
   revalidatePath("/dashboard");

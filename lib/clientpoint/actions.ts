@@ -5,6 +5,8 @@ import { agencyBankHolidays } from "@/lib/integrations/bank-holidays";
 import { revalidatePath } from "next/cache";
 import { resolveChargeRate, toRateCardEntry } from "@/lib/clients";
 import { validatePleasantLink } from "./pleasant-link";
+import { after } from "next/server";
+import { reportShiftCompleted } from "@/lib/elements-sync";
 
 /**
  * Server Action for a client signatory to sign off a timesheet via their Pleasant Link.
@@ -41,6 +43,7 @@ export async function signOffTimesheet(token: string, timesheetId: string) {
       },
     });
 
+    after(() => reportShiftCompleted(linkSession.agencyId, timesheetId));
     await prisma.agentLog.create({
       data: {
         agencyId: linkSession.agencyId,

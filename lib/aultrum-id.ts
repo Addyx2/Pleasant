@@ -53,11 +53,19 @@ export async function publicJwks(): Promise<{ keys: JWK[] }> {
 
 /** A short-lived JWT proving the request comes from Pleasant (private_key_jwt). */
 async function clientAssertion(audience: string): Promise<string> {
+  return signedAssertion(clientId(), audience);
+}
+
+/**
+ * A two-minute JWT signed with Pleasant's own key, for services that check it
+ * against /.well-known/jwks.json: Aultrum ID, and the Elements console.
+ */
+export async function signedAssertion(issuer: string, audience: string): Promise<string> {
   const key = await clientKey();
   return new SignJWT({})
     .setProtectedHeader({ alg: "RS256", kid: key.kid, typ: "JWT" })
-    .setIssuer(clientId())
-    .setSubject(clientId())
+    .setIssuer(issuer)
+    .setSubject(issuer)
     .setAudience(audience)
     .setIssuedAt()
     .setExpirationTime("2m")
