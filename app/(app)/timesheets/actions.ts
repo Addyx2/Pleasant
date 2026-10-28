@@ -42,6 +42,7 @@ export async function clockInFormAction(formData: FormData): Promise<void> {
   if (!shift || !shift.staffId || shift.timesheet) return;
   if (!mayAccessShift(user, shift.staffId)) return;
 
+  const location = readLocation(formData);
   const timesheet = await prisma.timesheet.create({
     data: {
       agencyId: user.agencyId,
@@ -50,6 +51,7 @@ export async function clockInFormAction(formData: FormData): Promise<void> {
       clockIn: new Date(),
       breakMins,
       status: "PENDING",
+      ...location,
     },
   });
 
@@ -58,6 +60,39 @@ export async function clockInFormAction(formData: FormData): Promise<void> {
 
   refreshTimesheetPaths();
   revalidatePath(`/shifts/${shiftId}`);
+}
+
+/** The phone's location sent with a clock-in, if the carer allowed it and it looks real. */
+function readLocation(formData: FormData): { clockInLat?: number; clockInLng?: number; clockInAccuracyM?: number } {
+  const lat = Number(formData.get("lat"));
+  const lng = Number(formData.get("lng"));
+  const accuracy = Number(formData.get("accuracy"));
+  if (!formData.get("lat") || !Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return {};
+  return { clockInLat: lat, clockInLng: lng, clockInAccuracyM: Number.isFinite(accuracy) ? Math.round(Math.min(accuracy, 100_000)) : undefined };
+}
+
+async function ownOpenTimesheet(formData: FormData) {
+  const user = await requireUser();
+  const timesheet = await prisma.timesheet.findFirst({
+    where: { id: String(formData.get("timesheetId") ?? ""), agencyId: user.agencyId, clockOut: null },
+  });
+  if (!timesheet || !mayAccessShift(user, timesheet.staffId)) return null;
+  return timesheet;
+}
+
+export async function startBreakAction(formData: FormData): Promise<void> {
+  const timesheet = await ownOpenTimesheet(formData);
+  if (!timesheet || timesheet.breakStartedAt) return;
+  await prisma.timesheet.update({ where: { id: timesheet.id }, data: { breakStartedAt: new Date() } });
+  revalidatePath("/workforce");
+}
+
+export async function endBreakAction(formData: FormData): Promise<void> {
+  const timesheet = await ownOpenTimesheet(formData);
+  if (!timesheet?.breakStartedAt) return;
+  const mins = Math.round((Date.now() - timesheet.breakStartedAt.getTime()) / 60000);
+  await prisma.timesheet.update({ where: { id: timesheet.id }, data: { breakStartedAt: null, breakTakenMins: { increment: Math.max(0, mins) } } });
+  revalidatePath("/workforce");
 }
 
 export async function clockOutAction(formData: FormData): Promise<void> {
@@ -71,14 +106,15 @@ export async function clockOutAction(formData: FormData): Promise<void> {
   if (!mayAccessShift(user, timesheet.staffId)) return;
 
   const clockOut = new Date();
-  const workedMins = Math.max(
-    0,
-    Math.round((clockOut.getTime() - timesheet.clockIn.getTime()) / 60000) - timesheet.breakMins,
-  );
+  // A break still running ends at clock-out. Breaks the carer tracked replace the planned one.
+  const running = timesheet.breakStartedAt ? Math.round((clockOut.getTime() - timesheet.breakStartedAt.getTime()) / 60000) : 0;
+  const taken = timesheet.breakTakenMins + Math.max(0, running);
+  const breakMins = taken > 0 ? taken : timesheet.breakMins;
+  const workedMins = Math.max(0, Math.round((clockOut.getTime() - timesheet.clockIn.getTime()) / 60000) - breakMins);
 
   await prisma.timesheet.update({
     where: { id: timesheet.id },
-    data: { clockOut, workedMins },
+    data: { clockOut, workedMins, breakMins, breakStartedAt: null, breakTakenMins: taken },
   });
 
   refreshTimesheetPaths();

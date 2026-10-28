@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 
+import { unavailableReason } from "@/lib/availability";
 import { prisma } from "@/lib/db";
 
 /**
@@ -20,7 +21,7 @@ export async function initiatePushbotTriage(shiftId: string, _requestedByUserId:
 
   // 2. Find Eligible Workforce (Supply Match)
   // Simple matching: Active staff matching the required role, belonging to the same agency.
-  const eligibleStaff = await prisma.staffProfile.findMany({
+  const candidates = await prisma.staffProfile.findMany({
     where: {
       agencyId: shift.agencyId,
       status: "ACTIVE",
@@ -32,6 +33,9 @@ export async function initiatePushbotTriage(shiftId: string, _requestedByUserId:
     },
     select: { id: true, firstName: true, phone: true },
   });
+  // The conflict shield: leave out anyone who has said they can't work then.
+  const available = await Promise.all(candidates.map(async (s) => ((await unavailableReason(shift.agencyId, s.id, shift.startAt, shift.endAt)) ? null : s)));
+  const eligibleStaff = available.filter((s): s is (typeof candidates)[number] => s !== null);
 
   // 3. Create the Pushbot Campaign Record
   const campaign = await prisma.pushbotCampaign.create({

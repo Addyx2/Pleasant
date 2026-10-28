@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { requireOps } from "@/lib/auth";
+import { unavailableReason } from "@/lib/availability";
 import { prisma } from "@/lib/db";
 import { getBankHolidays } from "@/lib/integrations/bank-holidays";
 import { initiatePushbotTriage } from "@/lib/pushbots/triage";
@@ -58,6 +60,10 @@ export async function createShiftAction(
   }
   if (site && client && site.clientId && site.clientId !== client.id) {
     return { error: `${site.name} belongs to a different client` };
+  }
+  if (staff) {
+    const unavailable = await unavailableReason(user.agencyId, staff.id, data.startAt, data.endAt);
+    if (unavailable) return { error: `${unavailable} Leave the shift open, or choose someone else.` };
   }
 
   const rateCard = client?.rates.map(toRateCardEntry) ?? [];
@@ -116,10 +122,14 @@ export async function assignShiftFormAction(formData: FormData): Promise<void> {
 
   if (!shiftId || !staffId) return;
 
-  const staff = await prisma.staffProfile.findFirst({
-    where: { id: staffId, agencyId: user.agencyId },
-  });
-  if (!staff) return;
+  const [staff, shift] = await Promise.all([
+    prisma.staffProfile.findFirst({ where: { id: staffId, agencyId: user.agencyId } }),
+    prisma.shift.findFirst({ where: { id: shiftId, agencyId: user.agencyId }, select: { startAt: true, endAt: true } }),
+  ]);
+  if (!staff || !shift) return;
+  // The conflict shield: never book a carer when they've said they can't work.
+  const unavailable = await unavailableReason(user.agencyId, staff.id, shift.startAt, shift.endAt);
+  if (unavailable) redirect(`/shifts/${shiftId}?unavailable=${encodeURIComponent(unavailable)}`);
 
   await prisma.shift.updateMany({
     where: { id: shiftId, agencyId: user.agencyId },
