@@ -163,6 +163,9 @@ export async function saveClientAuthAction(formData: FormData): Promise<void> {
     where: { id: parsed.data.timesheetId, agencyId: user.agencyId },
   });
   if (!timesheet) return;
+  // Only the carer who worked the shift (or office staff) can collect the client's signature.
+  if (!mayAccessShift(user, timesheet.staffId)) return;
+  if (!timesheet.clockOut || timesheet.clientAuthAt) return;
 
   await prisma.timesheet.update({
     where: { id: timesheet.id },
