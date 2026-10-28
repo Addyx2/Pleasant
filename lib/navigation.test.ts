@@ -38,7 +38,7 @@ test("sections have unique keys and icons, and features are listed as text", () 
   assert.equal(new Set(keys).size, keys.length);
   assert.deepEqual(
     sections.map((s) => s.title),
-    ["Shifts", "People", "Clientpointe", "Finance"],
+    ["Shifts", "People", "Supply", "Finance"],
   );
   for (const s of sections) {
     assert.ok(s.icon, `${s.title} has no icon`);

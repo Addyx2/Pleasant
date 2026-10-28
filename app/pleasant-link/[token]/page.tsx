@@ -1,4 +1,4 @@
-import { Building2, Clock, FileText, Receipt, ShieldCheck, UserPlus, CreditCard } from "lucide-react";
+import { Building2, Clock, FileText, Receipt, ShieldCheck, UserPlus } from "lucide-react";
 import { endOfDay, startOfDay } from "date-fns";
 
 import { prisma } from "@/lib/db";
@@ -62,7 +62,8 @@ export default async function SupplyPortalPage({ params }: { params: Promise<{ t
     }),
     prisma.clientRate.findMany({ where: { clientId: client.id }, select: { role: true }, orderBy: { role: "asc" } }),
     prisma.invoice.findMany({
-      where: { agencyId: agency.id, clientId: client.id },
+      // Drafts are still being prepared by the agency, so the client doesn't see them.
+      where: { agencyId: agency.id, clientId: client.id, status: { not: "DRAFT" } },
       orderBy: { createdAt: "desc" },
       take: 5,
     }),
@@ -91,7 +92,7 @@ export default async function SupplyPortalPage({ params }: { params: Promise<{ t
             </div>
           </div>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-            <ShieldCheck className="h-3.5 w-3.5" /> Pleasant Link Verified
+            <ShieldCheck className="h-3.5 w-3.5" /> Secure link
           </span>
         </div>
       </header>
@@ -226,7 +227,7 @@ export default async function SupplyPortalPage({ params }: { params: Promise<{ t
           </div>
           <div className="p-5">
             {invoices.length === 0 ? (
-              <p className="text-sm text-slate-500">No invoices generated yet for this facility.</p>
+              <p className="text-sm text-slate-500">No invoices yet.</p>
             ) : (
               <ul className="divide-y divide-slate-100">
                 {invoices.map((inv) => (
@@ -244,14 +245,6 @@ export default async function SupplyPortalPage({ params }: { params: Promise<{ t
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="font-bold text-slate-900 text-sm">{formatCurrency(Number(inv.grandTotal))}</span>
-                      <a
-                        href={`/invoice/${inv.id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs font-semibold text-brand-600 hover:text-brand-800 border border-slate-200 rounded-lg px-2.5 py-1"
-                      >
-                        View
-                      </a>
                     </div>
                   </li>
                 ))}
@@ -286,7 +279,7 @@ export default async function SupplyPortalPage({ params }: { params: Promise<{ t
       </main>
 
       <footer className="py-6 text-center text-xs text-slate-400">
-        Supply Platform • Powered by Pleasant & Aultrum — {agency.name}. This link is secure and encrypted.
+        Powered by Pleasant for {agency.name}. This link expires 24 hours after it was sent.
       </footer>
     </div>
   );

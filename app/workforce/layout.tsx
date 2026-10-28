@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth";
@@ -36,19 +37,16 @@ export default async function WorkforceLayout({ children }: { children: React.Re
                 <p className="font-display text-[15px] font-bold tracking-tight text-slate-900">
                   Aultrum
                 </p>
-                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-brand-50 text-brand-700">
-                  Passport
-                </span>
               </div>
               <p className="text-[11px] text-slate-500">
                 {user.firstName} · {user.staff?.jobTitle ?? "Care Professional"}
               </p>
             </div>
           </div>
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-700 border border-slate-200">
+          <Link href="/workforce/profile" aria-label="Your profile" className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-700 border border-slate-200">
             {user.firstName[0]}
             {user.lastName?.[0] ?? ""}
-          </span>
+          </Link>
         </div>
       </header>
 

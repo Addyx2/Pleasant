@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Zap, CalendarRange, Sparkles, ShieldCheck } from "lucide-react";
+import { CalendarDays, CalendarRange, ShieldCheck, Sparkles, Zap } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -16,11 +16,13 @@ const TABS = [
 
 export function WorkforceNav({ peak = false }: { peak?: boolean }) {
   const pathname = usePathname();
+  // Peak only appears once the agency has switched it on.
+  const tabs = peak ? TABS : TABS.filter((t) => t.href !== "/workforce/peak");
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur-md">
       <div className="mx-auto flex w-full max-w-md items-stretch">
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const active = pathname === tab.href || (tab.href !== "/workforce" && pathname.startsWith(tab.href));
           return (
             <Link

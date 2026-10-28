@@ -1,95 +1,81 @@
-import React from "react";
-import { ShieldCheck, CheckCircle2, Clock, Award, FileText, UserCheck, Share2 } from "lucide-react";
+import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 
-export const metadata = {
-  title: "Care Passport",
+import { requireUser } from "@/lib/auth";
+import { expiryLabel, expiryState, type ExpiryState } from "@/lib/compliance";
+import { prisma } from "@/lib/db";
+
+export const metadata = { title: "Passport" };
+export const dynamic = "force-dynamic";
+
+const STATE: Record<ExpiryState, { label: string; tone: string }> = {
+  OK: { label: "Up to date", tone: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  DUE_SOON: { label: "Renew soon", tone: "bg-amber-50 text-amber-800 border-amber-200" },
+  EXPIRED: { label: "Expired", tone: "bg-red-50 text-red-700 border-red-200" },
+  MISSING: { label: "Not recorded", tone: "bg-slate-50 text-slate-600 border-slate-200" },
 };
 
-export default function WorkforcePassportPage() {
-  const credentials = [
-    { title: "Enhanced DBS Check", detail: "Registered with Update Service", status: "VERIFIED", expires: "Active" },
-    { title: "Right to Work (UK)", detail: "Verified Share Code", status: "VERIFIED", expires: "Settled Status" },
-    { title: "Moving & Handling of People", detail: "Practical & Theory Refresher", status: "VERIFIED", expires: "Expires in 8 mos" },
-    { title: "Safeguarding Adults (Level 3)", detail: "CQC Mandatory Standard", status: "VERIFIED", expires: "Expires in 11 mos" },
-    { title: "Basic Life Support & First Aid", detail: "Practical Resuscitation", status: "ACTION_REQUIRED", expires: "Renewal due in 28 days" },
+/** The carer's checks and training, exactly as their agency has recorded them. */
+export default async function WorkforcePassportPage() {
+  const user = await requireUser();
+  const profile = user.staff
+    ? await prisma.staffProfile.findUnique({
+        where: { id: user.staff.id },
+        include: { rightToWork: true, trainingRecords: { orderBy: { expiryDate: "asc" } } },
+      })
+    : null;
+  if (!profile) {
+    return <div className="rounded-3xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-600">No carer profile linked yet.</div>;
+  }
+
+  const now = new Date();
+  const rtw = profile.rightToWork;
+  const rows = [
+    { title: "DBS check", detail: profile.dbsNumber ? `Certificate ${profile.dbsNumber}` : null, state: expiryState(profile.dbsExpiry, now), when: expiryLabel(profile.dbsExpiry, now) },
+    {
+      title: "Right to work",
+      detail: rtw ? `${rtw.documentType.replace(/_/g, " ").toLowerCase()}${rtw.status === "VERIFIED" ? ", checked by your agency" : ""}` : null,
+      state: rtw ? expiryState(rtw.expiryDate, now) : ("MISSING" as const),
+      when: rtw ? (rtw.expiryDate ? expiryLabel(rtw.expiryDate, now) : "No expiry recorded") : "Not recorded",
+    },
+    ...profile.trainingRecords.map((t) => ({
+      title: t.courseName,
+      detail: t.provider,
+      state: t.completedAt ? expiryState(t.expiryDate, now) : ("MISSING" as const),
+      when: t.completedAt ? expiryLabel(t.expiryDate, now) : "Not completed yet",
+    })),
   ];
+  const needAction = rows.filter((r) => r.state !== "OK").length;
 
   return (
-    <div className="space-y-5 pb-8 font-sans">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-1.5">
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">Care Passport</h1>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-              CQC Verified
-            </span>
-          </div>
-          <p className="text-xs text-slate-500">Universal portable compliance & career identity</p>
-        </div>
-        <button className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50">
-          <Share2 className="h-3.5 w-3.5" /> Share
-        </button>
+    <div className="space-y-5 pb-8">
+      <div>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">Passport</h1>
+        <p className="text-xs text-slate-500">Your checks and training, as {user.agency.name} has recorded them.</p>
       </div>
 
-      {/* Verified Status Banner */}
-      <div className="rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 p-5 text-white shadow-sm flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-1.5">
-            <ShieldCheck className="h-5 w-5 text-emerald-200" />
-            <span className="font-bold text-sm tracking-tight">Passport Status: 100% Compliant</span>
-          </div>
-          <p className="text-xs text-emerald-100 mt-1">Pre-cleared for agency & care home shifts across the UK network.</p>
-        </div>
-        <Award className="h-10 w-10 text-emerald-300/40 shrink-0" />
+      <div className={`flex items-center gap-3 rounded-2xl border p-4 ${needAction === 0 ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+        <ShieldCheck className="h-6 w-6 shrink-0" />
+        <p className="text-sm font-semibold">
+          {needAction === 0 ? "Everything is up to date." : `${needAction} item${needAction === 1 ? " needs" : "s need"} attention. Speak to ${user.agency.name} to update ${needAction === 1 ? "it" : "them"}.`}
+        </p>
       </div>
 
-      {/* Compliance Matrix */}
-      <div className="space-y-3">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">Verified Credentials</h2>
-        <div className="space-y-2">
-          {credentials.map((c, i) => (
-            <div key={i} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="font-bold text-slate-900 text-xs">{c.title}</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">{c.detail}</p>
-                  <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
-                    <Clock className="h-3 w-3" /> {c.expires}
-                  </p>
-                </div>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    c.status === "VERIFIED"
-                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                      : "bg-amber-50 text-amber-800 border border-amber-200"
-                  }`}
-                >
-                  {c.status === "VERIFIED" ? "Verified ✓" : "Renew Soon"}
-                </span>
-              </div>
+      <ul className="space-y-2">
+        {rows.map((r) => (
+          <li key={r.title} className="flex items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-900">{r.title}</p>
+              {r.detail ? <p className="mt-0.5 text-xs text-slate-500">{r.detail}</p> : null}
+              <p className="mt-1 text-xs text-slate-500">{r.when}</p>
             </div>
-          ))}
-        </div>
-      </div>
+            <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${STATE[r.state].tone}`}>{STATE[r.state].label}</span>
+          </li>
+        ))}
+      </ul>
+      {profile.trainingRecords.length === 0 ? <p className="text-xs text-slate-500">No training recorded yet.</p> : null}
 
-      {/* Verified References */}
-      <div className="space-y-3">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">Verified Employer References</h2>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-2">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 text-xs">
-              <UserCheck className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="font-bold text-slate-900 text-xs">Sister Margaret O'Connor</p>
-              <p className="text-[11px] text-slate-500">Clinical Lead · St. Andrew's Care Home</p>
-            </div>
-          </div>
-          <p className="text-xs text-slate-600 italic bg-slate-50 p-2.5 rounded-xl border border-slate-100 mt-2">
-            "Extremely reliable, gentle with complex dementia residents, and always punctual."
-          </p>
-        </div>
-      </div>
+      <Link href="/workforce/profile" className="block rounded-2xl border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-800">Your profile, pay rates and sign out →</Link>
     </div>
   );
 }

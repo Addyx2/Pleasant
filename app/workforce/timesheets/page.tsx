@@ -58,7 +58,7 @@ export default async function WorkforceTimesheetsPage() {
             <p className="text-sm text-slate-600">No timesheets yet — clock in on a shift to get started.</p>
           </div>
         ) : (
-          all.map((ts) => <TimesheetRow key={ts.id} timesheet={ts as any} />)
+          all.map((ts) => <TimesheetRow key={ts.id} timesheet={ts} />)
         )}
       </section>
 
