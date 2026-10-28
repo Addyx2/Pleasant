@@ -4,44 +4,17 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { requestShift } from "@/lib/carer/work";
 
 export async function requestShiftAction(formData: FormData): Promise<void> {
   const user = await requireUser();
   const staffId = user.staff?.id;
   if (user.role !== "STAFF" || !staffId) redirect("/workforce");
 
-  const shiftId = String(formData.get("shiftId") ?? "");
-  const message = String(formData.get("message") ?? "").trim().slice(0, 300) || null;
   // Keep the carer's filter after they ask for a shift.
   const show = /^[a-z]{1,12}$/.test(String(formData.get("show") ?? "")) ? `&show=${formData.get("show")}` : "";
-
-  const shift = await prisma.shift.findFirst({
-    where: { id: shiftId, agencyId: user.agencyId, status: "OPEN", staffId: null },
-    select: { id: true, startAt: true, endAt: true },
-  });
-  if (!shift) redirect(`/workforce/open-shifts?result=gone${show}`);
-
-  // Conflict guard: never let the carer request a shift that clashes with
-  // an existing live shift (assigned or in progress).
-  const clash = await prisma.shift.findFirst({
-    where: {
-      agencyId: user.agencyId,
-      staffId,
-      status: { notIn: ["CANCELLED", "COMPLETED"] },
-      startAt: { lt: shift.endAt },
-      endAt: { gt: shift.startAt },
-    },
-    select: { id: true },
-  });
-  if (clash) redirect(`/workforce/open-shifts?result=overlap${show}`);
-
-  await prisma.shiftRequest.upsert({
-    where: { shiftId_staffId: { shiftId, staffId } },
-    create: { agencyId: user.agencyId, shiftId, staffId, message },
-    update: { status: "PENDING", message },
-  });
+  const outcome = await requestShift(user.agencyId, staffId, String(formData.get("shiftId") ?? ""), String(formData.get("message") ?? ""));
 
   revalidatePath("/workforce/open-shifts");
-  redirect(`/workforce/open-shifts?result=requested${show}`);
+  redirect(`/workforce/open-shifts?result=${outcome}${show}`);
 }
