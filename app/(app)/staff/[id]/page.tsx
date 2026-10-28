@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Plus } from "lucide-react";
+import { startOfDay } from "date-fns";
 
 import { requireOps } from "@/lib/auth";
+import { WEEKDAY_NAMES } from "@/lib/availability-names";
 import { prisma } from "@/lib/db";
 import { isValidBankDetails } from "@/lib/payroll/bacs";
 import { expiryLabel, expiryState } from "@/lib/compliance";
@@ -31,7 +33,11 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
 
   const member = await prisma.staffProfile.findFirst({
     where: { id, agencyId: user.agencyId },
-    include: { rightToWork: true, trainingRecords: { orderBy: { expiryDate: "asc" } } },
+    include: {
+      rightToWork: true,
+      trainingRecords: { orderBy: { expiryDate: "asc" } },
+      unavailability: { where: { endsOn: { gte: startOfDay(now) } }, orderBy: { startsOn: "asc" } },
+    },
   });
 
   if (!member) notFound();
@@ -268,6 +274,25 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
           </form>
         </Card>
       </div>
+
+      <Card className="p-5">
+        <h2 className="text-sm font-semibold text-slate-900">When {member.firstName} can&apos;t work</h2>
+        <p className="mt-1 text-xs text-slate-500">Set by {member.firstName} in the carer app. Shifts can&apos;t be assigned or offered at these times.</p>
+        {member.unavailability.length === 0 ? (
+          <p className="mt-3 text-sm text-slate-500">Nothing set.</p>
+        ) : (
+          <ul className="mt-3 divide-y divide-slate-100 text-sm">
+            {member.unavailability.map((u) => (
+              <li key={u.id} className="flex justify-between gap-3 py-2">
+                <span className="text-slate-800">
+                  {u.weekday ? `Every ${WEEKDAY_NAMES[u.weekday - 1]} until ${formatDate(u.endsOn)}` : `${formatDate(u.startsOn)} – ${formatDate(u.endsOn)}`}
+                </span>
+                <span className="text-slate-500">{u.reason ?? ""}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       <Card className="p-5">
         <h2 className="text-sm font-semibold text-slate-900">Summary</h2>

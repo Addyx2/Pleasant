@@ -90,21 +90,21 @@ enum PayBasis {
 }
 
 model Agency {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  phone       String?
-  email       String?
-  address     String?
-  postcode    String?
-  payrollRef  String? // HMRC PAYE reference, e.g. 123/AB456
-  companyNo   String? // Companies House number, printed on invoices
-  vatNumber   String? // VAT registration number, printed on invoices
+  id           String  @id @default(cuid())
+  name         String
+  slug         String  @unique
+  phone        String?
+  email        String?
+  address      String?
+  postcode     String?
+  payrollRef   String? // HMRC PAYE reference, e.g. 123/AB456
+  companyNo    String? // Companies House number, printed on invoices
+  vatNumber    String? // VAT registration number, printed on invoices
   invoiceEmail String? // default from-address for outgoing invoices
 
   // BACS originator identity, used on the STD18 payment file.
-  bankSortCode   String?
-  bankAccount    String?
+  bankSortCode    String?
+  bankAccount     String?
   bankAccountName String?
 
   // Pay cycle (Local Care Force style: weekly, Monday 4pm cutoff, Friday pay).
@@ -114,47 +114,47 @@ model Agency {
   payWeekday    Int    @default(5) // 5 = Friday
   roundingMins  Int    @default(15) // hours rounded to nearest quarter hour
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  users       User[]
-  staff       StaffProfile[]
-  clients     Client[]
-  sites       Site[]
-  shifts      Shift[]
-  timesheets  Timesheet[]
-  payrollRuns PayrollRun[]
+  users         User[]
+  staff         StaffProfile[]
+  clients       Client[]
+  sites         Site[]
+  shifts        Shift[]
+  timesheets    Timesheet[]
+  payrollRuns   PayrollRun[]
   shiftRequests ShiftRequest[]
 
-  shiftComments ShiftComment[]
-  staffDocuments StaffDocument[]
-  pushLogs PushMessageLog[]
+  shiftComments      ShiftComment[]
+  staffDocuments     StaffDocument[]
+  pushLogs           PushMessageLog[]
   pleasantLinkTokens PleasantLinkToken[]
-  clientComplaints ClientComplaint[]
-  confidenceRatings ClientConfidenceRating[]
-  agentTasks AgentTask[]
-  agentLogs AgentLog[]
-  pushbotCampaigns PushbotCampaign[]
-  rightToWorks RightToWork[]
-  trainingRecords TrainingRecord[]
-  onboardingForms OnboardingForm[]
+  clientComplaints   ClientComplaint[]
+  confidenceRatings  ClientConfidenceRating[]
+  agentTasks         AgentTask[]
+  agentLogs          AgentLog[]
+  pushbotCampaigns   PushbotCampaign[]
+  rightToWorks       RightToWork[]
+  trainingRecords    TrainingRecord[]
+  onboardingForms    OnboardingForm[]
 
-  invoices    Invoice[]
-  rotaTemplates RotaTemplate[]
-  shiftOffers   ShiftOffer[]
-  importSessions ImportSession[]
-  agencyAddons   AgencyAddon[]
-  elementsEvents ElementsEvent[]
-  payAdditions   PayAddition[]
-  auditEvents    AuditEvent[]
-  clientContacts ClientContact[]
-  clientRates    ClientRate[]
+  invoices            Invoice[]
+  rotaTemplates       RotaTemplate[]
+  shiftOffers         ShiftOffer[]
+  importSessions      ImportSession[]
+  agencyAddons        AgencyAddon[]
+  elementsEvents      ElementsEvent[]
+  payAdditions        PayAddition[]
+  auditEvents         AuditEvent[]
+  clientContacts      ClientContact[]
+  clientRates         ClientRate[]
   assistConversations AssistConversation[]
   assistAutomations   AssistAutomation[]
 
   // Assist access policy: tool groups switched off for this agency, as
   // "<group>:read" or "<group>:write" (e.g. "payroll:write").
-  assistDisabled String[] @default([])
+  assistDisabled      String[]      @default([])
   // Monthly Assist spend cap in US dollars (what the AI provider bills in).
   // Null uses ASSIST_MONTHLY_CAP_USD. Set by Pleasant, not by the agency.
   assistMonthlyCapUsd Int?
@@ -167,41 +167,42 @@ model Agency {
   integrations    Integration[]
   integrationLogs IntegrationLog[]
   smsMessages     SmsMessage[]
+  unavailability  StaffUnavailability[]
 }
 
 model User {
-  id           String   @id @default(cuid())
-  agencyId     String
-  email        String   @unique
-  passwordHash String
-  firstName    String
-  lastName     String
-  role         Role     @default(MANAGER)
-  lastLoginAt  DateTime?
+  id               String    @id @default(cuid())
+  agencyId         String
+  email            String    @unique
+  passwordHash     String
+  firstName        String
+  lastName         String
+  role             Role      @default(MANAGER)
+  lastLoginAt      DateTime?
   // Bumped to revoke every outstanding session (password change, role change,
   // removal, "sign out everywhere"). Embedded in the signed session token.
-  sessionVersion Int     @default(0)
+  sessionVersion   Int       @default(0)
   // Brute-force throttling: consecutive failed sign-ins and the lockout window.
-  failedLoginCount Int   @default(0)
-  lockedUntil  DateTime?
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
   // Null while active; set when an admin removes the user's access.
-  deactivatedAt DateTime?
+  deactivatedAt    DateTime?
   // Their Aultrum ID ("sub"), once they've linked it by confirming their password.
   // One user per Aultrum ID is enforced when linking (lib/aultrum-signin.ts).
-  aultrumSub   String?
-  resetTokenHash String?
-  resetTokenExpAt DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  aultrumSub       String?
+  resetTokenHash   String?
+  resetTokenExpAt  DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  agency    Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  staff     StaffProfile?
-  approved  Timesheet[]   @relation("TimesheetApprover")
-  createdShifts Shift[]   @relation("ShiftCreator")
-  shiftComments ShiftComment[]
-  verifiedRightToWork RightToWork[] @relation("RightToWorkVerifier")
-  reviewedForms OnboardingForm[] @relation("FormReviewer")
-  auditEvents AuditEvent[]
+  agency              Agency               @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  staff               StaffProfile?
+  approved            Timesheet[]          @relation("TimesheetApprover")
+  createdShifts       Shift[]              @relation("ShiftCreator")
+  shiftComments       ShiftComment[]
+  verifiedRightToWork RightToWork[]        @relation("RightToWorkVerifier")
+  reviewedForms       OnboardingForm[]     @relation("FormReviewer")
+  auditEvents         AuditEvent[]
   assistConversations AssistConversation[]
   assistAutomations   AssistAutomation[]
 
@@ -209,37 +210,37 @@ model User {
 }
 
 model StaffProfile {
-  id          String      @id @default(cuid())
-  agencyId    String
-  userId      String?     @unique
-  firstName   String
-  lastName    String
-  email       String?
-  phone       String?
-  jobTitle    String // e.g. "Care Assistant", "Registered Nurse", "Support Worker"
-  band        String? // e.g. "Band 3", "Senior"
-  status      StaffStatus @default(ACTIVE)
+  id        String      @id @default(cuid())
+  agencyId  String
+  userId    String?     @unique
+  firstName String
+  lastName  String
+  email     String?
+  phone     String?
+  jobTitle  String // e.g. "Care Assistant", "Registered Nurse", "Support Worker"
+  band      String? // e.g. "Band 3", "Senior"
+  status    StaffStatus @default(ACTIVE)
 
   // Engagement — PAYE workers go through payroll; Ltd workers are paid gross.
   engagementType String  @default("PAYE") // PAYE | LTD
   ltdCompanyName String?
 
   // Payroll identity
-  niNumber         String? // stored encrypted-at-rest by the database in production
-  taxCode          String  @default("1257L")
-  studentLoanPlan  String? // NONE | PLAN_1 | PLAN_2 | PLAN_4 | PLAN_5 | POSTGRAD
-  payBasis         PayBasis @default(HOURLY)
+  niNumber        String? // stored encrypted-at-rest by the database in production
+  taxCode         String   @default("1257L")
+  studentLoanPlan String? // NONE | PLAN_1 | PLAN_2 | PLAN_4 | PLAN_5 | POSTGRAD
+  payBasis        PayBasis @default(HOURLY)
 
   // Rates (GBP)
-  baseRate         Decimal  @db.Decimal(8, 2) @default(0)
-  nightRate        Decimal? @db.Decimal(8, 2)
-  weekendRate      Decimal? @db.Decimal(8, 2)
-  bankHolidayRate  Decimal? @db.Decimal(8, 2)
-  holidayAccrualPct Decimal @db.Decimal(5, 2) @default(12.07)
+  baseRate          Decimal  @default(0) @db.Decimal(8, 2)
+  nightRate         Decimal? @db.Decimal(8, 2)
+  weekendRate       Decimal? @db.Decimal(8, 2)
+  bankHolidayRate   Decimal? @db.Decimal(8, 2)
+  holidayAccrualPct Decimal  @default(12.07) @db.Decimal(5, 2)
 
-  pensionEnrolled  Boolean  @default(true)
-  pensionEmployeePct Decimal @db.Decimal(4, 2) @default(5)
-  pensionEmployerPct Decimal @db.Decimal(4, 2) @default(3)
+  pensionEnrolled    Boolean @default(true)
+  pensionEmployeePct Decimal @default(5) @db.Decimal(4, 2)
+  pensionEmployerPct Decimal @default(3) @db.Decimal(4, 2)
 
   // Bank details (BACS payment files)
   bankName    String?
@@ -251,32 +252,33 @@ model StaffProfile {
   dbsNumber String?
   dbsExpiry DateTime?
 
-  startDate   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  startDate DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  agency     Agency      @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-  shifts     Shift[]
-  timesheets Timesheet[]
-  payslips   Payslip[]
+  agency        Agency         @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  shifts        Shift[]
+  timesheets    Timesheet[]
+  payslips      Payslip[]
   shiftRequests ShiftRequest[]
 
-  shiftComments ShiftComment[]
-  documents     StaffDocument[]
-  pushLogs      PushMessageLog[]
-  complaints    ClientComplaint[]
-  claimedCampaigns PushbotCampaign[]
-  rightToWork   RightToWork?
-  trainingRecords TrainingRecord[]
-  onboardingForms OnboardingForm[]
-  shiftOffers    ShiftOffer[]
+  shiftComments     ShiftComment[]
+  documents         StaffDocument[]
+  pushLogs          PushMessageLog[]
+  complaints        ClientComplaint[]
+  claimedCampaigns  PushbotCampaign[]
+  rightToWork       RightToWork?
+  trainingRecords   TrainingRecord[]
+  onboardingForms   OnboardingForm[]
+  shiftOffers       ShiftOffer[]
   rotaTemplateLines RotaTemplateLine[]
 
   invoiceLines InvoiceLine[]
 
+  payAdditions   PayAddition[]
+  unavailability StaffUnavailability[]
 
-  payAdditions PayAddition[]
   @@index([agencyId, status])
 }
 
@@ -405,26 +407,26 @@ model Site {
 }
 
 model Shift {
-  id              String  @id @default(cuid())
-  agencyId        String
-  clientId        String?
-  siteId          String?
-  staffId         String?
-  createdById     String?
-  rotaTemplateId  String?
+  id             String  @id @default(cuid())
+  agencyId       String
+  clientId       String?
+  siteId         String?
+  staffId        String?
+  createdById    String?
+  rotaTemplateId String?
 
   title     String // e.g. "Morning care call", "Night shift — Ward 4"
   role      String // required role for the shift
   startAt   DateTime
   endAt     DateTime
-  breakMins Int         @default(0)
+  breakMins Int      @default(0)
 
   // Charge-out rate to the client (agency revenue). Pay comes from the staff profile.
-  chargeRate Decimal @db.Decimal(8, 2) @default(0)
+  chargeRate Decimal @default(0) @db.Decimal(8, 2)
 
   // Sleep-in shifts are paid a flat allowance rather than an hourly rate.
-  isSleepIn    Boolean @default(false)
-  sleepInRate  Decimal @db.Decimal(8, 2) @default(0)
+  isSleepIn     Boolean  @default(false)
+  sleepInRate   Decimal  @default(0) @db.Decimal(8, 2)
   // What the client is charged for a sleep-in. Null bills the carer allowance.
   sleepInCharge Decimal? @db.Decimal(8, 2)
 
@@ -456,11 +458,11 @@ model Shift {
 }
 
 model ShiftRequest {
-  id        String   @id @default(cuid())
-  agencyId  String
-  shiftId   String
-  staffId   String
-  message   String?
+  id       String  @id @default(cuid())
+  agencyId String
+  shiftId  String
+  staffId  String
+  message  String?
 
   status    ShiftRequestStatus @default(PENDING)
   createdAt DateTime           @default(now())
@@ -476,23 +478,33 @@ model ShiftRequest {
 }
 
 model Timesheet {
-  id        String          @id @default(cuid())
-  agencyId  String
-  shiftId   String          @unique
-  staffId   String
+  id       String @id @default(cuid())
+  agencyId String
+  shiftId  String @unique
+  staffId  String
 
-  clockIn   DateTime
-  clockOut  DateTime?
-  breakMins Int             @default(0)
-  workedMins Int            @default(0)
+  clockIn    DateTime
+  clockOut   DateTime?
+  breakMins  Int       @default(0)
+  workedMins Int       @default(0)
 
-  status      TimesheetStatus @default(PENDING)
+  // Where the phone was at clock-in, if the carer allowed location. Recorded
+  // as evidence of attendance; not compared with the site's address.
+  clockInLat       Float?
+  clockInLng       Float?
+  clockInAccuracyM Int?
+  // Breaks the carer actually took, tracked from the app. When any are
+  // tracked, they replace the planned break at clock-out.
+  breakStartedAt   DateTime?
+  breakTakenMins   Int       @default(0)
+
+  status       TimesheetStatus @default(PENDING)
   approvedById String?
   approvedAt   DateTime?
   notes        String?
 
   // Expenses claimed on this timesheet (mileage/travel — non-taxable).
-  expenses     Decimal @db.Decimal(10, 2) @default(0)
+  expenses     Decimal @default(0) @db.Decimal(10, 2)
   expenseNotes String?
 
   // Candidate (carer) e-signature signing off the hours.
@@ -504,13 +516,13 @@ model Timesheet {
   clientAuthPosition  String?
   clientAuthAt        DateTime?
   clientAuthSignature String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  agency   Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  shift    Shift         @relation(fields: [shiftId], references: [id], onDelete: Cascade)
-  staff    StaffProfile  @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  approvedBy User?       @relation("TimesheetApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  agency       Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  shift        Shift         @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  staff        StaffProfile  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  approvedBy   User?         @relation("TimesheetApprover", fields: [approvedById], references: [id], onDelete: SetNull)
   invoiceLines InvoiceLine[]
 
   @@index([agencyId, status])
@@ -518,28 +530,28 @@ model Timesheet {
 }
 
 model PayrollRun {
-  id         String        @id @default(cuid())
-  agencyId   String
-  reference  String // e.g. "2026-09-M1"
+  id          String        @id @default(cuid())
+  agencyId    String
+  reference   String // e.g. "2026-09-M1"
   periodStart DateTime
   periodEnd   DateTime
   payDate     DateTime
   taxYear     String // e.g. "2026/27"
   status      PayrollStatus @default(DRAFT)
 
-  grossTotal   Decimal @db.Decimal(12, 2) @default(0)
-  payeTotal    Decimal @db.Decimal(12, 2) @default(0)
-  niTotal      Decimal @db.Decimal(12, 2) @default(0)
-  pensionTotal Decimal @db.Decimal(12, 2) @default(0)
-  netTotal     Decimal @db.Decimal(12, 2) @default(0)
-  employerNiTotal Decimal @db.Decimal(12, 2) @default(0)
+  grossTotal      Decimal @default(0) @db.Decimal(12, 2)
+  payeTotal       Decimal @default(0) @db.Decimal(12, 2)
+  niTotal         Decimal @default(0) @db.Decimal(12, 2)
+  pensionTotal    Decimal @default(0) @db.Decimal(12, 2)
+  netTotal        Decimal @default(0) @db.Decimal(12, 2)
+  employerNiTotal Decimal @default(0) @db.Decimal(12, 2)
 
-  notes      String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  agency   Agency    @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  payslips Payslip[]
+  agency       Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  payslips     Payslip[]
   payAdditions PayAddition[]
 
   @@unique([agencyId, reference])
@@ -547,30 +559,30 @@ model PayrollRun {
 }
 
 model Payslip {
-  id           String   @id @default(cuid())
-  payrollRunId String
-  staffId      String
-  timesheetHours Decimal @db.Decimal(8, 2) @default(0)
+  id             String  @id @default(cuid())
+  payrollRunId   String
+  staffId        String
+  timesheetHours Decimal @default(0) @db.Decimal(8, 2)
 
-  grossPay      Decimal @db.Decimal(12, 2) @default(0)
-  holidayPay    Decimal @db.Decimal(12, 2) @default(0)
-  expenses      Decimal @db.Decimal(12, 2) @default(0)
-  taxablePay    Decimal @db.Decimal(12, 2) @default(0)
-  paye          Decimal @db.Decimal(12, 2) @default(0)
-  niEmployee    Decimal @db.Decimal(12, 2) @default(0)
-  pensionEmployee Decimal @db.Decimal(12, 2) @default(0)
-  pensionEmployer Decimal @db.Decimal(12, 2) @default(0)
-  studentLoan   Decimal @db.Decimal(12, 2) @default(0)
-  otherDeductions Decimal @db.Decimal(12, 2) @default(0)
-  employerNi    Decimal @db.Decimal(12, 2) @default(0)
-  netPay        Decimal @db.Decimal(12, 2) @default(0)
+  grossPay        Decimal @default(0) @db.Decimal(12, 2)
+  holidayPay      Decimal @default(0) @db.Decimal(12, 2)
+  expenses        Decimal @default(0) @db.Decimal(12, 2)
+  taxablePay      Decimal @default(0) @db.Decimal(12, 2)
+  paye            Decimal @default(0) @db.Decimal(12, 2)
+  niEmployee      Decimal @default(0) @db.Decimal(12, 2)
+  pensionEmployee Decimal @default(0) @db.Decimal(12, 2)
+  pensionEmployer Decimal @default(0) @db.Decimal(12, 2)
+  studentLoan     Decimal @default(0) @db.Decimal(12, 2)
+  otherDeductions Decimal @default(0) @db.Decimal(12, 2)
+  employerNi      Decimal @default(0) @db.Decimal(12, 2)
+  netPay          Decimal @default(0) @db.Decimal(12, 2)
 
-  taxCode    String
-  niNumber   String?
-  createdAt  DateTime @default(now())
+  taxCode   String
+  niNumber  String?
+  createdAt DateTime @default(now())
 
-  payrollRun PayrollRun   @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
-  staff      StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  payrollRun PayrollRun    @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  staff      StaffProfile  @relation(fields: [staffId], references: [id], onDelete: Cascade)
   lines      PayslipLine[]
 
   @@unique([payrollRunId, staffId])
@@ -591,7 +603,6 @@ model PayslipLine {
 
   @@index([payslipId])
 }
-
 
 model ShiftComment {
   id        String   @id @default(cuid())
@@ -614,9 +625,9 @@ model StaffDocument {
   id          String    @id @default(cuid())
   agencyId    String
   staffId     String
-  title       String    // e.g. "Agency Term Sheet 2026", "Working Time Directive Opt-Out"
+  title       String // e.g. "Agency Term Sheet 2026", "Working Time Directive Opt-Out"
   documentUrl String?
-  signature   String?   // Base64 or digital signature token
+  signature   String? // Base64 or digital signature token
   signedAt    DateTime?
   status      String    @default("PENDING") // PENDING | SIGNED | EXPIRED
   createdAt   DateTime  @default(now())
@@ -632,35 +643,35 @@ model StaffDocument {
 // -----------------------------------------------------------------------------
 
 model RightToWork {
-  id              String   @id @default(cuid())
-  agencyId        String
-  staffId         String   @unique
-  documentType    String   // PASSPORT | BRP | SHARE_CODE | BIRTH_CERTIFICATE
-  documentNumber  String?
-  issueDate       DateTime?
-  expiryDate      DateTime?
-  verifiedAt      DateTime?
-  verifiedById    String?
-  documentUrl     String?
-  status          String   @default("PENDING") // PENDING | VERIFIED | EXPIRED | REJECTED
+  id             String    @id @default(cuid())
+  agencyId       String
+  staffId        String    @unique
+  documentType   String // PASSPORT | BRP | SHARE_CODE | BIRTH_CERTIFICATE
+  documentNumber String?
+  issueDate      DateTime?
+  expiryDate     DateTime?
+  verifiedAt     DateTime?
+  verifiedById   String?
+  documentUrl    String?
+  status         String    @default("PENDING") // PENDING | VERIFIED | EXPIRED | REJECTED
 
-  agency   Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  staff    StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  verifiedBy User?      @relation("RightToWorkVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  agency     Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  staff      StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  verifiedBy User?        @relation("RightToWorkVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
 
   @@index([agencyId, status])
 }
 
 model TrainingRecord {
-  id              String   @id @default(cuid())
-  agencyId        String
-  staffId         String
-  courseName      String   // e.g., "Manual Handling", "Basic Life Support"
-  provider        String?
-  completedAt     DateTime?
-  expiryDate      DateTime?
-  certificateUrl  String?
-  status          String   @default("PENDING") // PENDING | COMPLETED | EXPIRED
+  id             String    @id @default(cuid())
+  agencyId       String
+  staffId        String
+  courseName     String // e.g., "Manual Handling", "Basic Life Support"
+  provider       String?
+  completedAt    DateTime?
+  expiryDate     DateTime?
+  certificateUrl String?
+  status         String    @default("PENDING") // PENDING | COMPLETED | EXPIRED
 
   agency Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   staff  StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
@@ -669,15 +680,15 @@ model TrainingRecord {
 }
 
 model OnboardingForm {
-  id              String   @id @default(cuid())
-  agencyId        String
-  staffId         String
-  formType        String   // MEDICAL | BANKING | REFERENCE | GENERAL
-  payload         String?  // JSON data of the form answers
-  status          String   @default("PENDING") // PENDING | SUBMITTED | APPROVED | REJECTED
-  submittedAt     DateTime?
-  reviewedAt      DateTime?
-  reviewedById    String?
+  id           String    @id @default(cuid())
+  agencyId     String
+  staffId      String
+  formType     String // MEDICAL | BANKING | REFERENCE | GENERAL
+  payload      String? // JSON data of the form answers
+  status       String    @default("PENDING") // PENDING | SUBMITTED | APPROVED | REJECTED
+  submittedAt  DateTime?
+  reviewedAt   DateTime?
+  reviewedById String?
 
   agency     Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   staff      StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
@@ -686,18 +697,17 @@ model OnboardingForm {
   @@index([staffId, status])
 }
 
-
 model PushMessageLog {
-  id          String   @id @default(cuid())
-  agencyId    String
-  staffId     String
-  channel     String   // WHATSAPP | SMS | IMESSAGE
-  direction   String   // OUTBOUND | INBOUND
-  content     String
-  status      String   @default("SENT") // SENT | DELIVERED | READ | FAILED
-  aiAgentId   String?  // ID of the Push AI Agent handling the conversation
-  externalId  String?  // Twilio / Meta Message ID
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  agencyId   String
+  staffId    String
+  channel    String // WHATSAPP | SMS | IMESSAGE
+  direction  String // OUTBOUND | INBOUND
+  content    String
+  status     String   @default("SENT") // SENT | DELIVERED | READ | FAILED
+  aiAgentId  String? // ID of the Push AI Agent handling the conversation
+  externalId String? // Twilio / Meta Message ID
+  createdAt  DateTime @default(now())
 
   agency Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   staff  StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
@@ -733,7 +743,7 @@ model ClientComplaint {
   clientId    String
   shiftId     String?
   staffId     String?
-  category    String   // LATE_ARRIVAL | NO_SHOW | ATTITUDE | DRESS_CODE | GENERAL
+  category    String // LATE_ARRIVAL | NO_SHOW | ATTITUDE | DRESS_CODE | GENERAL
   description String
   severity    String   @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
   status      String   @default("OPEN") // OPEN | INVESTIGATING | RESOLVED | DISMISSED
@@ -749,14 +759,14 @@ model ClientComplaint {
 }
 
 model ClientConfidenceRating {
-  id              String   @id @default(cuid())
-  agencyId        String
-  clientId        String   @unique
-  score           Decimal  @db.Decimal(3, 2) @default(5.00) // 1.00 to 5.00
-  cancellationPct Decimal  @db.Decimal(5, 2) @default(0)
-  promptPaymentPct Decimal @db.Decimal(5, 2) @default(100.0)
-  siteSafetyScore Decimal  @db.Decimal(3, 2) @default(5.00)
-  updatedAt       DateTime @updatedAt
+  id               String   @id @default(cuid())
+  agencyId         String
+  clientId         String   @unique
+  score            Decimal  @default(5.00) @db.Decimal(3, 2) // 1.00 to 5.00
+  cancellationPct  Decimal  @default(0) @db.Decimal(5, 2)
+  promptPaymentPct Decimal  @default(100.0) @db.Decimal(5, 2)
+  siteSafetyScore  Decimal  @default(5.00) @db.Decimal(3, 2)
+  updatedAt        DateTime @updatedAt
 
   agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -767,15 +777,15 @@ model ClientConfidenceRating {
 // -----------------------------------------------------------------------------
 
 model AgentTask {
-  id          String   @id @default(cuid())
-  agencyId    String
-  agentType   String   // RUNNERS | CONSULT | PUSHBOTS
-  title       String
-  payload     String?  // JSON formatted parameters
-  status      String   @default("PENDING") // PENDING | RUNNING | COMPLETED | FAILED
-  assignedTo  String?  // User or Staff ID
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  agencyId   String
+  agentType  String // RUNNERS | CONSULT | PUSHBOTS
+  title      String
+  payload    String? // JSON formatted parameters
+  status     String   @default("PENDING") // PENDING | RUNNING | COMPLETED | FAILED
+  assignedTo String? // User or Staff ID
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
 
@@ -783,13 +793,13 @@ model AgentTask {
 }
 
 model AgentLog {
-  id          String   @id @default(cuid())
-  agencyId    String
-  agentName   String   // PUSHBOTS | CONSULT | RUNNERS
-  action      String   // e.g. "TRIAGE_SHIFT_UNATTENDED", "EXECUTE_RUNNER_TASK"
-  details     String   // Full log detail or JSON
-  status      String   @default("SUCCESS") // SUCCESS | WARNING | ERROR
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  agencyId  String
+  agentName String // PUSHBOTS | CONSULT | RUNNERS
+  action    String // e.g. "TRIAGE_SHIFT_UNATTENDED", "EXECUTE_RUNNER_TASK"
+  details   String // Full log detail or JSON
+  status    String   @default("SUCCESS") // SUCCESS | WARNING | ERROR
+  createdAt DateTime @default(now())
 
   agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
 
@@ -797,28 +807,26 @@ model AgentLog {
 }
 
 model PushbotCampaign {
-  id           String   @id @default(cuid())
-  agencyId     String
-  shiftId      String
-  targetRole   String
-  channel      String   @default("WHATSAPP") // WHATSAPP | SMS | SLACK
-  status       String   @default("RUNNING") // RUNNING | COMPLETED | EXPIRED | CANCELLED
-  offersSent   Int      @default(0)
-  claimedById  String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  agencyId    String
+  shiftId     String
+  targetRole  String
+  channel     String   @default("WHATSAPP") // WHATSAPP | SMS | SLACK
+  status      String   @default("RUNNING") // RUNNING | COMPLETED | EXPIRED | CANCELLED
+  offersSent  Int      @default(0)
+  claimedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  agency Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  shift  Shift         @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  agency    Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  shift     Shift         @relation(fields: [shiftId], references: [id], onDelete: Cascade)
   claimedBy StaffProfile? @relation(fields: [claimedById], references: [id], onDelete: SetNull)
 
   @@index([agencyId, status])
 }
 
-
-
 model Invoice {
-  id          String   @id @default(cuid())
+  id          String        @id @default(cuid())
   agencyId    String
   clientId    String
   reference   String
@@ -829,15 +837,15 @@ model Invoice {
   paidAt      DateTime?
   status      InvoiceStatus @default(DRAFT)
 
-  hoursTotal  Decimal @db.Decimal(10, 2) @default(0)
-  chargeTotal Decimal @db.Decimal(12, 2) @default(0)
-  payTotal    Decimal @db.Decimal(12, 2) @default(0)
-  marginTotal Decimal @db.Decimal(12, 2) @default(0)
-  vatRatePct  Decimal @db.Decimal(5, 2) @default(0)
-  vatTotal    Decimal @db.Decimal(12, 2) @default(0)
-  grandTotal  Decimal @db.Decimal(12, 2) @default(0)
+  hoursTotal  Decimal @default(0) @db.Decimal(10, 2)
+  chargeTotal Decimal @default(0) @db.Decimal(12, 2)
+  payTotal    Decimal @default(0) @db.Decimal(12, 2)
+  marginTotal Decimal @default(0) @db.Decimal(12, 2)
+  vatRatePct  Decimal @default(0) @db.Decimal(5, 2)
+  vatTotal    Decimal @default(0) @db.Decimal(12, 2)
+  grandTotal  Decimal @default(0) @db.Decimal(12, 2)
 
-  notes    String?
+  notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -846,8 +854,8 @@ model Invoice {
   xeroStatus    String? // status Pleasant last saw in Xero: DRAFT | AUTHORISED | PAID | VOIDED | DELETED
   xeroSyncedAt  DateTime?
 
-  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  agency Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  client Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
   lines  InvoiceLine[]
 
   @@unique([agencyId, reference])
@@ -856,24 +864,24 @@ model Invoice {
 }
 
 model InvoiceLine {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   invoiceId   String
   timesheetId String?
   shiftId     String?
   staffId     String
 
-  date       DateTime
-  title      String
-  hours      Decimal @db.Decimal(8, 2)
-  chargeRate Decimal @db.Decimal(8, 2) @default(0)
-  chargeAmount Decimal @db.Decimal(12, 2)
-  payAmount    Decimal @db.Decimal(12, 2)
-  marginAmount Decimal @db.Decimal(12, 2)
+  date         DateTime
+  title        String
+  hours        Decimal  @db.Decimal(8, 2)
+  chargeRate   Decimal  @default(0) @db.Decimal(8, 2)
+  chargeAmount Decimal  @db.Decimal(12, 2)
+  payAmount    Decimal  @db.Decimal(12, 2)
+  marginAmount Decimal  @db.Decimal(12, 2)
 
-  invoice   Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  timesheet Timesheet?    @relation(fields: [timesheetId], references: [id], onDelete: SetNull)
-  shift     Shift?        @relation(fields: [shiftId], references: [id], onDelete: SetNull)
-  staff     StaffProfile  @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  invoice   Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  timesheet Timesheet?   @relation(fields: [timesheetId], references: [id], onDelete: SetNull)
+  shift     Shift?       @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  staff     StaffProfile @relation(fields: [staffId], references: [id], onDelete: Restrict)
 
   @@index([invoiceId])
   @@index([staffId, date])
@@ -895,24 +903,24 @@ model RotaTemplate {
 }
 
 model RotaTemplateLine {
-  id          String @id @default(cuid())
-  templateId  String
-  weekday     Int // 0 = Sunday … 6 = Saturday (ISO-like for calendar rendering)
-  role        String
-  title       String
-  startMins   Int // minutes since midnight
-  endMins     Int
-  breakMins   Int @default(0)
-  isSleepIn   Boolean @default(false)
-  sleepInRate Decimal @db.Decimal(8, 2) @default(0)
+  id            String   @id @default(cuid())
+  templateId    String
+  weekday       Int // 0 = Sunday … 6 = Saturday (ISO-like for calendar rendering)
+  role          String
+  title         String
+  startMins     Int // minutes since midnight
+  endMins       Int
+  breakMins     Int      @default(0)
+  isSleepIn     Boolean  @default(false)
+  sleepInRate   Decimal  @default(0) @db.Decimal(8, 2)
   // What the client is charged for a sleep-in. Null bills the carer allowance.
   sleepInCharge Decimal? @db.Decimal(8, 2)
-  chargeRate  Decimal @db.Decimal(8, 2) @default(0)
-  clientId    String?
-  staffId     String?
-  siteId      String?
+  chargeRate    Decimal  @default(0) @db.Decimal(8, 2)
+  clientId      String?
+  staffId       String?
+  siteId        String?
 
-  template RotaTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  template RotaTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
   client   Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
   staff    StaffProfile? @relation(fields: [staffId], references: [id], onDelete: SetNull)
   site     Site?         @relation(fields: [siteId], references: [id], onDelete: SetNull)
@@ -930,9 +938,9 @@ model ShiftOffer {
   respondedAt DateTime?
   note        String?
 
-  agency Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
-  shift  Shift         @relation(fields: [shiftId], references: [id], onDelete: Cascade)
-  staff  StaffProfile  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  agency Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  shift  Shift        @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  staff  StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
 
   @@unique([shiftId, staffId])
   @@index([staffId, status])
@@ -944,17 +952,17 @@ model ShiftOffer {
 // -----------------------------------------------------------------------------
 
 model ImportSession {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   agencyId    String
   kind        String // CLIENTS | WORKERS | SHIFTS
   headers     String // JSON array of column headers
   payload     String // raw CSV text as uploaded
-  totalRows   Int      @default(0)
-  createdRows Int      @default(0)
-  skippedRows Int      @default(0)
-  status      String   @default("PENDING") // PENDING | COMPLETED
+  totalRows   Int       @default(0)
+  createdRows Int       @default(0)
+  skippedRows Int       @default(0)
+  status      String    @default("PENDING") // PENDING | COMPLETED
   completedAt DateTime?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
   agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
 
@@ -962,26 +970,23 @@ model ImportSession {
 }
 
 model AgencyAddon {
-  id          String    @id @default(cuid())
-  agencyId    String
-  key         AddonKey
-  installed   Boolean   @default(false)
-  active      Boolean   @default(true) // purchased/entitled
-  expiresAt   DateTime?
-  installedAt DateTime?
+  id                     String    @id @default(cuid())
+  agencyId               String
+  key                    AddonKey
+  installed              Boolean   @default(false)
+  active                 Boolean   @default(true) // purchased/entitled
+  expiresAt              DateTime?
+  installedAt            DateTime?
   /// The installation in the Elements console (canvas.aultrum.co.uk) that runs it.
   elementsInstallationId String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
 
   @@unique([agencyId, key])
   @@index([agencyId])
 }
-
-
-
 
 // Append-only trail of security-relevant and money-moving actions. Never
 // updated or deleted by the app; actor details are denormalised so the trail
@@ -1167,7 +1172,6 @@ model ServiceKey {
   createdAt DateTime @default(now())
 }
 
-
 // Events from Aultrum Elements (Gateway and Peak), e.g. an absence reported by
 // phone. Those that need someone show in Oversight until they are marked done.
 model ElementsEvent {
@@ -1206,4 +1210,26 @@ model PayAddition {
   payrollRun PayrollRun?  @relation(fields: [payrollRunId], references: [id], onDelete: SetNull)
 
   @@index([agencyId, payrollRunId])
+}
+
+/// Times a carer has said they can't work: a date range (holiday, appointments)
+/// or every week on one day (childcare on Tuesdays). Shifts can't be assigned
+/// or offered to them during these times.
+model StaffUnavailability {
+  id        String   @id @default(cuid())
+  agencyId  String
+  staffId   String
+  /// First and last day it applies (inclusive). For weekly rules, from when to when.
+  startsOn  DateTime @db.Date
+  endsOn    DateTime @db.Date
+  /// 1 = Monday … 7 = Sunday for a weekly rule; null for every day in the range.
+  weekday   Int?
+  reason    String?
+  createdAt DateTime @default(now())
+
+  agency Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  staff  StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId, endsOn])
+  @@index([agencyId])
 }

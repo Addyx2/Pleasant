@@ -22,6 +22,7 @@ import { generatePayrollRunAction, setPayrollStatusAction } from "@/app/(app)/pa
 import type { SessionUser } from "@/lib/auth";
 import { CLIENT_TYPE_LABELS, clientName, type ClientTypeKey } from "@/lib/clients";
 import { daysUntil, expiryState } from "@/lib/compliance";
+import { unavailableReason } from "@/lib/availability";
 import { prisma } from "@/lib/db";
 import { isBookable, onboardingProgress, onboardingSteps } from "@/lib/onboarding";
 import { canAccess } from "@/lib/permissions";
@@ -714,6 +715,8 @@ const writeTools = [
       if (input.staffId) {
         const clashes = await clashesFor(ctx, input.staffId, start, end);
         if (clashes.length) return { ok: false, error: `That carer is already booked: ${clashes.map(shiftLabel).join("; ")}` };
+        const unavailable = await unavailableReason(ctx.user.agencyId, input.staffId, start, end);
+        if (unavailable) return { ok: false, error: unavailable };
       }
       const startedAt = new Date();
       const result = await runStateAction(createShiftAction, {
@@ -762,6 +765,8 @@ const writeTools = [
       if (staff.status !== "ACTIVE") return { ok: false, error: `${person(staff)} isn't active (${staff.status}).` };
       const clashes = await clashesFor(ctx, staffId, shift.startAt, shift.endAt, shiftId);
       if (clashes.length) return { ok: false, error: `${person(staff)} is already booked: ${clashes.map(shiftLabel).join("; ")}` };
+      const unavailable = await unavailableReason(ctx.user.agencyId, staffId, shift.startAt, shift.endAt);
+      if (unavailable) return { ok: false, error: unavailable };
       const result = await runFormAction(assignShiftFormAction, { shiftId, staffId });
       const after = await ownedShift(ctx, shiftId);
       const warnings = complianceWarnings(staff);

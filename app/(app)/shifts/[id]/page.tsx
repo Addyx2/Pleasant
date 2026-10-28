@@ -22,8 +22,15 @@ import { clientName } from "@/lib/clients";
 
 export const dynamic = "force-dynamic";
 
-export default async function ShiftDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ShiftDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ unavailable?: string }>;
+}) {
   const { id } = await params;
+  const { unavailable } = await searchParams;
   const user = await requireOps();
 
   const [shift, staff] = await Promise.all([
@@ -151,6 +158,11 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
           {!locked ? (
             <Card className="p-6">
               <h2 className="text-sm font-semibold text-slate-900">Assign a carer</h2>
+              {unavailable ? (
+                <p role="alert" className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  Not assigned. {unavailable.slice(0, 200)}
+                </p>
+              ) : null}
               <form action={assignShiftFormAction} className="mt-3 space-y-3">
                 <input type="hidden" name="shiftId" value={shift.id} />
                 <select name="staffId" defaultValue={shift.staffId ?? ""} className={inputClass} required>
@@ -180,6 +192,19 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
                   <span className="text-slate-500">Clocked in</span>
                   <span>{formatDateTime(shift.timesheet.clockIn)}</span>
                 </div>
+                {shift.timesheet.clockInLat != null && shift.timesheet.clockInLng != null ? (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Clock-in location</span>
+                    <a
+                      className="font-medium text-brand-700 hover:underline"
+                      href={`https://www.google.com/maps/search/?api=1&query=${shift.timesheet.clockInLat},${shift.timesheet.clockInLng}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      View on map{shift.timesheet.clockInAccuracyM != null ? ` (±${shift.timesheet.clockInAccuracyM} m)` : ""}
+                    </a>
+                  </div>
+                ) : null}
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500">Clocked out</span>
                   <span>{shift.timesheet.clockOut ? formatDateTime(shift.timesheet.clockOut) : "—"}</span>

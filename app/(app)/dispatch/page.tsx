@@ -25,6 +25,7 @@ const REQUEST_BANNERS: Record<string, { tone: "good" | "bad"; text: string }> = 
   approved: { tone: "good", text: "Request approved — carer assigned to the shift." },
   rejected: { tone: "bad", text: "Request declined." },
   taken: { tone: "bad", text: "That shift was already filled." },
+  unavailable: { tone: "bad", text: "Not offered: that carer has said they can't work then." },
 };
 
 export default async function DispatchPage({

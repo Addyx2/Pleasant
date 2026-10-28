@@ -13,12 +13,14 @@ export async function requestShiftAction(formData: FormData): Promise<void> {
 
   const shiftId = String(formData.get("shiftId") ?? "");
   const message = String(formData.get("message") ?? "").trim().slice(0, 300) || null;
+  // Keep the carer's filter after they ask for a shift.
+  const show = /^[a-z]{1,12}$/.test(String(formData.get("show") ?? "")) ? `&show=${formData.get("show")}` : "";
 
   const shift = await prisma.shift.findFirst({
     where: { id: shiftId, agencyId: user.agencyId, status: "OPEN", staffId: null },
     select: { id: true, startAt: true, endAt: true },
   });
-  if (!shift) redirect("/workforce/open-shifts?result=gone");
+  if (!shift) redirect(`/workforce/open-shifts?result=gone${show}`);
 
   // Conflict guard: never let the carer request a shift that clashes with
   // an existing live shift (assigned or in progress).
@@ -32,7 +34,7 @@ export async function requestShiftAction(formData: FormData): Promise<void> {
     },
     select: { id: true },
   });
-  if (clash) redirect("/workforce/open-shifts?result=overlap");
+  if (clash) redirect(`/workforce/open-shifts?result=overlap${show}`);
 
   await prisma.shiftRequest.upsert({
     where: { shiftId_staffId: { shiftId, staffId } },
@@ -41,5 +43,5 @@ export async function requestShiftAction(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/workforce/open-shifts");
-  redirect("/workforce/open-shifts?result=requested");
+  redirect(`/workforce/open-shifts?result=requested${show}`);
 }
