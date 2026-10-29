@@ -221,26 +221,40 @@ export function reportActivity(agencyId: string, items: ActivitySummary[]) {
 }
 
 /**
- * Checks a Carer API request from the Aultrum carer app: a one-minute JWT
- * Aultrum ID signed for one person (sub) and one of their organisations
- * (org) here. Returns them, or null.
+ * Checks a request from Aultrum's own apps: a one-minute JWT Aultrum ID
+ * signed for one person (sub) and one organisation here (org). `typ` is the
+ * API it's for: carer+jwt (the Aultrum app) or supply+jwt (Workspace Supply).
  */
-export async function verifyCarerToken(token: string): Promise<{ sub: string; org: string; ref: string | null } | null> {
+async function verifyAultrumToken(token: string, typ: "carer+jwt" | "supply+jwt") {
   if (!aultrumIdConfigured()) return null;
   try {
     jwks ??= createRemoteJWKSet(new URL(`${issuer()}/jwks`));
-    const { payload } = await jwtVerify(token, jwks, {
-      issuer: issuer(),
-      audience: clientId(),
-      algorithms: ["RS256"],
-      typ: "carer+jwt",
-      maxTokenAge: "2m",
-    });
-    if (!payload.sub || typeof payload.org !== "string") return null;
-    return { sub: payload.sub, org: payload.org, ref: typeof payload.ref === "string" ? payload.ref : null };
+    const { payload } = await jwtVerify(token, jwks, { issuer: issuer(), audience: clientId(), algorithms: ["RS256"], typ, maxTokenAge: "2m" });
+    return payload.sub && typeof payload.org === "string" ? payload : null;
   } catch {
     return null;
   }
+}
+
+const claim = (v: unknown) => (typeof v === "string" ? v : null);
+
+/** A Carer API request from the Aultrum app: the carer (sub), the agency (org), and on joining the carer record (ref). */
+export async function verifyCarerToken(token: string): Promise<{ sub: string; org: string; ref: string | null } | null> {
+  const p = await verifyAultrumToken(token, "carer+jwt");
+  return p ? { sub: p.sub!, org: String(p.org), ref: claim(p.ref) } : null;
+}
+
+/**
+ * A Supply API request from Aultrum Workspace: the person (sub, with their
+ * name and position for signatures), the agency (org), the client record
+ * here (ref) and the Workspace organisation it's connected to (buyer).
+ */
+export async function verifySupplyToken(token: string) {
+  const p = await verifyAultrumToken(token, "supply+jwt");
+  const ref = claim(p?.ref);
+  const buyer = claim(p?.buyer);
+  if (!p || !ref || !buyer) return null;
+  return { sub: p.sub!, org: String(p.org), ref, buyer, buyerName: claim(p.buyerName), name: claim(p.name), position: claim(p.position) };
 }
 
 export interface AultrumLink {
@@ -254,13 +268,22 @@ export interface AultrumLink {
  * Aultrum app to join this agency there. Throws with a message to show.
  */
 export async function createAultrumLink(agency: { id: string; name: string }, staff: { id: string; firstName: string; lastName: string }): Promise<AultrumLink> {
+  return makeLink({ orgId: agency.id, orgName: agency.name, role: "Carer", ref: staff.id, inviteeName: `${staff.firstName} ${staff.lastName}`.trim() });
+}
+
+/** An Aultrum Link for a client to connect Aultrum Workspace Supply to this agency. */
+export function createSupplyLink(agency: { id: string; name: string }, client: { id: string; name: string }): Promise<AultrumLink> {
+  return makeLink({ orgId: agency.id, orgName: agency.name, role: "Client", ref: client.id, inviteeName: client.name, kind: "supply" });
+}
+
+async function makeLink(body: { orgId: string; orgName: string; role: string; ref: string; inviteeName: string; kind?: "supply" }): Promise<AultrumLink> {
   if (!aultrumIdConfigured()) throw new Error("Aultrum ID isn't set up for this Pleasant, so Aultrum Links can't be made.");
   let res: Response;
   try {
     res = await fetch(`${issuer()}/api/v1/links`, {
       method: "POST",
       headers: { Authorization: basicAuth() ?? `Bearer ${await clientAssertion(`${issuer()}/api/v1`)}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ orgId: agency.id, orgName: agency.name, role: "Carer", ref: staff.id, inviteeName: `${staff.firstName} ${staff.lastName}`.trim() }),
+      body: JSON.stringify(body),
       signal: AbortSignal.timeout(8_000),
     });
   } catch (error) {

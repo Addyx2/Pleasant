@@ -5,8 +5,10 @@ import { redirect } from "next/navigation";
 
 import { requireOps, type SessionUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
+import { clientName } from "@/lib/clients";
 import { prisma } from "@/lib/db";
 import { generatePleasantLink } from "@/lib/clientpoint/pleasant-link";
+import { createSupplyLink } from "@/lib/aultrum-id";
 import { clientContactSchema, clientRateSchema, clientSchema, createSiteSchema } from "@/lib/validation";
 import type { ActionState } from "@/app/(app)/shifts/actions";
 import { after } from "next/server";
@@ -338,4 +340,28 @@ export async function createPleasantLinkAction(
     link: `/pleasant-link/${token.token}`,
     contactName: contact.name,
   };
+}
+
+/** An Aultrum Link for the client to connect their Aultrum Workspace to Supply here. */
+export async function createSupplyLinkAction(clientId: string): Promise<{ error?: string; link?: { code: string; url: string; expiresAt: string } }> {
+  const user = await requireOps();
+  const client = await prisma.client.findFirst({ where: { id: clientId, agencyId: user.agencyId } });
+  if (!client) return { error: "Client not found." };
+  try {
+    const link = await createSupplyLink(user.agency, { id: client.id, name: clientName(client) });
+    await recordAudit(user, { action: "client.supply_link", summary: `Created a Workspace link for ${clientName(client)}`, targetType: "Client", targetId: client.id });
+    return { link };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Couldn't make the link." };
+  }
+}
+
+/** Disconnects the client's Workspace: they stop seeing Supply from this agency there. */
+export async function disconnectSupplyAction(formData: FormData): Promise<void> {
+  const user = await requireOps();
+  const client = await prisma.client.findFirst({ where: { id: String(formData.get("clientId") ?? ""), agencyId: user.agencyId } });
+  if (!client?.aultrumBuyerId) return;
+  await prisma.client.update({ where: { id: client.id }, data: { aultrumBuyerId: null, aultrumBuyerName: null } });
+  await recordAudit(user, { action: "client.supply_disconnect", summary: `Disconnected ${clientName(client)}'s Workspace`, targetType: "Client", targetId: client.id });
+  revalidatePath(`/clients/${client.id}`);
 }
