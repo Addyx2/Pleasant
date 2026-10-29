@@ -318,6 +318,11 @@ model Client {
   paymentTermsDays Int          @default(30)
   notes            String?
   status           ClientStatus @default(ACTIVE)
+  /// The Aultrum Workspace organisation this client uses Supply from, once
+  /// they've connected with an Aultrum Link. Its members request staff, sign
+  /// timesheets and see invoices there.
+  aultrumBuyerId   String?
+  aultrumBuyerName String?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 

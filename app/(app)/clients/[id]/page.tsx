@@ -17,11 +17,19 @@ import { requireOps } from "@/lib/auth";
 import { CLIENT_STATUS, CLIENT_TYPE_LABELS, clientName, siteNoun, type ClientTypeKey } from "@/lib/clients";
 import { prisma } from "@/lib/db";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
-import { Badge, Card, Td, Th } from "@/components/ui";
+import { Badge, Card, subtleButtonClass, Td, Th } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
 import { GenerateLinkButton } from "@/components/clientpoint/GenerateLinkButton";
+import { AultrumInvite } from "@/components/AultrumInvite";
 
-import { deleteContactAction, deleteRateAction, deleteSiteAction, updateContactRolesAction } from "../actions";
+import {
+  createSupplyLinkAction,
+  deleteContactAction,
+  deleteRateAction,
+  deleteSiteAction,
+  disconnectSupplyAction,
+  updateContactRolesAction,
+} from "../actions";
 import { ClientForm, ContactForm, RateForm, SiteForm } from "../Forms";
 
 export const dynamic = "force-dynamic";
@@ -286,9 +294,34 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         <div className="space-y-6">
           <Card className="p-5">
             <SectionHeader
+              icon={Building2}
+              title="Aultrum Workspace"
+              hint={
+                client.aultrumBuyerId
+                  ? `Connected to ${client.aultrumBuyerName ?? "their Workspace"}: their team requests staff, signs timesheets and sees invoices in Supply.`
+                  : "Send an Aultrum Link so their team can request staff, sign timesheets and see invoices from Aultrum Workspace, with their own logins."
+              }
+            />
+            <div className="mt-4 flex flex-wrap items-start gap-2">
+              <AultrumInvite
+                create={createSupplyLinkAction.bind(null, client.id)}
+                label={client.aultrumBuyerId ? "Send a new link" : "Create Aultrum Link"}
+                message={`Connect to ${user.agency.name} in Aultrum Workspace Supply`}
+              />
+              {client.aultrumBuyerId ? (
+                <form action={disconnectSupplyAction}>
+                  <input type="hidden" name="clientId" value={client.id} />
+                  <button type="submit" className={subtleButtonClass}>Disconnect</button>
+                </form>
+              ) : null}
+            </div>
+          </Card>
+
+          <Card className="p-5">
+            <SectionHeader
               icon={Link2}
-              title="Aultrum Link"
-              hint="A 24-hour link for a signatory to approve timesheets and request staff — no login needed."
+              title="One-off sign-off link"
+              hint="A 24-hour Aultrum Link for one signatory to approve timesheets and request staff, with no login. For a team that uses it every week, connect their Workspace instead."
             />
             <div className="mt-4">
               <GenerateLinkButton
