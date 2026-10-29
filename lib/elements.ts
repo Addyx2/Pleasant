@@ -18,7 +18,7 @@ import { prisma } from "@/lib/db";
 
 const live = process.env.NODE_ENV === "production" && process.env.AULTRUM_LOCAL !== "1";
 export const elementsUrl = () => (process.env.ELEMENTS_URL ?? (live ? "https://canvas.aultrum.co.uk" : "http://localhost:3200")).replace(/\/+$/, "");
-const pleasantOrigin = () => (process.env.APP_URL ?? (live ? "https://pleasant.aultrum.co.uk" : "http://localhost:3100")).replace(/\/+$/, "");
+export const pleasantOrigin = () => (process.env.APP_URL ?? (live ? "https://pleasant.aultrum.co.uk" : "http://localhost:3100")).replace(/\/+$/, "");
 /** How the console knows Pleasant: the host its key is published on. */
 export const elementsClientId = () => new URL(pleasantOrigin()).host;
 

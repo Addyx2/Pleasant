@@ -1,3 +1,6 @@
+import { after } from "next/server";
+
+import { maybeRunSignOffReminders } from "@/lib/sign-off-reminders";
 import { supplyOverview } from "@/lib/supply";
 import { json, supplyFromRequest, unauthorised } from "@/lib/supply-api";
 
@@ -7,5 +10,6 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const supply = await supplyFromRequest(request);
   if (!supply) return unauthorised();
+  after(() => maybeRunSignOffReminders());
   return json(await supplyOverview(supply.agencyId, supply.clientId));
 }

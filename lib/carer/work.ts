@@ -120,9 +120,17 @@ export async function signAsClient(
 ): Promise<WorkResult & { shiftId?: string }> {
   const parsed = clientAuthSchema.safeParse(input);
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Check the details");
-  const timesheet = await prisma.timesheet.findFirst({ where: { id: parsed.data.timesheetId, agencyId: actor.agencyId } });
+  const timesheet = await prisma.timesheet.findFirst({
+    where: { id: parsed.data.timesheetId, agencyId: actor.agencyId },
+    include: { shift: { select: { client: { select: { name: true, aultrumBuyerId: true, aultrumBuyerName: true } } } } },
+  });
   // Only the carer who worked the shift (or office staff) can collect the client's signature.
   if (!timesheet || !mayAct(actor, timesheet.staffId)) return fail("That shift isn't yours.");
+  // A home on Aultrum Workspace signs there, with their own login, not on the carer's phone.
+  const home = timesheet.shift.client;
+  if (actor.ownStaffId !== null && home?.aultrumBuyerId) {
+    return fail(`${home.aultrumBuyerName ?? home.name ?? "The home"} signs timesheets in Aultrum Workspace. It'll show as signed here once they have.`);
+  }
   if (!timesheet.clockOut) return fail("Complete the shift first.");
   if (timesheet.clientAuthAt) return done("Already signed.");
   await prisma.timesheet.update({

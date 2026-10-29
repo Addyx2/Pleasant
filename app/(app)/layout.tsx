@@ -7,13 +7,18 @@ import { AssistPanel } from "@/components/assist/AssistPanel";
 import { CommandPalette, CommandPaletteTrigger } from "@/components/CommandPalette";
 import { MobileHeader } from "@/components/MobileHeader";
 import { SidebarShell, SidebarToggle } from "@/components/SidebarShell";
+import { after } from "next/server";
+
 import { requireUser } from "@/lib/auth";
+import { maybeRunSignOffReminders } from "@/lib/sign-off-reminders";
 import { CLOSED_COOKIE, RAIL_COOKIE } from "@/lib/sidebar";
 import { isOpsRole } from "@/lib/permissions";
 import { AppMark } from "@/components/Brand";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
+  // Sign-off reminders go out as the app is used (at most hourly).
+  after(() => maybeRunSignOffReminders());
   // Carers live in the Workers app; the back office is for admins and managers.
   if (!isOpsRole(user.role)) redirect("/workforce");
   const jar = await cookies();
