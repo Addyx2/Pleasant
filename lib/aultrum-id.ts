@@ -219,3 +219,30 @@ export function reportActivity(agencyId: string, items: ActivitySummary[]) {
   if (items.length === 0) return Promise.resolve(true);
   return productApi("POST", "/activity", { orgId: agencyId, items });
 }
+
+/** The Aultrum carer app, where carers see their shifts from every organisation they work for. */
+export function carerAppUrl(): string {
+  return (process.env.AULTRUM_CARER_URL ?? (live ? "https://carer.aultrum.co.uk" : "http://carer.localhost:3300")).replace(/\/+$/, "");
+}
+
+/**
+ * Checks a Carer API request from the Aultrum carer app: a one-minute JWT
+ * Aultrum ID signed for one person (sub) and one of their organisations
+ * (org) here. Returns them, or null.
+ */
+export async function verifyCarerToken(token: string): Promise<{ sub: string; org: string } | null> {
+  if (!aultrumIdConfigured()) return null;
+  try {
+    jwks ??= createRemoteJWKSet(new URL(`${issuer()}/jwks`));
+    const { payload } = await jwtVerify(token, jwks, {
+      issuer: issuer(),
+      audience: clientId(),
+      algorithms: ["RS256"],
+      typ: "carer+jwt",
+      maxTokenAge: "2m",
+    });
+    return payload.sub && typeof payload.org === "string" ? { sub: payload.sub, org: payload.org } : null;
+  } catch {
+    return null;
+  }
+}

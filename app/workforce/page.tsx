@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { addDays, addHours, format } from "date-fns";
+import { addDays, format } from "date-fns";
 import { Clock, Coffee, MapPin, Navigation, StickyNote } from "lucide-react";
 
 import { requireUser } from "@/lib/auth";
 import { carerRate } from "@/lib/carer-pay";
-import { clientName, type NamedClient } from "@/lib/clients";
+import { currentShift, needsSignOff, placeOf } from "@/lib/carer/screens";
 import { prisma } from "@/lib/db";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import { nextCutoff, payDayForCutoff, weekdayName } from "@/lib/week";
@@ -32,25 +32,6 @@ function loadShifts(agencyId: string, staffId: string, from: Date, to: Date) {
     include: { client: true, site: true, timesheet: true },
     orderBy: { startAt: "asc" },
   });
-}
-
-const placeOf = (s: { client: NamedClient | null; site: { name: string } | null }) => (s.client ? clientName(s.client) : (s.site?.name ?? "Location to be confirmed"));
-
-const needsSignOff = (s: ShiftRow) => Boolean(s.timesheet?.clockOut && s.timesheet.status === "PENDING" && !s.timesheet.clientAuthAt);
-
-/**
- * The shift that needs the carer now: one they're on, one starting within two
- * hours, one waiting for signatures, or the next one within the day.
- */
-function currentShift(shifts: ShiftRow[], now: Date): ShiftRow | null {
-  const notStarted = (s: ShiftRow) => !s.timesheet && s.endAt > now;
-  return (
-    shifts.find((s) => s.timesheet && !s.timesheet.clockOut) ??
-    shifts.find((s) => notStarted(s) && s.startAt < addHours(now, 2)) ??
-    shifts.find(needsSignOff) ??
-    shifts.find((s) => notStarted(s) && s.startAt < addHours(now, 18)) ??
-    null
-  );
 }
 
 export default async function WorkforceHomePage() {
