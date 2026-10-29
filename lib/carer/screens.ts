@@ -64,14 +64,25 @@ export type ShiftCard = ReturnType<typeof card>;
 interface WithTimesheet {
   startAt: Date;
   endAt: Date;
-  timesheet: { clockOut: Date | null; status: string; clientAuthAt: Date | null } | null;
+  timesheet: { clockOut: Date | null; status: string; clientAuthAt: Date | null; candidateSignedAt?: Date | null } | null;
+  client?: { aultrumBuyerId?: string | null } | null;
 }
 
 export const needsSignOff = (s: WithTimesheet) => Boolean(s.timesheet?.clockOut && s.timesheet.status === "PENDING" && !s.timesheet.clientAuthAt);
 
 /**
+ * Whether the home signs this client's timesheets in Aultrum Workspace. Then
+ * the carer signs their part on the phone and the home signs in Workspace;
+ * the carer can't collect the home's signature on their phone.
+ */
+export const signsInWorkspace = (client: { aultrumBuyerId?: string | null } | null | undefined) => Boolean(client?.aultrumBuyerId);
+
+/** A shift the carer can do something about: their own signature, or collecting the home's on their phone. */
+export const carerCanSign = (s: WithTimesheet) => needsSignOff(s) && (!s.timesheet?.candidateSignedAt || !signsInWorkspace(s.client));
+
+/**
  * The shift that needs the carer now: one they're on, one starting within two
- * hours, one waiting for signatures, or the next one within the day.
+ * hours, one waiting for their signatures, or the next one within the day.
  */
 export function currentShift<S extends WithTimesheet>(shifts: S[], now: Date): S | null {
   const notStarted = (s: S) => !s.timesheet && s.endAt > now;
@@ -79,7 +90,7 @@ export function currentShift<S extends WithTimesheet>(shifts: S[], now: Date): S
     shifts.find((s) => s.timesheet && !s.timesheet.clockOut) ??
     shifts.find((s) => notStarted(s) && s.startAt < addHours(now, 2)) ??
     // The shift they've just finished, before older ones still waiting.
-    shifts.filter(needsSignOff).sort((a, b) => (b.timesheet?.clockOut?.getTime() ?? 0) - (a.timesheet?.clockOut?.getTime() ?? 0))[0] ??
+    shifts.filter(carerCanSign).sort((a, b) => (b.timesheet?.clockOut?.getTime() ?? 0) - (a.timesheet?.clockOut?.getTime() ?? 0))[0] ??
     shifts.find((s) => notStarted(s) && s.startAt < addHours(now, 18)) ??
     null
   );
@@ -133,6 +144,7 @@ export async function homeScreen(c: Carer) {
             locationRecorded: ts.clockInLat != null,
             carerSigned: Boolean(ts.candidateSignedAt),
             clientSigned: Boolean(ts.clientAuthAt),
+            homeSignsInWorkspace: signsInWorkspace(current.client),
           }
         : null,
     };
@@ -145,7 +157,12 @@ export async function homeScreen(c: Carer) {
     offers: offers.map((o) => ({ id: o.id, shift: card(o.shift, profile) })),
     toSign: shifts
       .filter((s) => s.id !== current?.id && needsSignOff(s))
-      .map((s) => ({ ...card(s, profile), timesheetId: s.timesheet?.id ?? "", needs: s.timesheet?.candidateSignedAt ? ("theirs" as const) : ("yours" as const) })),
+      .map((s) => ({
+        ...card(s, profile),
+        timesheetId: s.timesheet?.id ?? "",
+        needs: s.timesheet?.candidateSignedAt ? ("theirs" as const) : ("yours" as const),
+        homeSignsInWorkspace: signsInWorkspace(s.client),
+      })),
     upcoming: shifts.filter((s) => s.id !== current?.id && s.endAt > now && !s.timesheet).map((s) => card(s, profile)),
     payCutoff: cutoff.toISOString(),
     payDay: payDayForCutoff(schedule, cutoff).toISOString(),
@@ -261,4 +278,48 @@ export async function peakScreen(c: Carer) {
     if (!(error instanceof ElementsError)) console.error("carer api peak failed", error);
     return { org: profile.agency.name, on: true as const, problem: error instanceof ElementsError ? error.message : "Peak couldn't be loaded. Try again in a minute." };
   }
+}
+
+/** Whole days since a shift finished: the clock for sign-off reminders. */
+export function daysWaiting(clockOut: Date | null, now = new Date()): number | null {
+  return clockOut ? Math.max(0, Math.floor((now.getTime() - clockOut.getTime()) / 86_400_000)) : null;
+}
+
+/**
+ * The carer's timesheets for the last 60 days, each with where its sign-off
+ * stands: theirs to sign, waiting for the home, or signed off.
+ */
+export async function timesheetsScreen(c: Carer) {
+  const now = new Date();
+  const profile = await profileOf(c);
+  const rows = await prisma.timesheet.findMany({
+    where: { agencyId: c.agencyId, staffId: c.staffId, clockOut: { not: null, gte: addDays(now, -60) } },
+    include: { shift: { include: { client: true, site: true } } },
+    orderBy: { clockIn: "desc" },
+    take: 200,
+  });
+  return {
+    org: profile.agency.name,
+    timesheets: rows.map((t) => {
+      const shift = { ...t.shift, timesheet: t };
+      const signed = Boolean(t.clientAuthAt) || t.status === "APPROVED";
+      const stage = signed ? "signed" : t.status !== "PENDING" ? "closed" : carerCanSign(shift) ? "to_sign" : "waiting";
+      return {
+        id: t.id,
+        title: t.shift.title,
+        place: placeOf(t.shift),
+        clockIn: t.clockIn.toISOString(),
+        clockOut: t.clockOut!.toISOString(),
+        workedMins: t.workedMins,
+        status: t.status,
+        stage: stage as "to_sign" | "waiting" | "signed" | "closed",
+        carerSigned: Boolean(t.candidateSignedAt),
+        homeSignsInWorkspace: signsInWorkspace(t.shift.client),
+        signedBy: t.clientAuthName,
+        signedPosition: t.clientAuthPosition,
+        signedAt: t.clientAuthAt?.toISOString() ?? null,
+        daysWaiting: signed ? null : daysWaiting(t.clockOut, now),
+      };
+    }),
+  };
 }

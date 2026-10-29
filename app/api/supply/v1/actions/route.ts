@@ -1,13 +1,13 @@
 import { revalidatePath } from "next/cache";
 
-import { requestStaff, signOffAsClient, type SupplyResult } from "@/lib/supply";
+import { cancelRequest, requestStaff, signOffAsClient, type SupplyResult } from "@/lib/supply";
 import { json, supplyFromRequest, unauthorised } from "@/lib/supply-api";
 
 export const dynamic = "force-dynamic";
 
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
-/** POST /api/supply/v1/actions with {action, ...}: request_staff or sign_timesheet. */
+/** POST /api/supply/v1/actions with {action, ...}: request_staff, cancel_request or sign_timesheet. */
 export async function POST(request: Request) {
   const supply = await supplyFromRequest(request);
   if (!supply) return unauthorised();
@@ -31,6 +31,9 @@ export async function POST(request: Request) {
       });
       break;
     }
+    case "cancel_request":
+      result = await cancelRequest(supply.agencyId, supply.clientId, str(body.shiftId), supply.name);
+      break;
     case "sign_timesheet":
       // The signer is who Aultrum ID says they are, never a name from the request body.
       if (!supply.name || !supply.position) return json({ ok: false, error: "Add your job title in Workspace before signing timesheets." }, 422);

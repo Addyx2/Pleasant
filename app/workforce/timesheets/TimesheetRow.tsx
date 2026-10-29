@@ -4,6 +4,7 @@ import type { Client, Shift, Site, Timesheet } from "@prisma/client";
 import { saveCandidateSignatureAction, saveClientAuthAction } from "@/app/(app)/timesheets/actions";
 import { SignOffForm } from "@/components/SignOffForm";
 import { StatusBadge } from "@/components/status";
+import { WorkspaceSignNote } from "@/components/WorkspaceSignNote";
 import { clientName } from "@/lib/clients";
 import { formatCurrency } from "@/lib/utils";
 
@@ -35,7 +36,12 @@ export function TimesheetRow({ timesheet: ts }: { timesheet: Row }) {
           <SignOffForm timesheetId={ts.id} mode="candidate" action={saveCandidateSignatureAction} buttonLabel="Sign off this shift" title="Sign off this shift" subtitle={subtitle} />
         </div>
       ) : null}
-      {open && ts.candidateSignedAt ? (
+      {open && ts.candidateSignedAt && ts.shift.client?.aultrumBuyerId ? (
+        <div className="mt-4 border-t border-slate-100 pt-3">
+          <WorkspaceSignNote home={where} />
+        </div>
+      ) : null}
+      {open && ts.candidateSignedAt && !ts.shift.client?.aultrumBuyerId ? (
         <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
           <p className="text-xs font-medium text-amber-800">You&apos;ve signed off. Now get your client&apos;s signature.</p>
           <SignOffForm timesheetId={ts.id} mode="client" action={saveClientAuthAction} buttonLabel="Get client's signature" title="Client sign-off" subtitle={subtitle} />

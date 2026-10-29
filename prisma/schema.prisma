@@ -534,6 +534,8 @@ model Timesheet {
   approvedBy   User?         @relation("TimesheetApprover", fields: [approvedById], references: [id], onDelete: SetNull)
   invoiceLines InvoiceLine[]
 
+  reminders TimesheetReminder[]
+
   @@index([agencyId, status])
   @@index([staffId, clockIn])
 }
@@ -1241,4 +1243,22 @@ model StaffUnavailability {
 
   @@index([staffId, endsOn])
   @@index([agencyId])
+}
+
+/// A sign-off reminder sent for a timesheet still waiting for the client's
+/// signature: on day 3 and day 7 after the shift ended. One per day, ever.
+model TimesheetReminder {
+  id          String   @id @default(cuid())
+  timesheetId String
+  /// 3 or 7: days since clock-out.
+  day         Int
+  /// Who it went to, for the agency's record (e.g. "2 signatories, carer").
+  sentTo      String
+  /// Whether any email was accepted for delivery.
+  delivered   Boolean
+  createdAt   DateTime @default(now())
+
+  timesheet Timesheet @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
+
+  @@unique([timesheetId, day])
 }

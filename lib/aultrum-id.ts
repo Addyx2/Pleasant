@@ -19,6 +19,11 @@ const live = process.env.NODE_ENV === "production" && process.env.AULTRUM_LOCAL 
 const issuer = () => (process.env.AULTRUM_ID_URL ?? (live ? "https://id.aultrum.co.uk" : "")).replace(/\/+$/, "");
 const clientId = () => process.env.AULTRUM_ID_CLIENT_ID ?? "aid_pleasant";
 
+/** Aultrum Workspace, where clients connected to Supply sign timesheets. */
+export const workspaceAppUrl = () => (process.env.AULTRUM_WORKSPACE_URL ?? (live ? "https://workspace.aultrum.co.uk" : "http://workspace.localhost:3300")).replace(/\/+$/, "");
+/** The Aultrum app, where carers sign their own part. */
+export const carerAppUrl = () => (process.env.AULTRUM_CARER_URL ?? (live ? "https://carer.aultrum.co.uk" : "http://carer.localhost:3300")).replace(/\/+$/, "");
+
 export function aultrumIdConfigured(): boolean {
   return !!issuer();
 }

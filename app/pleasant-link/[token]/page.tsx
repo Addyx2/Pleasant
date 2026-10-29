@@ -279,7 +279,7 @@ export default async function SupplyPortalPage({ params }: { params: Promise<{ t
       </main>
 
       <footer className="py-6 text-center text-xs text-slate-400">
-        Powered by Pleasant for {agency.name}. This link expires 24 hours after it was sent.
+        Powered by Pleasant for {agency.name}. This link works until {formatDate(link.expiresAt)}, {formatTime(link.expiresAt)}.
       </footer>
     </div>
   );

@@ -4,7 +4,8 @@ import { Clock, Coffee, MapPin, Navigation, StickyNote } from "lucide-react";
 
 import { requireUser } from "@/lib/auth";
 import { carerRate } from "@/lib/carer-pay";
-import { currentShift, needsSignOff, placeOf } from "@/lib/carer/screens";
+import { currentShift, needsSignOff, placeOf, signsInWorkspace } from "@/lib/carer/screens";
+import { WorkspaceSignNote } from "@/components/WorkspaceSignNote";
 import { prisma } from "@/lib/db";
 import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import { nextCutoff, payDayForCutoff, weekdayName } from "@/lib/week";
@@ -214,7 +215,8 @@ function ShiftHero({ shift, profile, now }: { shift: ShiftRow; profile: Paramete
         {ts?.clockOut && !ts.candidateSignedAt && !ts.clientAuthAt ? (
           <SignOffForm timesheetId={ts.id} mode="candidate" action={saveCandidateSignatureAction} buttonLabel="Sign off this shift" title="Sign off this shift" subtitle={subtitle} />
         ) : null}
-        {ts?.candidateSignedAt && !ts.clientAuthAt ? (
+        {ts?.candidateSignedAt && !ts.clientAuthAt && signsInWorkspace(shift.client) ? <WorkspaceSignNote home={place} /> : null}
+        {ts?.candidateSignedAt && !ts.clientAuthAt && !signsInWorkspace(shift.client) ? (
           <>
             <p className="text-center text-xs font-medium text-amber-800">You&apos;ve signed. Now hand your phone to the person in charge to sign.</p>
             <SignOffForm timesheetId={ts.id} mode="client" action={saveClientAuthAction} buttonLabel="Get their signature" title="Sign off this shift" subtitle={subtitle} />
