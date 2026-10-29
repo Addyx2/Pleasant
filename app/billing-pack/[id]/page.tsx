@@ -164,7 +164,7 @@ export default async function FundingPackPage({ params }: { params: Promise<{ id
                           {ts?.clientAuthAt ? (
                             <p className="mt-0.5 text-slate-500">{formatDateTime(ts.clientAuthAt)}</p>
                           ) : null}
-                          <p className="mt-0.5 text-slate-400">Digital sign-off via Pleasant Link</p>
+                          <p className="mt-0.5 text-slate-400">Digital sign-off via Aultrum Link</p>
                         </div>
                       ) : (
                         <p className="inline-flex items-center gap-1 font-medium text-amber-700">
@@ -183,7 +183,7 @@ export default async function FundingPackPage({ params }: { params: Promise<{ id
           <p>
             Prepared by {agency.name} on {formatDate(generatedAt)}. Carer hours and charges derive
             from approved timesheets; client authorisation is recorded digitally when the home
-            confirms role and hours via Pleasant Link.
+            confirms role and hours via Aultrum Link.
           </p>
           <p>
             This pack summarises one invoice ({invoice.reference}) for the period{" "}

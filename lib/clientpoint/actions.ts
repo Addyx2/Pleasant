@@ -9,7 +9,7 @@ import { after } from "next/server";
 import { reportShiftCompleted } from "@/lib/elements-sync";
 
 /**
- * Server Action for a client signatory to sign off a timesheet via their Pleasant Link.
+ * Server Action for a client signatory to sign off a timesheet via their Aultrum Link.
  * The signer is the contact the link was issued to — never a name sent by the browser.
  */
 export async function signOffTimesheet(token: string, timesheetId: string) {

@@ -1031,7 +1031,7 @@ const writeTools = [
       jobTitle: optional(str("Job title", 120)),
       email: optional(str("Email", 200)),
       phone: optional(str("Phone", 40)),
-      canSignTimesheets: optional(bool("May authorise timesheets via Pleasant Link")),
+      canSignTimesheets: optional(bool("May authorise timesheets via Aultrum Link")),
       receivesInvoices: optional(bool("Receives invoices")),
     }),
     describe: async (i, ctx) =>
@@ -1091,11 +1091,11 @@ const writeTools = [
     name: "create_pleasant_link",
     kind: "write",
     route: "/clients",
-    description: "Create a 24-hour Pleasant Link for a client signatory to approve timesheets and request staff.",
+    description: "Create a 24-hour Aultrum Link for a client signatory to approve timesheets and request staff.",
     input: shape({ clientId: id("Client id"), contactId: id("Signatory contact id (from get_client)") }),
     describe: async (i, ctx) => {
       const contact = await prisma.clientContact.findFirst({ where: { id: i.contactId, agencyId: ctx.user.agencyId } });
-      return `Create a Pleasant Link for ${contact?.name ?? "this signatory"} at ${clientName(await ownedClient(ctx, i.clientId))}`;
+      return `Create a Aultrum Link for ${contact?.name ?? "this signatory"} at ${clientName(await ownedClient(ctx, i.clientId))}`;
     },
     run: async ({ clientId, contactId }) => {
       const result = await createPleasantLinkAction(clientId, contactId);

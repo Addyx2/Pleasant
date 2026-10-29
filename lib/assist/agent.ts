@@ -55,7 +55,7 @@ How to work:
 Domain notes:
 - Times are UK local time. Write dates like "Tue 27 Oct, 20:00". Money is GBP.
 - A client is an organisation; its units (wards) or branches are where shifts happen. Charge rates come from the client's rate card unless set by hand. Sleep-ins have a flat carer allowance and a flat client charge.
-- Timesheets are approved by the agency and signed off by the client's named signatory through a Pleasant Link.
+- Timesheets are approved by the agency and signed off by the client's named signatory through a Aultrum Link.
 
 Style: be brief and concrete. Lead with the answer or the result, then the detail that matters. Use short bullet lists for several items and include the key facts (who, where, when). Refer to pages by name, e.g. "on the shift page".`;
 

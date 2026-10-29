@@ -267,7 +267,7 @@ export default async function ConnectionsPage() {
               <Link href="/payroll" className="text-sm font-medium text-brand-700 hover:text-brand-800">Open payroll →</Link>
             ) : null}
           </Connection>
-          <Connection icon={Link2} title="Pleasant Link" status={<Badge tone="green">Built in</Badge>}>
+          <Connection icon={Link2} title="Aultrum Link" status={<Badge tone="green">Built in</Badge>}>
             <p>A secure portal for client signatories to approve timesheets and request staff, issued per signatory.</p>
             <Link href="/clients" className="text-sm font-medium text-brand-700 hover:text-brand-800">Manage on Clients →</Link>
           </Connection>

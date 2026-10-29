@@ -202,7 +202,7 @@ export async function ActionCentre({ agencyId, isAdmin }: { agencyId: string; is
       severity,
       icon: BadgePoundSterling,
       title: `${clientName(client)} isn't fully set up`,
-      detail: `${missing.join(" and ")}${client._count.shifts > 0 ? ` · ${client._count.shifts} upcoming shift${client._count.shifts === 1 ? "" : "s"}` : ""}. ${noRates ? "New shifts can't be priced." : "You can't send a Pleasant Link for sign-off."}`,
+      detail: `${missing.join(" and ")}${client._count.shifts > 0 ? ` · ${client._count.shifts} upcoming shift${client._count.shifts === 1 ? "" : "s"}` : ""}. ${noRates ? "New shifts can't be priced." : "You can't send a Aultrum Link for sign-off."}`,
       fix: noRates ? (
         <FixLink href={`/clients/${client.id}#rates`} severity={severity}>Add rate card</FixLink>
       ) : (

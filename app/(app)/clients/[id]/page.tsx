@@ -157,7 +157,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
           <p className="font-medium">Finish setting up {clientName(client)}</p>
           <ul className="mt-1 list-inside list-disc text-xs">
             {client.rates.length === 0 ? <li>Add a rate card so new shifts are charged correctly.</li> : null}
-            {signatories.length === 0 ? <li>Add a contact who can sign timesheets, so you can send a Pleasant Link.</li> : null}
+            {signatories.length === 0 ? <li>Add a contact who can sign timesheets, so you can send a Aultrum Link.</li> : null}
           </ul>
         </Card>
       ) : null}
@@ -287,7 +287,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
           <Card className="p-5">
             <SectionHeader
               icon={Link2}
-              title="Pleasant Link"
+              title="Aultrum Link"
               hint="A 24-hour link for a signatory to approve timesheets and request staff — no login needed."
             />
             <div className="mt-4">

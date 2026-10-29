@@ -310,7 +310,7 @@ async function AsyncReceivables({ agencyId }: { agencyId: string }) {
           </span>
         ))}
         <span
-          title="Share of open invoice lines with a recorded client sign-off via Pleasant Link"
+          title="Share of open invoice lines with a recorded client sign-off via Aultrum Link"
           className={
             signedCoveragePct === 100
               ? "rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/15"
