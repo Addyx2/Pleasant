@@ -18,6 +18,8 @@ import {
   saveRightToWorkAction,
 } from "@/app/(app)/compliance/actions";
 
+import { AultrumAppCard } from "./AultrumAppCard";
+
 export const metadata = { title: "Carer" };
 export const dynamic = "force-dynamic";
 
@@ -64,6 +66,8 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
           6-digit sort code and 8-digit account number below.
         </Card>
       ) : null}
+
+      <AultrumAppCard staffId={member.id} firstName={member.firstName} connected={Boolean(member.aultrumSub)} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="p-5">

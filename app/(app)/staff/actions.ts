@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
+import { recordAudit } from "@/lib/audit";
+import { createAultrumLink, removeMembership } from "@/lib/aultrum-id";
 import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { createStaffSchema } from "@/lib/validation";
@@ -100,4 +102,45 @@ export async function setStaffStatusAction(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/staff");
+}
+
+export interface AultrumLinkState {
+  error?: string;
+  link?: { code: string; url: string; expiresAt: string };
+}
+
+/** An Aultrum Link for this carer to join the agency in the Aultrum app. */
+export async function createAultrumLinkAction(staffId: string): Promise<AultrumLinkState> {
+  const user = await requireOps();
+  const staff = await prisma.staffProfile.findFirst({ where: { id: staffId, agencyId: user.agencyId }, select: { id: true, firstName: true, lastName: true, status: true } });
+  if (!staff) return { error: "Carer not found." };
+  if (staff.status === "INACTIVE") return { error: "Make this carer active before inviting them." };
+  try {
+    const link = await createAultrumLink(user.agency, staff);
+    await recordAudit(user, {
+      action: "staff.aultrum_link",
+      summary: `Created an Aultrum Link for ${staff.firstName} ${staff.lastName}`,
+      targetType: "StaffProfile",
+      targetId: staff.id,
+    });
+    return { link };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Couldn't make the link." };
+  }
+}
+
+/** Disconnects the carer's Aultrum app: the agency disappears from it. */
+export async function disconnectAultrumAction(formData: FormData): Promise<void> {
+  const user = await requireOps();
+  const staff = await prisma.staffProfile.findFirst({ where: { id: String(formData.get("staffId") ?? ""), agencyId: user.agencyId } });
+  if (!staff?.aultrumSub) return;
+  await prisma.staffProfile.update({ where: { id: staff.id }, data: { aultrumSub: null } });
+  await removeMembership(staff.aultrumSub, user.agencyId);
+  await recordAudit(user, {
+    action: "staff.aultrum_disconnect",
+    summary: `Disconnected ${staff.firstName} ${staff.lastName}'s Aultrum app`,
+    targetType: "StaffProfile",
+    targetId: staff.id,
+  });
+  revalidatePath(`/staff/${staff.id}`);
 }

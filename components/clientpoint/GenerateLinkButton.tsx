@@ -18,7 +18,7 @@ interface LinkState {
   contactName?: string;
 }
 
-/** Issues a 24-hour Pleasant Link in a named signatory's name. */
+/** Issues a 24-hour Aultrum Link in a named signatory's name. */
 export function GenerateLinkButton({
   clientId,
   signatories,
@@ -37,7 +37,7 @@ export function GenerateLinkButton({
     return (
       <p className="text-xs text-slate-500">
         Add a contact and tick <span className="font-medium">Can sign timesheets</span> to issue a
-        Pleasant Link.
+        Aultrum Link.
       </p>
     );
   }

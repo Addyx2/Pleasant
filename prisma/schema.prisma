@@ -210,16 +210,19 @@ model User {
 }
 
 model StaffProfile {
-  id        String      @id @default(cuid())
-  agencyId  String
-  userId    String?     @unique
-  firstName String
-  lastName  String
-  email     String?
-  phone     String?
-  jobTitle  String // e.g. "Care Assistant", "Registered Nurse", "Support Worker"
-  band      String? // e.g. "Band 3", "Senior"
-  status    StaffStatus @default(ACTIVE)
+  id         String      @id @default(cuid())
+  agencyId   String
+  userId     String?     @unique
+  firstName  String
+  lastName   String
+  email      String?
+  phone      String?
+  jobTitle   String // e.g. "Care Assistant", "Registered Nurse", "Support Worker"
+  band       String? // e.g. "Band 3", "Senior"
+  status     StaffStatus @default(ACTIVE)
+  /// Their Aultrum ID, once they've joined the agency in the Aultrum app with an
+  /// Aultrum Link. They need no Pleasant login for it.
+  aultrumSub String?
 
   // Engagement — PAYE workers go through payroll; Ltd workers are paid gross.
   engagementType String  @default("PAYE") // PAYE | LTD
@@ -280,6 +283,7 @@ model StaffProfile {
   unavailability StaffUnavailability[]
 
   @@index([agencyId, status])
+  @@index([aultrumSub])
 }
 
 enum ClientType {

@@ -226,7 +226,7 @@ export async function deleteContactAction(formData: FormData): Promise<void> {
     where: { id: String(formData.get("contactId") ?? ""), agencyId: user.agencyId },
   });
   if (!contact) return;
-  // Outstanding Pleasant Links issued to this contact stop working.
+  // Outstanding Aultrum Links issued to this contact stop working.
   await prisma.$transaction([
     prisma.pleasantLinkToken.updateMany({
       where: { contactId: contact.id, expiresAt: { gt: new Date() } },
@@ -328,7 +328,7 @@ export async function createPleasantLinkAction(
   const token = await generatePleasantLink(user.agencyId, client.id, contact.id);
   await recordAudit(user, {
     action: "client.link_issue",
-    summary: `Issued a Pleasant Link to ${contact.name} at ${client.name}`,
+    summary: `Issued a Aultrum Link to ${contact.name} at ${client.name}`,
     targetType: "ClientContact",
     targetId: contact.id,
   });

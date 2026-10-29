@@ -24,7 +24,7 @@ export const ASSIST_GROUPS = [
   {
     key: "clients",
     label: "Clients",
-    description: "Clients, units, contacts and signatories, rate cards and Pleasant Links.",
+    description: "Clients, units, contacts and signatories, rate cards and Aultrum Links.",
     adminOnly: false,
   },
   {

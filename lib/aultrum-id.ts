@@ -220,17 +220,12 @@ export function reportActivity(agencyId: string, items: ActivitySummary[]) {
   return productApi("POST", "/activity", { orgId: agencyId, items });
 }
 
-/** The Aultrum carer app, where carers see their shifts from every organisation they work for. */
-export function carerAppUrl(): string {
-  return (process.env.AULTRUM_CARER_URL ?? (live ? "https://carer.aultrum.co.uk" : "http://carer.localhost:3300")).replace(/\/+$/, "");
-}
-
 /**
  * Checks a Carer API request from the Aultrum carer app: a one-minute JWT
  * Aultrum ID signed for one person (sub) and one of their organisations
  * (org) here. Returns them, or null.
  */
-export async function verifyCarerToken(token: string): Promise<{ sub: string; org: string } | null> {
+export async function verifyCarerToken(token: string): Promise<{ sub: string; org: string; ref: string | null } | null> {
   if (!aultrumIdConfigured()) return null;
   try {
     jwks ??= createRemoteJWKSet(new URL(`${issuer()}/jwks`));
@@ -241,8 +236,41 @@ export async function verifyCarerToken(token: string): Promise<{ sub: string; or
       typ: "carer+jwt",
       maxTokenAge: "2m",
     });
-    return payload.sub && typeof payload.org === "string" ? { sub: payload.sub, org: payload.org } : null;
+    if (!payload.sub || typeof payload.org !== "string") return null;
+    return { sub: payload.sub, org: payload.org, ref: typeof payload.ref === "string" ? payload.ref : null };
   } catch {
     return null;
   }
+}
+
+export interface AultrumLink {
+  code: string;
+  url: string;
+  expiresAt: string;
+}
+
+/**
+ * An Aultrum Link for one carer: they open it (or type its code) in the
+ * Aultrum app to join this agency there. Throws with a message to show.
+ */
+export async function createAultrumLink(agency: { id: string; name: string }, staff: { id: string; firstName: string; lastName: string }): Promise<AultrumLink> {
+  if (!aultrumIdConfigured()) throw new Error("Aultrum ID isn't set up for this Pleasant, so Aultrum Links can't be made.");
+  let res: Response;
+  try {
+    res = await fetch(`${issuer()}/api/v1/links`, {
+      method: "POST",
+      headers: { Authorization: basicAuth() ?? `Bearer ${await clientAssertion(`${issuer()}/api/v1`)}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ orgId: agency.id, orgName: agency.name, role: "Carer", ref: staff.id, inviteeName: `${staff.firstName} ${staff.lastName}`.trim() }),
+      signal: AbortSignal.timeout(8_000),
+    });
+  } catch (error) {
+    console.error("aultrum link failed", error);
+    throw new Error("Aultrum isn't answering right now. Try again in a minute.");
+  }
+  const json = (await res.json().catch(() => ({}))) as Partial<AultrumLink> & { error?: string };
+  if (!res.ok || !json.code || !json.url || !json.expiresAt) {
+    console.error("aultrum link refused", res.status, json.error);
+    throw new Error("Aultrum couldn't make the link. Try again in a minute.");
+  }
+  return { code: json.code, url: json.url, expiresAt: json.expiresAt };
 }
