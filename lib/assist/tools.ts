@@ -146,7 +146,7 @@ const readTools = [
   tool({
     name: "search_records",
     kind: "read",
-    route: "/oversight",
+    route: "/qualifiers",
     description:
       "Find workers, clients, shifts and invoices by name or keyword. Use this first to turn a name the user mentions into an id.",
     input: shape({ query: str("Name or keyword, at least 2 characters", 80) }),
@@ -156,7 +156,7 @@ const readTools = [
   tool({
     name: "get_overview",
     kind: "read",
-    route: "/oversight",
+    route: "/qualifiers",
     description:
       "Today's operational snapshot: shifts today, open and unfilled shifts in the next 7 days, timesheets and shift requests awaiting a decision, unattended shifts and compliance items expiring soon. Admins also get receivables and the latest pay run.",
     input: shape({}),
@@ -1202,7 +1202,7 @@ const clientTools = [
   tool({
     name: "open_page",
     kind: "client",
-    route: "/oversight",
+    route: "/qualifiers",
     description:
       "Open a page in the app for the user, e.g. /shifts/new, /clients/<id>, /settings/team. Use it for things you can't do directly, or when the user asks to see something.",
     input: shape({ path: str("App path starting with /", 200) }),

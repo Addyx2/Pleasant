@@ -88,7 +88,7 @@ export async function loginAction(
 
   await setSessionCookie(user);
 
-  const fallback = user.role === "STAFF" ? "/workforce" : "/oversight";
+  const fallback = user.role === "STAFF" ? "/workforce" : "/qualifiers";
   redirect(safeNextPath(String(formData.get("next") ?? "")) ?? fallback);
 }
 

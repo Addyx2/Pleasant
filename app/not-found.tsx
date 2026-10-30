@@ -14,8 +14,8 @@ export default function NotFound() {
           The link may be out of date, or the record may belong to another agency.
         </p>
         <div className="mt-6 flex justify-center gap-4 text-sm font-medium">
-          <Link href="/oversight" className="text-brand-700 hover:text-brand-800">
-            Go to Oversight →
+          <Link href="/qualifiers" className="text-brand-700 hover:text-brand-800">
+            Go to Qualifiers →
           </Link>
           <Link href="/" className="text-slate-500 hover:text-slate-700">
             Home

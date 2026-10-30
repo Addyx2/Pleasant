@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  Bot,
   Building2,
   Fingerprint,
   Gauge,
@@ -20,6 +21,7 @@ import {
 import { requireOps } from "@/lib/auth";
 import { expiryState } from "@/lib/compliance";
 import { prisma } from "@/lib/db";
+import { qualifiers, summarise } from "@/lib/qualifiers";
 import { Badge, Card } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
@@ -93,6 +95,11 @@ export default async function PersonaPage() {
   const now = new Date();
   const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
+  const [running, filled, index] = await Promise.all([
+    prisma.pushbotCampaign.count({ where: { agencyId: user.agencyId, status: "RUNNING" } }),
+    prisma.pushbotCampaign.count({ where: { agencyId: user.agencyId, outcome: "filled", createdAt: { gte: since } } }),
+    qualifiers(user.agencyId).then(summarise),
+  ]);
   const [staff, conversations, actions, automations, clients] = await Promise.all([
     prisma.staffProfile.findMany({
       where: { agencyId: user.agencyId, status: { not: "INACTIVE" } },
@@ -149,6 +156,34 @@ export default async function PersonaPage() {
             </li>
           ))}
         </ol>
+      </section>
+
+      <section>
+        <div className="mb-3">
+          <h2 className="text-sm font-semibold text-slate-900">Persona&apos;s functions</h2>
+          <p className="text-xs text-slate-500">Three agents on the same layers: one talks to carers, one works with the office, one keeps score.</p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          {[
+            { href: "/persona/pushbots", icon: Bot, title: "Pushbots", text: "Fills open shifts by text, a few carers at a time, and answers carers' texts as them.", stat: `${running} filling now · ${filled} filled in 30 days` },
+            { href: "/persona/assist", icon: Sparkles, title: "Assist", text: "Ask about anything in Pleasant, or tell it what to do. Every change waits for your approval.", stat: `${actions} changes approved in 30 days` },
+            { href: "/persona/qualifiers", icon: Gauge, title: "Qualifiers", text: "Indexes every carer across reliability, quality, readiness and competence, with compliance as a gate.", stat: index.index === null ? "Not enough history yet" : `Agency index ${index.index} · ${index.toReview.length} to review` },
+          ].map((f) => (
+            <Link key={f.href} href={f.href} className="group">
+              <Card className="h-full p-5 transition group-hover:border-brand-300">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-900">
+                    <f.icon className="h-4 w-4 text-brand-300" />
+                  </span>
+                  <h3 className="font-semibold text-slate-900">{f.title}</h3>
+                  <Badge tone="green">Live</Badge>
+                </div>
+                <p className="mt-3 text-sm text-slate-600">{f.text}</p>
+                <p className="mt-3 text-xs font-medium text-slate-500">{f.stat}</p>
+              </Card>
+            </Link>
+          ))}
+        </div>
       </section>
 
       <section>

@@ -16,5 +16,5 @@ export async function resolveElementsEventAction(formData: FormData): Promise<vo
     data: { resolvedAt: new Date(), resolvedBy: name },
   });
   if (updated.count > 0) await recordAudit(user, { action: "elements.resolve", summary: `Marked an Elements item as done` });
-  revalidatePath("/oversight");
+  revalidatePath("/qualifiers");
 }

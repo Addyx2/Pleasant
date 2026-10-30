@@ -23,7 +23,7 @@ test("managers don't see finance or workspace admin in navigation", () => {
 test("the sidebar is grouped Pleasant / Persona / Elements", () => {
   const admin = navForRole("ADMIN").groups;
   assert.deepEqual(admin.map((g) => g.label), ["Pleasant", "Persona", "Elements"]);
-  assert.deepEqual(admin[1].links.map((l) => l.label), ["Overview", "Assist"]);
+  assert.deepEqual(admin[1].links.map((l) => l.label), ["Overview", "Pushbots", "Assist", "Qualifiers"]);
   assert.deepEqual(admin[2].links.map((l) => l.label), ["Gateway", "Peak", "All Elements"]);
   // Managers use Gateway and Peak day to day; only admins switch Elements on and off.
   const manager = navForRole("MANAGER").groups;

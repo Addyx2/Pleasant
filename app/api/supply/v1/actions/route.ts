@@ -46,6 +46,6 @@ export async function POST(request: Request) {
     default:
       return json({ ok: false, error: "Unknown action" }, 400);
   }
-  for (const path of ["/shifts", "/timesheets", "/dispatch", "/dashboard", "/oversight"]) revalidatePath(path);
+  for (const path of ["/shifts", "/timesheets", "/dispatch", "/dashboard", "/qualifiers"]) revalidatePath(path);
   return json(result, result.ok ? 200 : 422);
 }

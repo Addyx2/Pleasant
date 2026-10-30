@@ -24,5 +24,5 @@ export async function signInWithAultrum(user: User, sub: string, how: "aultrum" 
     await reportMembership(sub, agency, user.role);
     await pushWorkspaceActivity(agency.id);
   }
-  return user.role === "STAFF" ? "/workforce" : "/oversight";
+  return user.role === "STAFF" ? "/workforce" : "/qualifiers";
 }

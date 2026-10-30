@@ -9,5 +9,5 @@ import { isOpsRole } from "@/lib/permissions";
 export default async function RootPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
-  redirect(isOpsRole(user.role) ? "/oversight" : "/workforce");
+  redirect(isOpsRole(user.role) ? "/qualifiers" : "/workforce");
 }

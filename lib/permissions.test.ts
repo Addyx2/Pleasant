@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { canAccess, isOpsRole } from "./permissions";
 
 test("admins reach every back-office route", () => {
-  for (const href of ["/oversight", "/payroll", "/billing/abc", "/settings/team", "/shifts"]) {
+  for (const href of ["/qualifiers", "/payroll", "/billing/abc", "/settings/team", "/shifts"]) {
     assert.equal(canAccess("ADMIN", href), true, href);
   }
 });
