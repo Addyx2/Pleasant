@@ -79,6 +79,6 @@ export async function POST(request: Request) {
   }
 
   // The office screens and the Workers app show the same shifts.
-  for (const path of ["/workforce", "/timesheets", "/shifts", "/dashboard", "/oversight"]) revalidatePath(path);
+  for (const path of ["/workforce", "/timesheets", "/shifts", "/dashboard", "/qualifiers"]) revalidatePath(path);
   return json(result, result.ok ? 200 : 422);
 }

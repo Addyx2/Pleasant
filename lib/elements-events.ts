@@ -13,7 +13,7 @@ export interface ElementsWebhook {
 
 const str = (v: unknown) => (typeof v === "string" ? v : undefined);
 
-/** Events that need a person in the agency, shown in Oversight until marked done. */
+/** Events that need a person in the agency, shown on Qualifiers (the home page) until marked done. */
 function attention(event: ElementsWebhook): { needsAttention: boolean; urgent: boolean } {
   switch (event.type) {
     case "gateway.enquiry.received":

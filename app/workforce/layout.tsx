@@ -21,7 +21,7 @@ export const viewport: Viewport = {
 
 export default async function WorkforceLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
-  if (user.role !== "STAFF") redirect("/oversight");
+  if (user.role !== "STAFF") redirect("/qualifiers");
   const peak = Boolean(await installationFor(user.agencyId, "PEAK"));
 
   return (

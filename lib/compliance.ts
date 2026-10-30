@@ -62,3 +62,21 @@ export function sortByUrgency<T extends { state: ExpiryState; days: number | nul
     return left - right;
   });
 }
+
+/**
+ * What stops a carer being placed: missing or expired DBS, and right to work
+ * that's missing, unverified or expired. Empty means clear. Used by Assist
+ * and Pushbots alike, so both apply the same gate.
+ */
+export function complianceGaps(
+  s: { dbsNumber: string | null; dbsExpiry: Date | null; rightToWork: { status: string; expiryDate: Date | null } | null },
+  now: Date = new Date(),
+): string[] {
+  const gaps: string[] = [];
+  if (!s.dbsNumber) gaps.push("no DBS certificate on file");
+  else if (expiryState(s.dbsExpiry, now) === "EXPIRED") gaps.push("DBS certificate has expired");
+  if (!s.rightToWork) gaps.push("no right-to-work check recorded");
+  else if (s.rightToWork.status !== "VERIFIED") gaps.push("right to work not yet verified");
+  else if (s.rightToWork.expiryDate && expiryState(s.rightToWork.expiryDate, now) === "EXPIRED") gaps.push("right to work has expired");
+  return gaps;
+}

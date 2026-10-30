@@ -30,6 +30,8 @@ const nextConfig: NextConfig = {
       // Assist moved under Persona; keep old links (emails, bookmarks) working.
       { source: "/assist", destination: "/persona/assist", permanent: false },
       { source: "/assist/:path*", destination: "/persona/assist/:path*", permanent: false },
+      // The home page was Oversight; it's Qualifiers now.
+      { source: "/oversight", destination: "/qualifiers", permanent: false },
     ];
   },
   async headers() {

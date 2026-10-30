@@ -45,7 +45,7 @@ export async function respondToOffer(input: {
     return "overlap";
   }
 
-  return prisma.$transaction(async (tx) => {
+  const outcome = await prisma.$transaction(async (tx) => {
     // Only an open, unassigned shift can be taken, so two carers accepting at
     // once can't both get it.
     const taken = await tx.shift.updateMany({
@@ -59,4 +59,11 @@ export async function respondToOffer(input: {
     await tx.shiftOffer.update({ where: { id: offerId }, data: { status: "ACCEPTED", respondedAt: new Date() } });
     return "accepted" as const;
   });
+  // Filled: if Pushbots was filling it, end the campaign and tell the others.
+  // (Imported here, as campaigns themselves make offers.)
+  if (outcome === "accepted") {
+    const { settleShift } = await import("@/lib/pushbots/campaign");
+    await settleShift(offer.shift.id).catch((error) => console.error("pushbots settle failed", error));
+  }
+  return outcome;
 }

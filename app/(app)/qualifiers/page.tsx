@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { requireOps } from "@/lib/auth";
+import { BANDS, qualifiers, summarise } from "@/lib/qualifiers";
 import { ActionCentre } from "./ActionCentre";
 import { Kpis } from "./Kpis";
 import { asLedgerRow, creditBandTone, creditHealth, type HomeCreditHealth } from "@/lib/credit";
@@ -24,17 +25,18 @@ import {
   formatDateTime,
   formatTime,
 } from "@/lib/utils";
-import { buttonClass, Card, EmptyState, IconTile, SkeletonCard, SkeletonTable, subtleButtonClass, Td } from "@/components/ui";
+import { Badge, buttonClass, Card, EmptyState, IconTile, SkeletonCard, SkeletonTable, subtleButtonClass, Td } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
 import { setInvoiceStatusAction } from "@/app/(app)/billing/actions";
 import { clientName } from "@/lib/clients";
 
-export const metadata = { title: "Oversight" };
+export const metadata = { title: "Qualifiers" };
 export const dynamic = "force-dynamic";
 
 function headerCopy(role: string) {
+  const hour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "numeric", hourCycle: "h23" }).format(new Date()));
   return {
-    greeting: "Oversight",
+    greeting: hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening",
     description:
       role === "ADMIN"
         ? "A live view of the rota, approvals, billing and payroll."
@@ -42,7 +44,7 @@ function headerCopy(role: string) {
   };
 }
 
-async function OversightHeader({ user }: { user: Awaited<ReturnType<typeof requireOps>> }) {
+async function QualifiersHeader({ user }: { user: Awaited<ReturnType<typeof requireOps>> }) {
   const today = new Date();
 
   const cutoff = nextCutoff({
@@ -519,13 +521,17 @@ function Group({ title, hint, children }: { title: string; hint?: string; childr
   );
 }
 
-export default async function OversightPage() {
+export default async function QualifiersPage() {
   const user = await requireOps();
   const isAdmin = user.role === "ADMIN";
 
   return (
     <div className="space-y-8">
-      <OversightHeader user={user} />
+      <QualifiersHeader user={user} />
+
+      <Suspense fallback={<SkeletonCard />}>
+        <QualifiersCard agencyId={user.agencyId} />
+      </Suspense>
 
       {/* The action centre is the page's focal point, so it carries its own heading. */}
       <Suspense fallback={<SkeletonTable rows={3} />}>
@@ -574,5 +580,55 @@ export default async function OversightPage() {
         <AsyncAgentActivity agencyId={user.agencyId} />
       </Suspense>
     </div>
+  );
+}
+
+/** The agency's Qualifiers index at a glance, and who to look at first. */
+async function QualifiersCard({ agencyId }: { agencyId: string }) {
+  const all = await qualifiers(agencyId);
+  if (all.length === 0) return null;
+  const s = summarise(all);
+  const review = s.toReview.slice(0, 5);
+  return (
+    <Card className="p-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Quality index</p>
+            <p className="mt-1 font-display text-4xl font-bold tracking-tight text-slate-900">{s.index ?? "—"}</p>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {(["excellent", "good", "watch", "support", "blocked", "new"] as const).map((b) =>
+              s.counts[b] ? (
+                <Badge key={b} tone={BANDS[b].tone}>
+                  {s.counts[b]} {BANDS[b].label.toLowerCase()}
+                </Badge>
+              ) : null,
+            )}
+          </div>
+        </div>
+        <Link href="/persona/qualifiers" className="text-sm font-medium text-brand-700 hover:text-brand-800">
+          Open Qualifiers →
+        </Link>
+      </div>
+      {review.length ? (
+        <div className="mt-4 border-t border-slate-100 pt-3">
+          <p className="text-xs font-medium text-slate-500">{s.toReview.length} to review</p>
+          <ul className="mt-1 divide-y divide-slate-100">
+            {review.map((q) => (
+              <li key={q.staffId} className="flex flex-wrap items-center justify-between gap-2 py-1.5 text-sm">
+                <Link href={`/staff/${q.staffId}`} className="font-medium text-slate-800 hover:text-brand-700">{q.name}</Link>
+                <span className="flex-1 text-xs text-slate-500">
+                  {!q.gate.clear ? q.gate.gaps.join("; ") : q.weak.length ? `${q.weak.join(" and ")} under 50` : `index ${q.index}`}
+                </span>
+                <Badge tone={BANDS[q.band].tone}>{BANDS[q.band].label}</Badge>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="mt-3 text-sm text-slate-500">Nobody needs reviewing right now.</p>
+      )}
+    </Card>
   );
 }

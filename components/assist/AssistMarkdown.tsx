@@ -6,7 +6,7 @@ import { Fragment, type ReactNode } from "react";
 // in-app paths like /shifts/abc. Built as React nodes, so model output can
 // never inject HTML.
 
-const INLINE = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)\s]+\)|(?<![\w/])\/(?:shifts|staff|clients|billing|payroll|timesheets|dispatch|rota|compliance|settings|oversight|workforce)(?:\/[\w-]+)*)/g;
+const INLINE = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)\s]+\)|(?<![\w/])\/(?:shifts|staff|clients|billing|payroll|timesheets|dispatch|rota|compliance|settings|qualifiers|persona|workforce)(?:\/[\w-]+)*)/g;
 
 function isInternal(href: string) {
   return href.startsWith("/") && !href.startsWith("//");

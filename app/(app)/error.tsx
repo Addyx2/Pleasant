@@ -37,8 +37,8 @@ export default function AppError({
           <RotateCcw className="h-4 w-4" />
           Try again
         </button>
-        <Link href="/oversight" className={subtleButtonClass}>
-          Back to Oversight
+        <Link href="/qualifiers" className={subtleButtonClass}>
+          Back to Qualifiers
         </Link>
       </div>
     </div>

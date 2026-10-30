@@ -9,6 +9,7 @@ import { formatCurrency, formatDateTime, formatHours, shiftDurationMins } from "
 import { Card, PageHeader, StatCard, Td, Th, buttonClass, inputClass, labelClass, subtleButtonClass } from "@/components/ui";
 import { StatusBadge } from "@/components/status";
 import { SignOffForm } from "@/components/SignOffForm";
+import { startCampaignAction } from "../../persona/pushbots/actions";
 import { assignShiftFormAction, deleteShiftAction, updateShiftStatusAction } from "../actions";
 import {
   clockInFormAction,
@@ -45,6 +46,7 @@ export default async function ShiftDetailPage({
   ]);
 
   if (!shift) notFound();
+  const runningCampaign = await prisma.pushbotCampaign.findFirst({ where: { shiftId: shift.id, status: "RUNNING" } });
 
   const duration = shiftDurationMins(shift.startAt, shift.endAt);
   const bankHolidays = await getBankHolidays(user.agency.bankHolidayDivision);
@@ -336,6 +338,24 @@ export default async function ShiftDetailPage({
               <p className="mt-3 text-sm text-slate-500">Assign a carer to enable timesheets.</p>
             )}
           </Card>
+
+          {!shift.staffId && ["OPEN", "UNATTENDED"].includes(shift.status) && shift.startAt > new Date() ? (
+            <Card className="p-6">
+              <h2 className="text-sm font-semibold text-slate-900">Fill it with Pushbots</h2>
+              {runningCampaign ? (
+                <p className="mt-2 text-sm text-slate-600">
+                  Pushbots is filling this shift: wave {runningCampaign.wave}, {runningCampaign.offersSent} offered.{" "}
+                  <Link href="/persona/pushbots" className="font-medium text-brand-700 hover:text-brand-800">See who</Link>
+                </p>
+              ) : (
+                <form action={startCampaignAction} className="mt-2 space-y-3">
+                  <input type="hidden" name="shiftId" value={shift.id} />
+                  <p className="text-sm text-slate-600">Offers it to the best-placed eligible carers a few at a time, by text and in their app, until one says yes.</p>
+                  <button type="submit" className={buttonClass}>Fill with Pushbots</button>
+                </form>
+              )}
+            </Card>
+          ) : null}
 
           <Card className="p-6">
             <h2 className="text-sm font-semibold text-slate-900">Status</h2>

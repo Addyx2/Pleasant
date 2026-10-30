@@ -4,7 +4,7 @@ import { SESSION_COOKIE } from "./lib/constants";
 
 const PROTECTED_PREFIXES = [
   "/dashboard",
-  "/oversight",
+  "/qualifiers",
   "/shifts",
   "/timesheets",
   "/staff",
@@ -55,7 +55,7 @@ export const config = {
     "/api/carer/:path*",
     "/api/supply/:path*",
     "/dashboard/:path*",
-    "/oversight/:path*",
+    "/qualifiers/:path*",
     "/shifts/:path*",
     "/timesheets/:path*",
     "/staff/:path*",

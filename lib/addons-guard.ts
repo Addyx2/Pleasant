@@ -11,7 +11,7 @@ export async function requireInstalledAddon(key: "GATEWAY" | "PEAK") {
     select: { installed: true, active: true, elementsInstallationId: true },
   });
   if (!row?.installed || !row.active || !row.elementsInstallationId) {
-    redirect(user.role === "ADMIN" ? "/addons" : "/oversight");
+    redirect(user.role === "ADMIN" ? "/addons" : "/qualifiers");
   }
   return { user, installationId: row.elementsInstallationId };
 }

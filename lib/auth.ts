@@ -97,7 +97,7 @@ export async function requireUser() {
 }
 
 function homeFor(role: string): string {
-  return role === "STAFF" ? "/workforce" : "/oversight";
+  return role === "STAFF" ? "/workforce" : "/qualifiers";
 }
 
 // Back-office operations: rota, dispatch, timesheets, staff, clients, compliance.

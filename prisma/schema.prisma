@@ -210,19 +210,21 @@ model User {
 }
 
 model StaffProfile {
-  id         String      @id @default(cuid())
-  agencyId   String
-  userId     String?     @unique
-  firstName  String
-  lastName   String
-  email      String?
-  phone      String?
-  jobTitle   String // e.g. "Care Assistant", "Registered Nurse", "Support Worker"
-  band       String? // e.g. "Band 3", "Senior"
-  status     StaffStatus @default(ACTIVE)
+  id          String      @id @default(cuid())
+  agencyId    String
+  userId      String?     @unique
+  firstName   String
+  lastName    String
+  email       String?
+  phone       String?
+  jobTitle    String // e.g. "Care Assistant", "Registered Nurse", "Support Worker"
+  band        String? // e.g. "Band 3", "Senior"
+  status      StaffStatus @default(ACTIVE)
   /// Their Aultrum ID, once they've joined the agency in the Aultrum app with an
   /// Aultrum Link. They need no Pleasant login for it.
-  aultrumSub String?
+  aultrumSub  String?
+  /// They texted STOP: no more texts until they text START.
+  smsOptOutAt DateTime?
 
   // Engagement — PAYE workers go through payroll; Ltd workers are paid gross.
   engagementType String  @default("PAYE") // PAYE | LTD
@@ -822,16 +824,25 @@ model AgentLog {
 }
 
 model PushbotCampaign {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   agencyId    String
   shiftId     String
   targetRole  String
-  channel     String   @default("WHATSAPP") // WHATSAPP | SMS | SLACK
-  status      String   @default("RUNNING") // RUNNING | COMPLETED | EXPIRED | CANCELLED
-  offersSent  Int      @default(0)
+  channel     String    @default("WHATSAPP") // WHATSAPP | SMS | SLACK
+  status      String    @default("RUNNING") // RUNNING | COMPLETED | EXPIRED | CANCELLED
+  offersSent  Int       @default(0)
   claimedById String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  /// Waves texted so far; the next goes out at nextWaveAt if the shift is still open.
+  wave        Int       @default(0)
+  waveSize    Int       @default(5)
+  waveGapMins Int       @default(15)
+  nextWaveAt  DateTime?
+  startedById String?
+  endedAt     DateTime?
+  /// filled | exhausted | expired | cancelled
+  outcome     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   agency    Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   shift     Shift         @relation(fields: [shiftId], references: [id], onDelete: Cascade)
@@ -952,12 +963,15 @@ model ShiftOffer {
   offeredAt   DateTime         @default(now())
   respondedAt DateTime?
   note        String?
+  /// The Pushbots campaign that made this offer, if one did.
+  campaignId  String?
 
   agency Agency       @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   shift  Shift        @relation(fields: [shiftId], references: [id], onDelete: Cascade)
   staff  StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
 
   @@unique([shiftId, staffId])
+  @@index([campaignId])
   @@index([staffId, status])
   @@index([agencyId, status])
 }

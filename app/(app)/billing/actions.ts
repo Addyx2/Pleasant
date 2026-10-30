@@ -188,7 +188,7 @@ export async function setInvoiceStatusAction(formData: FormData): Promise<void> 
   revalidatePath("/billing");
   revalidatePath(`/billing/${invoiceId}`);
   revalidatePath("/dashboard");
-  revalidatePath("/oversight");
+  revalidatePath("/qualifiers");
 }
 
 export async function deleteInvoiceAction(formData: FormData): Promise<void> {

@@ -1,9 +1,11 @@
 import {
   Banknote,
+  Bot,
   Building2,
   CalendarClock,
   FileUp,
   Fingerprint,
+  Gauge,
   Headset,
   LayoutDashboard,
   LayoutGrid,
@@ -33,10 +35,10 @@ export interface NavSection {
 }
 
 export const HOME_ITEM: NavItem = {
-  href: "/oversight",
-  label: "Oversight",
+  href: "/qualifiers",
+  label: "Qualifiers",
   icon: LayoutDashboard,
-  keywords: "dashboard home overview",
+  keywords: "dashboard home overview oversight quality index",
 };
 
 export const NAV_SECTIONS: NavSection[] = [
@@ -97,7 +99,9 @@ export interface NavGroup {
 
 export const PERSONA_LINKS: NavItem[] = [
   { href: "/persona", label: "Overview", icon: Fingerprint, keywords: "persona ai suite competence compliance readiness layers" },
+  { href: "/persona/pushbots", label: "Pushbots", icon: Bot, keywords: "persona ai sms text carers offers fill shifts campaigns messages" },
   { href: "/persona/assist", label: "Assist", icon: Sparkles, keywords: "persona ai agent chat history automations connections" },
+  { href: "/persona/qualifiers", label: "Qualifiers", icon: Gauge, keywords: "persona ai quality index performance reliability readiness competence carers review" },
 ];
 
 export const ELEMENT_LINKS: NavItem[] = [
