@@ -168,6 +168,8 @@ model Agency {
   integrationLogs IntegrationLog[]
   smsMessages     SmsMessage[]
   unavailability  StaffUnavailability[]
+  pushbot         Pushbot?
+  pushbotActions  PushbotAction[]
 }
 
 model User {
@@ -187,6 +189,8 @@ model User {
   lockedUntil      DateTime?
   // Null while active; set when an admin removes the user's access.
   deactivatedAt    DateTime?
+  /// Their mobile, set by an admin: texts from it to the agency's Pushbot come from them.
+  mobile           String?
   // Their Aultrum ID ("sub"), once they've linked it by confirming their password.
   // One user per Aultrum ID is enforced when linking (lib/aultrum-signin.ts).
   aultrumSub       String?
@@ -197,6 +201,7 @@ model User {
 
   agency              Agency               @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   staff               StaffProfile?
+  pushbotActions      PushbotAction[]
   approved            Timesheet[]          @relation("TimesheetApprover")
   createdShifts       Shift[]              @relation("ShiftCreator")
   shiftComments       ShiftComment[]
@@ -1176,6 +1181,8 @@ model SmsMessage {
   body       String
   // OUT shift offers: the code a carer can reply with ("YES 4821").
   code       String?
+  /// Office conversations with the Pushbot: the member of staff texting.
+  userId     String?
   providerId String? // Twilio message SID
   status     String // SENT | FAILED | RECEIVED
   createdAt  DateTime @default(now())
@@ -1279,4 +1286,55 @@ model TimesheetReminder {
   timesheet Timesheet @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
 
   @@unique([timesheetId, day])
+}
+
+/// An agency's Pushbot: the agent that texts its carers (and office staff
+/// who've been given a registered mobile), from a number of its own.
+model Pushbot {
+  id           String   @id @default(cuid())
+  agencyId     String   @unique
+  name         String   @default("Pushbot")
+  /// friendly | brief | formal
+  tone         String   @default("friendly")
+  /// Off: offers still reach carers' apps, but nothing is texted.
+  enabled      Boolean  @default(true)
+  /// Office staff with a registered mobile can ask it things and give it jobs by text.
+  officeTexts  Boolean  @default(true)
+  waveSize     Int      @default(5)
+  waveGapMins  Int      @default(15)
+  /// The number Pleasant bought for it on Aultrum's Twilio account (E.164).
+  number       String?
+  numberSid    String?
+  /// none | active | failed
+  numberStatus String   @default("none")
+  numberError  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([number])
+}
+
+/// Something an office member asked the Pushbot to do by text, held until
+/// they reply YES with its code.
+model PushbotAction {
+  id        String    @id @default(cuid())
+  agencyId  String
+  userId    String
+  code      String
+  tool      String
+  input     Json
+  summary   String
+  /// pending | done | failed | cancelled | expired
+  status    String    @default("pending")
+  result    String?
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  doneAt    DateTime?
+
+  agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
 }

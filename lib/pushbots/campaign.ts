@@ -32,6 +32,8 @@ export async function startCampaign(agencyId: string, shiftId: string, startedBy
   // An unattended shift (its carer dropped out) is offered like an open one.
   if (shift.status === "UNATTENDED") await prisma.shift.update({ where: { id: shift.id }, data: { status: "OPEN" } });
 
+  // Waves default to the agency's Pushbot settings.
+  const bot = await prisma.pushbot.findUnique({ where: { agencyId }, select: { waveSize: true, waveGapMins: true } });
   const campaign = await prisma.pushbotCampaign.create({
     data: {
       agencyId,
@@ -40,8 +42,8 @@ export async function startCampaign(agencyId: string, shiftId: string, startedBy
       channel: "SMS",
       status: "RUNNING",
       startedById,
-      waveSize: clamp(opts.waveSize ?? 5, 1, 20),
-      waveGapMins: clamp(opts.waveGapMins ?? 15, 5, 240),
+      waveSize: clamp(opts.waveSize ?? bot?.waveSize ?? 5, 1, 20),
+      waveGapMins: clamp(opts.waveGapMins ?? bot?.waveGapMins ?? 15, 5, 240),
     },
   });
   await log(agencyId, "CAMPAIGN_STARTED", { campaignId: campaign.id, shiftId });

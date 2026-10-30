@@ -69,6 +69,22 @@ The scheduler is `GET /api/cron/assist` with `Authorization: Bearer $CRON_SECRET
 `CRON_SECRET` are set (Vercel Hobby crons only run daily). Overlapping calls are safe: each run is claimed
 atomically.
 
+## Pushbots (texting carers and the office)
+
+Each agency creates its Pushbot under Persona → Pushbots → Settings. Pleasant buys it a UK mobile number on Aultrum's Twilio account and points the number's texts back at itself; agencies never touch Twilio. Carers text it to see their shifts, take offers, book time off or tell the office something, and it acts only as them. Office staff whose mobile an admin has registered can ask it questions and give it jobs (fill a shift, stop filling, offer a shift to named carers, text a carer), which wait for a YES code. Timesheets, pay, invoices and compliance are never done by text.
+
+Settings on the deployment (Vercel):
+
+| Setting | What it's for |
+| --- | --- |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | Aultrum's Twilio account: buys each Pushbot's number and sends its texts |
+| `TWILIO_FROM` | The shared Pushbots number (`+44…`), used while an agency's own number is being set up |
+| `TWILIO_BUNDLE_SID` (and `TWILIO_ADDRESS_SID` if Twilio asks) | Aultrum's approved UK regulatory bundle, needed to buy UK numbers |
+| `ANTHROPIC_API_KEY` | Pushbots answering texts in its own words |
+| `APP_URL` | Where Twilio sends replies, and links in texts and emails |
+
+An agency that already has its own Twilio number can connect it under Settings → Integrations instead.
+
 ## Security model
 
 - **Sessions** — HMAC-signed, `httpOnly` cookies carrying a per-user `sessionVersion`. Password resets,

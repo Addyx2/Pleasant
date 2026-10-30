@@ -39,8 +39,9 @@ export default async function PushbotsPage({ searchParams }: { searchParams: Pro
   const since = historySince();
   const now = new Date();
 
-  const [sender, running, recent, open] = await Promise.all([
+  const [sender, pushbot, running, recent, open] = await Promise.all([
     smsSender(user.agencyId),
+    prisma.pushbot.findUnique({ where: { agencyId: user.agencyId } }),
     prisma.pushbotCampaign.findMany({
       where: { agencyId: user.agencyId, status: "RUNNING" },
       include: { shift: { include: { client: true, site: true, shiftOffers: { include: { staff: true }, orderBy: { offeredAt: "asc" } } } } },
@@ -87,12 +88,19 @@ export default async function PushbotsPage({ searchParams }: { searchParams: Pro
       {error ? <p role="alert" className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
       {started ? <p role="status" className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">Pushbots has started. The first carers have their offer.</p> : null}
 
-      {!sender ? (
+      {!pushbot ? (
+        <Card className="flex flex-wrap items-center justify-between gap-3 border-brand-200 bg-brand-50/60 p-4">
+          <p className="text-sm text-brand-900">
+            <span className="font-semibold">Create your agency&apos;s Pushbot</span> to text carers from a number of its own and take jobs from your office by text. Until then, offers go to carers&apos; apps only.
+          </p>
+          <Link href="/persona/pushbots/settings" className={buttonClass}>Create it</Link>
+        </Card>
+      ) : !sender ? (
         <Card className="flex flex-wrap items-center justify-between gap-3 border-amber-200 bg-amber-50/60 p-4">
           <p className="text-sm text-amber-900">
-            <span className="font-semibold">Texting isn&apos;t connected.</span> Pushbots still offers shifts in the carers&apos; apps; connect Twilio to text them too.
+            <span className="font-semibold">{pushbot.enabled ? `${pushbot.name} can't text yet.` : `${pushbot.name}'s texting is off.`}</span> Offers still reach carers&apos; apps.
           </p>
-          <Link href="/settings/integrations" className={subtleButtonClass}>Connect texting</Link>
+          <Link href="/persona/pushbots/settings" className={subtleButtonClass}>Settings</Link>
         </Card>
       ) : null}
 
@@ -166,10 +174,10 @@ export default async function PushbotsPage({ searchParams }: { searchParams: Pro
                 </div>
                 <div className="flex items-center gap-2 text-xs text-slate-500">
                   <label className="flex items-center gap-1">
-                    <input name="waveSize" type="number" min={1} max={20} defaultValue={5} className="w-14 rounded-md border border-slate-300 px-2 py-1 text-sm" aria-label="Carers per wave" /> at a time,
+                    <input name="waveSize" type="number" min={1} max={20} defaultValue={pushbot?.waveSize ?? 5} className="w-14 rounded-md border border-slate-300 px-2 py-1 text-sm" aria-label="Carers per wave" /> at a time,
                   </label>
                   <label className="flex items-center gap-1">
-                    every <input name="waveGapMins" type="number" min={5} max={240} defaultValue={15} className="w-16 rounded-md border border-slate-300 px-2 py-1 text-sm" aria-label="Minutes between waves" /> min
+                    every <input name="waveGapMins" type="number" min={5} max={240} defaultValue={pushbot?.waveGapMins ?? 15} className="w-16 rounded-md border border-slate-300 px-2 py-1 text-sm" aria-label="Minutes between waves" /> min
                   </label>
                   <button type="submit" className={buttonClass}>
                     <Bot className="h-4 w-4" /> Fill
