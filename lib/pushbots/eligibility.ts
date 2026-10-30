@@ -152,3 +152,16 @@ export async function rankForShift(agencyId: string, shiftId: string) {
   );
   return { shift, ...rank(shift, facts) };
 }
+
+/** The main reasons carers can't be offered a shift, most common first: "3 a different role, 2 no DBS…". */
+export function whyNot(excluded: Excluded[], top = 3): string[] {
+  const counts = new Map<string, number>();
+  for (const e of excluded) {
+    const reason = e.reason.startsWith("is a ") ? "a different role" : e.reason;
+    counts.set(reason, (counts.get(reason) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, top)
+    .map(([reason, n]) => `${n} ${reason}`);
+}

@@ -3,7 +3,7 @@ import { test } from "node:test";
 
 import { optOutWord } from "@/lib/integrations/sms";
 
-import { rank, reliability, ruledOut, type CandidateFacts } from "./eligibility";
+import { rank, reliability, ruledOut, whyNot, type CandidateFacts } from "./eligibility";
 
 const at = (h: number) => new Date(Date.UTC(2026, 10, 3, h));
 const shift = { startAt: at(20), endAt: at(32), role: "Care Assistant" };
@@ -73,4 +73,15 @@ test("optOutWord: STOP and START on their own; never 'cancel' or a sentence", ()
   assert.equal(optOutWord("cancel"), null);
   assert.equal(optOutWord("please stop sending me nights"), null);
   assert.equal(optOutWord("YES 1234"), null);
+});
+
+test("whyNot: groups reasons, most common first", () => {
+  assert.deepEqual(
+    whyNot([
+      { staffId: "a", name: "A", reason: "is a Registered Nurse, not a Care Assistant" },
+      { staffId: "b", name: "B", reason: "is a Cook, not a Care Assistant" },
+      { staffId: "c", name: "C", reason: "no DBS certificate on file" },
+    ]),
+    ["2 a different role", "1 no DBS certificate on file"],
+  );
 });

@@ -173,10 +173,11 @@ export async function triageShiftAction(formData: FormData): Promise<void> {
   });
   if (!shift || (shift.status !== "OPEN" && shift.status !== "UNATTENDED")) return;
 
-  await startCampaign(user.agencyId, shiftId, user.id);
+  const result = await startCampaign(user.agencyId, shiftId, user.id);
   revalidatePath("/shifts/unattended");
   revalidatePath(`/shifts/${shiftId}`);
   revalidatePath("/dashboard");
+  redirect(`/persona/pushbots?${result.ok ? "started=1" : `error=${encodeURIComponent(result.error)}`}`);
 }
 
 export async function deleteShiftAction(formData: FormData): Promise<void> {

@@ -1,5 +1,6 @@
 import {
   Banknote,
+  Bot,
   Building2,
   CalendarClock,
   FileUp,
@@ -97,6 +98,7 @@ export interface NavGroup {
 
 export const PERSONA_LINKS: NavItem[] = [
   { href: "/persona", label: "Overview", icon: Fingerprint, keywords: "persona ai suite competence compliance readiness layers" },
+  { href: "/persona/pushbots", label: "Pushbots", icon: Bot, keywords: "persona ai sms text carers offers fill shifts campaigns messages" },
   { href: "/persona/assist", label: "Assist", icon: Sparkles, keywords: "persona ai agent chat history automations connections" },
 ];
 
