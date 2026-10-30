@@ -517,16 +517,20 @@ model Timesheet {
   expenseNotes String?
 
   // Candidate (carer) e-signature signing off the hours.
-  candidateSignature String?
-  candidateSignedAt  DateTime?
+  candidateSignature       String?
+  /// SHA-256 of candidateSignature when it was saved, so the evidence can be shown unaltered.
+  candidateSignatureSha256 String?
+  candidateSignedAt        DateTime?
 
   // Client authorisation (care-home signatory confirming role + hours).
-  clientAuthName      String?
-  clientAuthPosition  String?
-  clientAuthAt        DateTime?
-  clientAuthSignature String?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  clientAuthName            String?
+  clientAuthPosition        String?
+  clientAuthAt              DateTime?
+  clientAuthSignature       String?
+  /// SHA-256 of clientAuthSignature when it was saved.
+  clientAuthSignatureSha256 String?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
 
   agency       Agency        @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   shift        Shift         @relation(fields: [shiftId], references: [id], onDelete: Cascade)

@@ -15,11 +15,14 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "db:migrate": "prisma migrate deploy",
+    "db:migrate": "prisma migrate dev",
     "db:backup": "tsx scripts/backup.ts",
     "db:backfill-clients": "tsx scripts/backfill-clients.ts",
     "db:up": "node scripts/local-db.js start",
-    "db:down": "node scripts/local-db.js stop"
+    "db:down": "node scripts/local-db.js stop",
+    "db:deploy": "node scripts/db-deploy.mjs",
+    "db:check-migrations": "node scripts/check-migrations.mjs",
+    "test:contract": "tsx --test lib/contracts/*.contract.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

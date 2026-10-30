@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { addDays, differenceInCalendarDays } from "date-fns";
 import { after } from "next/server";
 import { z } from "zod";
@@ -20,6 +22,9 @@ export type WorkResult = { ok: true; message?: string } | { ok: false; error: st
 
 const done = (message?: string): WorkResult => ({ ok: true, message });
 const fail = (error: string): WorkResult => ({ ok: false, error });
+
+/** A signature's fingerprint, kept beside it: any later change to the stored image no longer matches. */
+export const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
 
 const mayAct = (actor: Actor, staffId: string | null) => actor.ownStaffId === null || staffId === actor.ownStaffId;
 
@@ -109,7 +114,7 @@ export async function signAsCarer(actor: Actor, input: { timesheetId: unknown; s
   if (!timesheet || !mayAct(actor, timesheet.staffId)) return fail("That shift isn't yours.");
   await prisma.timesheet.update({
     where: { id: timesheet.id },
-    data: { candidateSignature: parsed.data.signature, candidateSignedAt: new Date() },
+    data: { candidateSignature: parsed.data.signature, candidateSignatureSha256: sha256(parsed.data.signature), candidateSignedAt: new Date() },
   });
   return { ok: true, message: "Signed. Now hand your phone to the person in charge.", shiftId: timesheet.shiftId };
 }
@@ -139,6 +144,7 @@ export async function signAsClient(
       clientAuthName: parsed.data.name,
       clientAuthPosition: parsed.data.position,
       clientAuthSignature: parsed.data.signature,
+      clientAuthSignatureSha256: sha256(parsed.data.signature),
       clientAuthAt: new Date(),
     },
   });

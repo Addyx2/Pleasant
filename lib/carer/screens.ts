@@ -125,7 +125,7 @@ export async function homeScreen(c: Carer) {
   if (current) {
     const ts = current.timesheet;
     const address = [current.site?.address, current.site?.postcode].filter(Boolean).join(", ");
-    const state = ts && !ts.clockOut ? (ts.breakStartedAt ? "on_break" : "on_shift") : ts?.clockOut ? "to_sign" : current.startAt <= now ? "starting" : "next";
+    const state: "on_shift" | "on_break" | "to_sign" | "starting" | "next" = ts && !ts.clockOut ? (ts.breakStartedAt ? "on_break" : "on_shift") : ts?.clockOut ? "to_sign" : current.startAt <= now ? "starting" : "next";
     hero = {
       ...card(current, profile),
       state,
