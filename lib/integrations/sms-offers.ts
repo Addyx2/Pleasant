@@ -1,10 +1,12 @@
 import { randomInt } from "node:crypto";
 
 import type { Integration } from "@prisma/client";
+import { after } from "next/server";
 
 import { clientName } from "@/lib/clients";
 import { prisma } from "@/lib/db";
 import { respondToOffer, type OfferOutcome } from "@/lib/offers";
+import { pushbotsAiAvailable, replyToCarer } from "@/lib/pushbots/agent";
 
 import { toE164 } from "./phone";
 import { configOf, getIntegration, logIntegration, secretsOf } from "./store";
@@ -103,7 +105,14 @@ const REPLIES: Record<OfferOutcome, string> = {
  * Handles a text from a carer. Answers to shift offers update the offer;
  * anything else is logged for the team. Returns the reply to send, if any.
  */
-export async function handleInboundSms(integration: Integration, from: string, body: string, providerId: string | null): Promise<string | null> {
+export async function handleInboundSms(
+  integration: Integration,
+  from: string,
+  body: string,
+  providerId: string | null,
+  /** Runs work after Twilio has its answer (Pushbots' AI reply), so a slow reply can't time the webhook out. */
+  later: (work: () => Promise<unknown>) => void = (work) => after(work),
+): Promise<string | null> {
   const agencyId = integration.agencyId;
   const phone = toE164(from) ?? from;
 
@@ -121,6 +130,18 @@ export async function handleInboundSms(integration: Integration, from: string, b
   }
 
   const reply = parseOfferReply(body);
+
+  // Anything but a plain YES/NO from one of the agency's carers: Pushbots answers it, as that carer.
+  if (!reply && pushbotsAiAvailable()) {
+    const staff = await staffByPhone(agencyId, phone);
+    if (staff) {
+      await prisma.smsMessage.create({ data: { agencyId, staffId: staff.id, direction: "IN", phone, body: body.slice(0, 1600), providerId, status: "RECEIVED" } });
+      await logIntegration(integration, "sms.in", true, `Text from ${staff.firstName} ${staff.lastName}, answered by Pushbots`, { health: false });
+      const agency = await prisma.agency.findUnique({ where: { id: agencyId }, select: { name: true } });
+      later(() => replyToCarer({ agencyId, agencyName: agency?.name ?? "your agency", staffId: staff.id, firstName: staff.firstName, phone }));
+      return null;
+    }
+  }
 
   // Offers texted to this number recently, newest first, still open.
   const sent = await prisma.smsMessage.findMany({

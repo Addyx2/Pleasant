@@ -22,7 +22,7 @@
     "db:down": "node scripts/local-db.js stop",
     "db:deploy": "node scripts/db-deploy.mjs",
     "db:check-migrations": "node scripts/check-migrations.mjs",
-    "test:contract": "tsx --test lib/contracts/*.contract.ts lib/pushbots/*.contract.ts"
+    "test:contract": "tsx --test --test-concurrency=1 lib/contracts/*.contract.ts lib/pushbots/*.contract.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
