@@ -35,9 +35,9 @@ export const INTEGRATIONS: IntegrationDefinition[] = [
   { key: "sage", name: "Sage Accounting", category: "accounting", description: "Invoice and payment sync with Sage.", availability: "planned" },
   {
     key: "twilio",
-    name: "SMS (Twilio)",
+    name: "Your own Twilio number (optional)",
     category: "messaging",
-    description: "Shift offers go to carers by text. They reply YES or NO to accept or decline, and the rota updates itself.",
+    description: "Your Pushbot already texts carers from a number of its own (Persona → Pushbots → Settings). Connect your own Twilio account only to send from a number you already have.",
     availability: "live",
     connect: "apiKey",
   },

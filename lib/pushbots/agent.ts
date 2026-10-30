@@ -19,6 +19,11 @@ import { respondToOffer } from "@/lib/offers";
 // like that goes to the office as a message. Every text in and out is kept.
 
 const MAX_MODEL_CALLS = 5;
+const TONES: Record<string, string> = {
+  friendly: "warm and friendly.",
+  brief: "brief and to the point.",
+  formal: "polite and formal.",
+};
 const MAX_REPLY = 459; // three text segments
 const HOURLY_LIMIT = 15;
 
@@ -34,7 +39,7 @@ export interface CarerOnPhone {
   phone: string;
 }
 
-const SYSTEM_PROMPT = `You are Pushbots, the text-message assistant for a UK care staffing agency. You are texting with one of the agency's carers. You act only for this carer, using your tools.
+const SYSTEM_PROMPT = `You are the text-message assistant for a UK care staffing agency; your name and the agency's are below. You are texting with one of the agency's carers. You act only for this carer, using your tools.
 
 What you can do:
 - Tell them their upcoming shifts, open offers, open shifts they could ask for, and timesheets waiting on them.
@@ -224,6 +229,7 @@ async function composeReply(ctx: CarerOnPhone): Promise<string | null> {
   if (messages.at(-1)?.role !== "user") return null;
   const tools = Object.entries(TOOLS).map(([name, t]) => ({ name, description: t.description, input_schema: t.input.json, strict: true }) as BetaToolUnion);
   const today = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(new Date());
+  const bot = await prisma.pushbot.findUnique({ where: { agencyId: ctx.agencyId }, select: { name: true, tone: true } });
   let said: string | null = null;
 
   for (let call = 0; call < MAX_MODEL_CALLS; call++) {
@@ -237,7 +243,7 @@ async function composeReply(ctx: CarerOnPhone): Promise<string | null> {
       cache_control: { type: "ephemeral" },
       system: [
         { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
-        { type: "text", text: `The carer is ${ctx.firstName}, at ${ctx.agencyName}. Today is ${today} (UK). Use their first name.` },
+        { type: "text", text: `You are ${bot?.name ?? "Pushbot"}, ${ctx.agencyName}'s assistant. The carer is ${ctx.firstName}. Today is ${today} (UK). Use their first name. Style: ${TONES[bot?.tone ?? "friendly"] ?? TONES.friendly}` },
       ],
       tools,
       messages,

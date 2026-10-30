@@ -9,9 +9,8 @@ import { respondToOffer, type OfferOutcome } from "@/lib/offers";
 import { pushbotsAiAvailable, replyToCarer } from "@/lib/pushbots/agent";
 
 import { toE164 } from "./phone";
-import { configOf, getIntegration, logIntegration, secretsOf } from "./store";
-import { optOutWord, staffByPhone } from "./sms";
-import { parseOfferReply, sendSms, type TwilioConfig, type TwilioSecrets } from "./twilio";
+import { logSms, optOutWord, smsSender, staffByPhone } from "./sms";
+import { parseOfferReply, sendSms } from "./twilio";
 
 const day = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", weekday: "short", day: "numeric", month: "short" });
 const time = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit" });
@@ -31,6 +30,12 @@ export function offerText(input: {
   return `${input.agencyName}: shift offer, ${when}, ${input.role} at ${input.place}. Reply YES ${input.code} to take it or NO ${input.code} to pass. First to accept gets it.`;
 }
 
+/** Where an incoming text belongs: an agency, and its own Twilio connection if the text came through one. */
+export interface InboundTarget {
+  agencyId: string;
+  integration: Integration | null;
+}
+
 export interface SmsResult {
   sent: boolean;
   reason?: string;
@@ -43,10 +48,8 @@ export interface SmsResult {
  */
 export async function sendOfferSms(agencyId: string, offerId: string): Promise<SmsResult> {
   try {
-    const integration = await getIntegration(agencyId, "twilio");
-    const config = configOf<TwilioConfig>(integration);
-    const secrets = secretsOf<TwilioSecrets>(integration);
-    if (!integration || !secrets || !config.from || config.offers === false) return { sent: false, reason: "SMS isn't connected" };
+    const sender = await smsSender(agencyId);
+    if (!sender) return { sent: false, reason: "Texting is off or isn't set up" };
 
     const offer = await prisma.shiftOffer.findFirst({
       where: { id: offerId, agencyId, status: "OFFERED" },
@@ -67,13 +70,14 @@ export async function sendOfferSms(agencyId: string, offerId: string): Promise<S
       place,
       code,
     });
+    const log = { integration: sender.integration, agencyId };
 
     try {
-      const { sid } = await sendSms(secrets, config.from, phone, body);
+      const { sid } = await sendSms(sender.secrets, sender.from, phone, body);
       await prisma.smsMessage.create({
         data: { agencyId, staffId: offer.staffId, offerId, direction: "OUT", phone, body, code, providerId: sid, status: "SENT" },
       });
-      await logIntegration(integration, "sms.out", true, `Offer texted to ${offer.staff.firstName} ${offer.staff.lastName}`, { health: false });
+      await logSms(log, "sms.out", true, `Offer texted to ${offer.staff.firstName} ${offer.staff.lastName}`);
       return { sent: true };
     } catch (error) {
       const reason = error instanceof Error ? error.message : "Twilio didn't accept the message";
@@ -82,9 +86,7 @@ export async function sendOfferSms(agencyId: string, offerId: string): Promise<S
       });
       // A bad number is one carer's problem; rejected credentials are the connection's.
       const status = (error as { status?: number }).status;
-      await logIntegration(integration, "sms.out", false, `Couldn't text ${offer.staff.firstName} ${offer.staff.lastName}: ${reason}`, {
-        health: status === 401 || status === 403,
-      });
+      await logSms(log, "sms.out", false, `Couldn't text ${offer.staff.firstName} ${offer.staff.lastName}: ${reason}`, status === 401 || status === 403);
       return { sent: false, reason };
     }
   } catch (error) {
@@ -106,14 +108,17 @@ const REPLIES: Record<OfferOutcome, string> = {
  * anything else is logged for the team. Returns the reply to send, if any.
  */
 export async function handleInboundSms(
-  integration: Integration,
+  /** The agency's own Twilio connection, or the agency a Pushbot or shared-number text was routed to. */
+  to: Integration | InboundTarget,
   from: string,
   body: string,
   providerId: string | null,
   /** Runs work after Twilio has its answer (Pushbots' AI reply), so a slow reply can't time the webhook out. */
   later: (work: () => Promise<unknown>) => void = (work) => after(work),
 ): Promise<string | null> {
-  const agencyId = integration.agencyId;
+  const dest: InboundTarget = "provider" in to ? { agencyId: to.agencyId, integration: to } : to;
+  const { agencyId } = dest;
+  const log = (summary: string) => logSms(dest, "sms.in", true, summary);
   const phone = toE164(from) ?? from;
 
   // STOP and START, honoured before anything else.
@@ -122,7 +127,7 @@ export async function handleInboundSms(
     const staff = await staffByPhone(agencyId, phone);
     await prisma.smsMessage.create({ data: { agencyId, staffId: staff?.id ?? null, direction: "IN", phone, body: body.slice(0, 1600), providerId, status: "RECEIVED" } });
     if (staff) await prisma.staffProfile.update({ where: { id: staff.id }, data: { smsOptOutAt: opt === "stop" ? new Date() : null } });
-    await logIntegration(integration, "sms.in", true, `${opt === "stop" ? "STOP" : "START"} from ${phone}`, { health: false });
+    await log(`${opt === "stop" ? "STOP" : "START"} from ${phone}`);
     const agency = await prisma.agency.findUnique({ where: { id: agencyId }, select: { name: true } });
     return opt === "stop"
       ? `You won't get any more texts from ${agency?.name ?? "us"}. Offers still show in your app. Text START to turn texts back on.`
@@ -136,7 +141,7 @@ export async function handleInboundSms(
     const staff = await staffByPhone(agencyId, phone);
     if (staff) {
       await prisma.smsMessage.create({ data: { agencyId, staffId: staff.id, direction: "IN", phone, body: body.slice(0, 1600), providerId, status: "RECEIVED" } });
-      await logIntegration(integration, "sms.in", true, `Text from ${staff.firstName} ${staff.lastName}, answered by Pushbots`, { health: false });
+      await log(`Text from ${staff.firstName} ${staff.lastName}, answered by Pushbots`);
       const agency = await prisma.agency.findUnique({ where: { id: agencyId }, select: { name: true } });
       later(() => replyToCarer({ agencyId, agencyName: agency?.name ?? "your agency", staffId: staff.id, firstName: staff.firstName, phone }));
       return null;
@@ -159,7 +164,7 @@ export async function handleInboundSms(
   });
 
   if (!reply) {
-    await logIntegration(integration, "sms.in", true, `Text from ${phone}: "${body.slice(0, 120)}"`, { health: false });
+    await log(`Text from ${phone}: "${body.slice(0, 120)}"`);
     return open.length > 0 ? `To answer the shift offer, reply YES ${open[0].code} or NO ${open[0].code}.` : null;
   }
 
@@ -175,6 +180,6 @@ export async function handleInboundSms(
   }
 
   const outcome = await respondToOffer({ agencyId, staffId: target.staffId!, offerId: target.offerId!, accept: reply.accept });
-  await logIntegration(integration, "sms.in", true, `Reply ${reply.accept ? "YES" : "NO"} from ${phone}: offer ${outcome}`, { health: false });
+  await log(`Reply ${reply.accept ? "YES" : "NO"} from ${phone}: offer ${outcome}`);
   return REPLIES[outcome];
 }

@@ -62,6 +62,39 @@ export async function sendSms(s: TwilioSecrets, from: string, to: string, body: 
 }
 
 /**
+ * Buys a UK mobile number that can send and receive texts, with its incoming
+ * texts already pointed at `smsUrl`. UK numbers need a regulatory bundle
+ * (proof of address) approved on the account: pass its SID, and the address
+ * SID if Twilio asks for one.
+ */
+export async function buyUkMobile(
+  s: TwilioSecrets,
+  opts: { friendlyName: string; smsUrl: string; bundleSid?: string; addressSid?: string },
+): Promise<{ sid: string; number: string }> {
+  const found = await call<{ available_phone_numbers?: { phone_number: string }[] }>(
+    s,
+    "GET",
+    "/AvailablePhoneNumbers/GB/Mobile.json?SmsEnabled=true&PageSize=5",
+  );
+  const number = found.available_phone_numbers?.[0]?.phone_number;
+  if (!number) throw new TwilioError("Twilio has no UK mobile numbers available to buy right now", 404);
+  const bought = await call<{ sid: string; phone_number: string }>(s, "POST", "/IncomingPhoneNumbers.json", {
+    PhoneNumber: number,
+    FriendlyName: opts.friendlyName.slice(0, 64),
+    SmsUrl: opts.smsUrl,
+    SmsMethod: "POST",
+    ...(opts.bundleSid ? { BundleSid: opts.bundleSid } : {}),
+    ...(opts.addressSid ? { AddressSid: opts.addressSid } : {}),
+  });
+  return { sid: bought.sid, number: bought.phone_number };
+}
+
+/** Points a number Pleasant already owns (by its SID) at a new address. */
+export async function pointNumber(s: TwilioSecrets, numberSid: string, smsUrl: string): Promise<void> {
+  await call(s, "POST", `/IncomingPhoneNumbers/${numberSid}.json`, { SmsUrl: smsUrl, SmsMethod: "POST" });
+}
+
+/**
  * Points the sending number's incoming messages at Pleasant, so replies reach
  * the app. Returns false when the sender isn't a number on this account.
  */

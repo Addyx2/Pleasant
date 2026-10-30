@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MessageSquareText, Send } from "lucide-react";
+import { MessageSquareText, Send, Settings } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
 const TABS = [
   { href: "/persona/pushbots", label: "Filling shifts", icon: Send, match: (p: string) => p === "/persona/pushbots" },
   { href: "/persona/pushbots/messages", label: "Texts", icon: MessageSquareText, match: (p: string) => p.startsWith("/persona/pushbots/messages") },
+  { href: "/persona/pushbots/settings", label: "Settings", icon: Settings, match: (p: string) => p.startsWith("/persona/pushbots/settings") },
 ];
 
 export function PushbotsTabs() {
