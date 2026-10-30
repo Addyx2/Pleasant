@@ -1,6 +1,7 @@
 // Moves pre-organisation client rows onto the organisation model. Idempotent:
 // only touches clients whose `name` is still empty, so it is safe to run on
-// every deploy (see vercel.json).
+// every deploy. It did, until every client had a name; now it runs by hand
+// (npm run db:backfill-clients), e.g. after restoring an old database.
 //
 // - Rows with a company name become that organisation; the person recorded on
 //   the row becomes its first contact. They are not made a timesheet signatory:
