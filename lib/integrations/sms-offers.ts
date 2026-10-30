@@ -8,6 +8,7 @@ import { respondToOffer, type OfferOutcome } from "@/lib/offers";
 
 import { toE164 } from "./phone";
 import { configOf, getIntegration, logIntegration, secretsOf } from "./store";
+import { optOutWord, staffByPhone } from "./sms";
 import { parseOfferReply, sendSms, type TwilioConfig, type TwilioSecrets } from "./twilio";
 
 const day = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", weekday: "short", day: "numeric", month: "short" });
@@ -52,6 +53,7 @@ export async function sendOfferSms(agencyId: string, offerId: string): Promise<S
     if (!offer) return { sent: false, reason: "The offer is no longer open" };
     const phone = toE164(offer.staff.phone);
     if (!phone) return { sent: false, reason: `${offer.staff.firstName} has no mobile number on file` };
+    if (offer.staff.smsOptOutAt) return { sent: false, reason: `${offer.staff.firstName} has opted out of texts` };
 
     const code = String(randomInt(1000, 10000));
     const place = [clientName(offer.shift.client, ""), offer.shift.site?.name].filter(Boolean).join(", ") || offer.shift.title;
@@ -104,6 +106,20 @@ const REPLIES: Record<OfferOutcome, string> = {
 export async function handleInboundSms(integration: Integration, from: string, body: string, providerId: string | null): Promise<string | null> {
   const agencyId = integration.agencyId;
   const phone = toE164(from) ?? from;
+
+  // STOP and START, honoured before anything else.
+  const opt = optOutWord(body);
+  if (opt) {
+    const staff = await staffByPhone(agencyId, phone);
+    await prisma.smsMessage.create({ data: { agencyId, staffId: staff?.id ?? null, direction: "IN", phone, body: body.slice(0, 1600), providerId, status: "RECEIVED" } });
+    if (staff) await prisma.staffProfile.update({ where: { id: staff.id }, data: { smsOptOutAt: opt === "stop" ? new Date() : null } });
+    await logIntegration(integration, "sms.in", true, `${opt === "stop" ? "STOP" : "START"} from ${phone}`, { health: false });
+    const agency = await prisma.agency.findUnique({ where: { id: agencyId }, select: { name: true } });
+    return opt === "stop"
+      ? `You won't get any more texts from ${agency?.name ?? "us"}. Offers still show in your app. Text START to turn texts back on.`
+      : `Texts from ${agency?.name ?? "us"} are back on. Text STOP at any time to stop them.`;
+  }
+
   const reply = parseOfferReply(body);
 
   // Offers texted to this number recently, newest first, still open.

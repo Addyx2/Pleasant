@@ -21,7 +21,7 @@ import { createInvoiceAction, setInvoiceStatusAction } from "@/app/(app)/billing
 import { generatePayrollRunAction, setPayrollStatusAction } from "@/app/(app)/payroll/actions";
 import type { SessionUser } from "@/lib/auth";
 import { CLIENT_TYPE_LABELS, clientName, type ClientTypeKey } from "@/lib/clients";
-import { daysUntil, expiryState } from "@/lib/compliance";
+import { complianceGaps, daysUntil, expiryState } from "@/lib/compliance";
 import { unavailableReason } from "@/lib/availability";
 import { prisma } from "@/lib/db";
 import { isBookable, onboardingProgress, onboardingSteps } from "@/lib/onboarding";
@@ -137,21 +137,6 @@ async function clashesFor(ctx: ToolContext, staffId: string, startAt: Date, endA
     },
     include: { client: true },
   });
-}
-
-function complianceWarnings(s: {
-  dbsNumber: string | null;
-  dbsExpiry: Date | null;
-  rightToWork: { status: string; expiryDate: Date | null } | null;
-}) {
-  const warnings: string[] = [];
-  if (!s.dbsNumber) warnings.push("no DBS certificate on file");
-  else if (expiryState(s.dbsExpiry) === "EXPIRED") warnings.push("DBS certificate has expired");
-  if (!s.rightToWork) warnings.push("no right-to-work check recorded");
-  else if (s.rightToWork.status !== "VERIFIED") warnings.push("right to work not yet verified");
-  else if (s.rightToWork.expiryDate && expiryState(s.rightToWork.expiryDate) === "EXPIRED")
-    warnings.push("right to work has expired");
-  return warnings;
 }
 
 // ---------------------------------------------------------------------------
@@ -325,7 +310,7 @@ const readTools = [
       const free = staff
         .filter((s) => s.shifts.length === 0)
         .map((s) => {
-          const warnings = complianceWarnings(s);
+          const warnings = complianceGaps(s);
           return {
             staffId: s.id,
             name: person(s),
@@ -769,7 +754,7 @@ const writeTools = [
       if (unavailable) return { ok: false, error: unavailable };
       const result = await runFormAction(assignShiftFormAction, { shiftId, staffId });
       const after = await ownedShift(ctx, shiftId);
-      const warnings = complianceWarnings(staff);
+      const warnings = complianceGaps(staff);
       return outcome(
         result,
         after?.staffId === staffId ? { shift: shiftRow(after), complianceWarnings: warnings } : null,

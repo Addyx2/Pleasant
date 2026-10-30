@@ -1,5 +1,6 @@
 import { after } from "next/server";
 
+import { maybeTickPushbots } from "@/lib/pushbots/campaign";
 import { maybeRunSignOffReminders } from "@/lib/sign-off-reminders";
 import { carerFromRequest, json, unauthorised } from "@/lib/carer/api";
 import { calendarScreen, homeScreen, passportScreen, peakScreen, poolScreen, timesheetsScreen } from "@/lib/carer/screens";
@@ -11,6 +12,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ scre
   const carer = await carerFromRequest(request);
   if (!carer) return unauthorised();
   after(() => maybeRunSignOffReminders());
+  after(() => maybeTickPushbots());
   const { screen } = await params;
   switch (screen) {
     case "home":

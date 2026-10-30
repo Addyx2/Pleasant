@@ -10,6 +10,7 @@ import { SidebarShell, SidebarToggle } from "@/components/SidebarShell";
 import { after } from "next/server";
 
 import { requireUser } from "@/lib/auth";
+import { maybeTickPushbots } from "@/lib/pushbots/campaign";
 import { maybeRunSignOffReminders } from "@/lib/sign-off-reminders";
 import { CLOSED_COOKIE, RAIL_COOKIE } from "@/lib/sidebar";
 import { isOpsRole } from "@/lib/permissions";
@@ -19,6 +20,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await requireUser();
   // Sign-off reminders go out as the app is used (at most hourly).
   after(() => maybeRunSignOffReminders());
+  // Pushbots moves its campaigns on as the app is used (at most once a minute).
+  after(() => maybeTickPushbots());
   // Carers live in the Workers app; the back office is for admins and managers.
   if (!isOpsRole(user.role)) redirect("/workforce");
   const jar = await cookies();

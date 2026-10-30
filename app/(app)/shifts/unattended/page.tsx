@@ -127,7 +127,7 @@ export default async function UnattendedShiftsPage() {
                       {active ? (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-600/15">
                           <Bot className="h-3 w-3" aria-hidden="true" />
-                          Triaging · {running.offersSent} eligible carers
+                          Pushbots filling · wave {running.wave}, {running.offersSent} offered
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800 ring-1 ring-inset ring-red-600/15">
@@ -137,7 +137,7 @@ export default async function UnattendedShiftsPage() {
                     </td>
                     <td className="px-5 py-4 text-right">
                       {active ? (
-                        <span className="text-xs font-medium text-slate-400">Triaging…</span>
+                        <span className="text-xs font-medium text-slate-400">Filling…</span>
                       ) : (
                         <form action={triageShiftAction}>
                           <input type="hidden" name="shiftId" value={shift.id} />
@@ -145,7 +145,7 @@ export default async function UnattendedShiftsPage() {
                             type="submit"
                             className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700"
                           >
-                            <Bot className="h-3.5 w-3.5" /> Start auto-triage
+                            <Bot className="h-3.5 w-3.5" /> Fill with Pushbots
                           </button>
                         </form>
                       )}

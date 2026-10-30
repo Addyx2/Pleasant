@@ -7,7 +7,7 @@ import { requireOps } from "@/lib/auth";
 import { unavailableReason } from "@/lib/availability";
 import { prisma } from "@/lib/db";
 import { getBankHolidays } from "@/lib/integrations/bank-holidays";
-import { initiatePushbotTriage } from "@/lib/pushbots/triage";
+import { startCampaign } from "@/lib/pushbots/campaign";
 import { clientName, resolveChargeRate, resolveSleepInCharge, toRateCardEntry } from "@/lib/clients";
 import { createShiftSchema } from "@/lib/validation";
 
@@ -173,7 +173,7 @@ export async function triageShiftAction(formData: FormData): Promise<void> {
   });
   if (!shift || (shift.status !== "OPEN" && shift.status !== "UNATTENDED")) return;
 
-  await initiatePushbotTriage(shiftId, user.id);
+  await startCampaign(user.agencyId, shiftId, user.id);
   revalidatePath("/shifts/unattended");
   revalidatePath(`/shifts/${shiftId}`);
   revalidatePath("/dashboard");
