@@ -129,8 +129,8 @@ See `.env.example`. Notable variables:
 - `GET /api/health` returns `200 {"status":"ok"}` when Postgres is reachable, `503` otherwise — point
   your uptime monitor at it.
 - `npm run db:backup` writes a JSON backup of the database.
-- Deploys on Vercel run `scripts/db-deploy.mjs` (migrations, then a check that the database matches the schema), then `scripts/backfill-clients.ts` (idempotent: names any
-  client rows created before clients were organisations), then the build (`vercel.json`).
+- Deploys on Vercel run `scripts/db-deploy.mjs` (migrations, then a check that the database matches the schema), then the build (`vercel.json`).
+- `npm run db:backfill-clients` names any client rows created before clients were organisations. It ran on every deploy until it had done its job; it's idempotent, so run it by hand if an old database is ever restored.
 
 ## Project layout
 
