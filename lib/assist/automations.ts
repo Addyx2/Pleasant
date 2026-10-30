@@ -92,7 +92,7 @@ export async function runAutomation(automationId: string, trigger: "schedule" | 
   });
 
   if (ok && automation.emailResult && owner.email) {
-    const link = await absoluteUrl(`/persona/assist/c/${conversation.id}`).catch(() => `/persona/assist/c/${conversation.id}`);
+    const link = await absoluteUrl(`/persona/assist/c/${conversation.id}`);
     await sendEmail({
       to: owner.email,
       subject: `Persona Assist: ${automation.name}`,

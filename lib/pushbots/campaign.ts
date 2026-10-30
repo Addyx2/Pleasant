@@ -115,7 +115,7 @@ function shiftLabel(shift: { startAt: Date; endAt: Date; client: Parameters<type
 async function alertOffice(agencyId: string, shiftId: string, outcome: "exhausted" | "expired", label: string) {
   const ops = await prisma.user.findMany({ where: { agencyId, role: { in: ["ADMIN", "MANAGER"] }, deactivatedAt: null }, select: { email: true } });
   const why = outcome === "exhausted" ? "Pushbots has offered it to every eligible carer and nobody has taken it." : "The shift is about to start and nobody has taken it.";
-  const link = await absoluteUrl(`/shifts/${shiftId}`).catch(() => `/shifts/${shiftId}`);
+  const link = await absoluteUrl(`/shifts/${shiftId}`);
   const text = `${why}\n\nShift: ${label}\nOpen it: ${link}\n\nThe Pushbots page shows who was offered it and why others weren't.`;
   for (const u of ops) await sendEmail({ to: u.email, subject: `Not filled: ${label}`, text }).catch(() => undefined);
 }
