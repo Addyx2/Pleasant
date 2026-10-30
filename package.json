@@ -2,7 +2,7 @@
   "name": "pleasant",
   "version": "0.1.0",
   "private": true,
-  "description": "Pleasant \u2014 shift scheduling and payroll for UK healthcare agencies.",
+  "description": "Pleasant — shift scheduling and payroll for UK healthcare agencies.",
   "scripts": {
     "dev": "next dev --turbopack",
     "dev:webpack": "next dev",
@@ -21,7 +21,8 @@
     "db:up": "node scripts/local-db.js start",
     "db:down": "node scripts/local-db.js stop",
     "db:deploy": "node scripts/db-deploy.mjs",
-    "db:check-migrations": "node scripts/check-migrations.mjs"
+    "db:check-migrations": "node scripts/check-migrations.mjs",
+    "test:contract": "tsx --test lib/contracts/*.contract.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
