@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npx prisma db push && npx tsx scripts/backfill-clients.ts && npm run build",
+  "buildCommand": "node scripts/db-deploy.mjs && npx tsx scripts/backfill-clients.ts && npm run build",
   "crons": [
     {
       "path": "/api/cron/reminders",

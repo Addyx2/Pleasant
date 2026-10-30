@@ -92,7 +92,7 @@ Requires Node 22 and Postgres 16.
 cp .env.example .env          # set DATABASE_URL and AUTH_SECRET
 npm install
 npm run db:up                 # optional: embedded Postgres if you don't have one running
-npx prisma db push            # apply the schema
+npm run db:deploy             # apply the migrations
 npm run db:seed               # demo agency (Brightwater Care)
 npm run dev                   # http://localhost:3000
 ```
@@ -129,7 +129,7 @@ See `.env.example`. Notable variables:
 - `GET /api/health` returns `200 {"status":"ok"}` when Postgres is reachable, `503` otherwise — point
   your uptime monitor at it.
 - `npm run db:backup` writes a JSON backup of the database.
-- Deploys on Vercel run `prisma db push`, then `scripts/backfill-clients.ts` (idempotent: names any
+- Deploys on Vercel run `scripts/db-deploy.mjs` (migrations, then a check that the database matches the schema), then `scripts/backfill-clients.ts` (idempotent: names any
   client rows created before clients were organisations), then the build (`vercel.json`).
 
 ## Project layout
@@ -142,3 +142,9 @@ lib/              domain logic — payroll engine, RTI, BACS, billing, complianc
 prisma/           schema and seed
 docs/             pilot playbook
 ```
+
+## Changing the database
+
+Deploys run `scripts/db-deploy.mjs`: it applies the migrations in `prisma/migrations`, then checks the live database matches `prisma/schema.prisma` and stops the deploy if it doesn't. A database from before migrations is marked as at `0_baseline` once.
+
+To change the schema: edit `prisma/schema.prisma`, run `npm run db:migrate -- --name what_changed` (creates the migration and applies it locally), and commit both. CI fails if the schema changes without a migration, or if a migration drops or rewrites data without a `-- destructive: reviewed` line in it.

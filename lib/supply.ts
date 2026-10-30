@@ -1,6 +1,7 @@
 import { addDays, endOfDay, startOfDay } from "date-fns";
 import { after } from "next/server";
 
+import { sha256 } from "@/lib/carer/work";
 import { clientName, resolveChargeRate, toRateCardEntry } from "@/lib/clients";
 import { prisma } from "@/lib/db";
 import { reportShiftCompleted } from "@/lib/elements-sync";
@@ -28,7 +29,7 @@ export async function signOffAsClient(agencyId: string, clientId: string, timesh
 
   await prisma.timesheet.update({
     where: { id: timesheetId },
-    data: { status: "APPROVED", clientAuthName: signer.name, clientAuthPosition: signer.position, clientAuthAt: new Date(), clientAuthSignature: signer.evidence },
+    data: { status: "APPROVED", clientAuthName: signer.name, clientAuthPosition: signer.position, clientAuthAt: new Date(), clientAuthSignature: signer.evidence, clientAuthSignatureSha256: sha256(signer.evidence) },
   });
   await prisma.shift.update({ where: { id: timesheet.shiftId }, data: { status: "COMPLETED" } });
   after(() => reportShiftCompleted(agencyId, timesheetId));

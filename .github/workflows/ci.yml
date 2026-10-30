@@ -37,6 +37,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
-      - name: Schema applies and seed runs
-        run: npx prisma db push --skip-generate && npm run db:seed
+      - name: Migrations have no unreviewed destructive steps
+        run: npm run db:check-migrations
+      - name: Migrations build the schema exactly (a schema change needs a migration), and the seed runs
+        run: node scripts/db-deploy.mjs && npm run db:seed
       - run: npm run build
