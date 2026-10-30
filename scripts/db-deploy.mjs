@@ -7,6 +7,7 @@
 //    here instead of shipping code against the wrong tables.
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 import { PrismaClient } from "@prisma/client";
 
@@ -19,7 +20,10 @@ if (!process.env.DATABASE_URL) {
   }
 }
 
-const prisma = (...args) => execFileSync("npx", ["prisma", ...args], { stdio: "inherit" });
+// Run the Prisma CLI with this Node binary rather than through npx: npx isn't
+// an executable on Windows, where `npm run db:deploy` is used too.
+const prismaCli = fileURLToPath(new URL("../node_modules/prisma/build/index.js", import.meta.url));
+const prisma = (...args) => execFileSync(process.execPath, [prismaCli, ...args], { stdio: "inherit" });
 const baseline = readdirSync("prisma/migrations").filter((d) => /^0_/.test(d)).sort()[0];
 if (!baseline) throw new Error("No baseline migration (prisma/migrations/0_*) found");
 
@@ -51,12 +55,20 @@ for (const { migration_name: name } of failed) {
 prisma("migrate", "deploy");
 
 try {
-  execFileSync("npx", ["prisma", "migrate", "diff", "--from-url", process.env.DATABASE_URL, "--to-schema-datamodel", "prisma/schema.prisma", "--exit-code"], { stdio: "pipe" });
+  execFileSync(
+    process.execPath,
+    [prismaCli, "migrate", "diff", "--from-url", process.env.DATABASE_URL, "--to-schema-datamodel", "prisma/schema.prisma", "--exit-code"],
+    { stdio: "pipe" },
+  );
   console.log("Database matches prisma/schema.prisma.");
 } catch (error) {
   if (error.status === 2) {
     console.error("The live database doesn't match prisma/schema.prisma. Differences:");
-    execFileSync("npx", ["prisma", "migrate", "diff", "--from-url", process.env.DATABASE_URL, "--to-schema-datamodel", "prisma/schema.prisma", "--script"], { stdio: "inherit" });
+    execFileSync(
+      process.execPath,
+      [prismaCli, "migrate", "diff", "--from-url", process.env.DATABASE_URL, "--to-schema-datamodel", "prisma/schema.prisma", "--script"],
+      { stdio: "inherit" },
+    );
     process.exit(1);
   }
   throw error;

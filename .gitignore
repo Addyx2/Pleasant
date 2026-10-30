@@ -34,3 +34,6 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# local database dumps
+/backups
