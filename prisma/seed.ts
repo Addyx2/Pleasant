@@ -15,6 +15,14 @@ function daysFromNow(offsetDays: number, hour = 12, minute = 0) {
   return d;
 }
 
+/** A date `months` from now at midday. Month-safe, unlike adding 30 days. */
+function monthsFromNow(months: number) {
+  const d = new Date();
+  d.setMonth(d.getMonth() + months);
+  d.setHours(12, 0, 0, 0);
+  return d;
+}
+
 async function main() {
   const now = new Date();
   const year = now.getFullYear();
@@ -151,6 +159,10 @@ if (existing) {
       taxCode: "1257L",
       niNumber: "QQ123458E",
       pensionEnrolled: false,
+      bankName: "Lloyds",
+      accountName: "Daniel Nowak",
+      sortCode: "30-96-26",
+      bankAcct: "44556677",
     },
     {
       firstName: "Elena",
@@ -162,6 +174,10 @@ if (existing) {
       pensionEnrolled: false,
       engagementType: "LTD",
       ltdCompanyName: "Popescu Care Ltd",
+      bankName: "Starling",
+      accountName: "Popescu Care Ltd",
+      sortCode: "60-83-71",
+      bankAcct: "99887766",
     },
   ];
 
@@ -211,6 +227,115 @@ if (existing) {
       staff: { connect: { id: tunde.id } },
     },
   });
+
+  // Compliance records. A carer without a DBS and a right-to-work check is
+  // "not ready", can't be offered shifts and scores nothing in Qualifiers, so
+  // without these the demo agency has nobody it could actually book. One
+  // right-to-work check expires in six weeks (the compliance page should flag
+  // it) and one training certificate has lapsed, so the screens show a mix.
+  const complianceSeed = [
+    {
+      person: grace,
+      dbsNumber: "001234567890",
+      dbsExpiry: monthsFromNow(18),
+      rtwDocument: "PASSPORT",
+      rtwNumber: "GBR-509173812",
+      rtwExpiry: monthsFromNow(50),
+      training: [
+        { courseName: "Manual Handling", months: 11 },
+        { courseName: "Basic Life Support", months: 10 },
+        { courseName: "Safeguarding Adults", months: 22 },
+        { courseName: "Medication Administration", months: 9 },
+      ],
+    },
+    {
+      person: tunde,
+      dbsNumber: "001234567891",
+      dbsExpiry: monthsFromNow(9),
+      rtwDocument: "BRP",
+      rtwNumber: "RY1234567",
+      // Expires inside the 60-day window, so it shows as due soon.
+      rtwExpiry: daysFromNow(42),
+      training: [
+        { courseName: "Manual Handling", months: 10 },
+        { courseName: "Basic Life Support", months: 8 },
+        { courseName: "Safeguarding Adults", months: 20 },
+      ],
+    },
+    {
+      person: priya,
+      dbsNumber: "001234567892",
+      dbsExpiry: monthsFromNow(14),
+      rtwDocument: "SHARE_CODE",
+      rtwNumber: "9X8YR7T6Q",
+      rtwExpiry: monthsFromNow(12),
+      training: [
+        { courseName: "Manual Handling", months: 7 },
+        { courseName: "Basic Life Support", months: 6 },
+        { courseName: "Safeguarding Adults", months: 18 },
+      ],
+    },
+    {
+      person: daniel,
+      dbsNumber: "001234567893",
+      dbsExpiry: monthsFromNow(24),
+      rtwDocument: "PASSPORT",
+      rtwNumber: "POL-884219036",
+      rtwExpiry: monthsFromNow(38),
+      training: [
+        { courseName: "Manual Handling", months: 9 },
+        { courseName: "Basic Life Support", months: 11 },
+        { courseName: "Safeguarding Adults", months: 21 },
+      ],
+    },
+    {
+      person: elena,
+      dbsNumber: "001234567894",
+      dbsExpiry: monthsFromNow(16),
+      rtwDocument: "BRP",
+      rtwNumber: "RO9876543",
+      rtwExpiry: monthsFromNow(28),
+      training: [
+        { courseName: "Manual Handling", months: 10 },
+        // Lapsed a month ago: Competence drops and the certificate is flagged.
+        { courseName: "Basic Life Support", months: -1 },
+        { courseName: "Safeguarding Adults", months: 20 },
+      ],
+    },
+  ];
+
+  for (const record of complianceSeed) {
+    await prisma.staffProfile.update({
+      where: { id: record.person.id },
+      data: { dbsNumber: record.dbsNumber, dbsExpiry: record.dbsExpiry },
+    });
+    await prisma.rightToWork.create({
+      data: {
+        agencyId: agency.id,
+        staffId: record.person.id,
+        documentType: record.rtwDocument,
+        documentNumber: record.rtwNumber,
+        issueDate: daysFromNow(-420),
+        expiryDate: record.rtwExpiry,
+        verifiedAt: daysFromNow(-400),
+        status: "VERIFIED",
+      },
+    });
+    for (const course of record.training) {
+      await prisma.trainingRecord.create({
+        data: {
+          agencyId: agency.id,
+          staffId: record.person.id,
+          courseName: course.courseName,
+          provider: "Bristol Care Training Ltd",
+          // Courses run for a year unless the record says otherwise.
+          completedAt: monthsFromNow(course.months - 12),
+          expiryDate: monthsFromNow(course.months),
+          status: course.months < 0 ? "EXPIRED" : "COMPLETED",
+        },
+      });
+    }
+  }
 
   // Clients are the organisations the agency supplies: two homes and a
   // domiciliary provider, each with units/branches, contacts and a rate card.
@@ -277,7 +402,7 @@ if (existing) {
     },
   ];
 
-  const clients = [];
+  const clients: { id: string }[] = [];
   const clientUnits: { id: string; name: string }[][] = [];
   for (const { units, contacts, rates, ...details } of clientSeeds) {
     const client = await prisma.client.create({
@@ -406,6 +531,43 @@ if (existing) {
       });
     }
   }
+
+  // A recurring week for Rowan Unit, so Recurring has a template to generate
+  // from and every generated shift carries its source.
+  const rowanSite = siteFor(0, 0);
+  await prisma.rotaTemplate.create({
+    data: {
+      agencyId: agency.id,
+      title: "Rowan Unit — usual week",
+      notes: "Morning care Monday to Friday, plus Sunday evening cover.",
+      lines: {
+        create: [
+          ...Array.from({ length: 5 }, (_, day) => ({
+            weekday: day + 1, // Monday–Friday; 0 is Sunday.
+            role: "Care Assistant",
+            title: "Morning care — Rowan Unit",
+            startMins: 8 * 60,
+            endMins: 14 * 60,
+            breakMins: 30,
+            chargeRate: 24.5,
+            clientId: clients[0].id,
+            siteId: rowanSite.id,
+          })),
+          {
+            weekday: 0,
+            role: "Care Assistant",
+            title: "Evening care — Rowan Unit",
+            startMins: 18 * 60,
+            endMins: 22 * 60,
+            chargeRate: 24.5,
+            clientId: clients[0].id,
+            siteId: rowanSite.id,
+            staffId: tunde.id,
+          },
+        ],
+      },
+    },
+  });
 
   const pending = await prisma.shift.create({
     data: {

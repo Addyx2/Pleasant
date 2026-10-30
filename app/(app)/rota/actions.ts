@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -187,16 +188,14 @@ export async function generateRotaWeekAction(formData: FormData): Promise<void> 
   }
 
   const skipped = toCreate.length - toInsert.length;
-  if (skipped > 0) {
-    revalidatePath("/shifts");
-    revalidatePath("/dispatch");
-    revalidatePath("/rota");
-    revalidatePath("/dashboard");
-    return;
-  }
 
-  revalidatePath("/rota");
   revalidatePath("/shifts");
   revalidatePath("/dispatch");
+  revalidatePath("/rota");
   revalidatePath("/dashboard");
+
+  // Say what happened: the lines already on the rota, or before the payroll
+  // cutoff, are skipped rather than duplicated.
+  const pastCutoff = template.lines.length - toCreate.length;
+  redirect(`/rota?generated=${toInsert.length}&skipped=${skipped + pastCutoff}`);
 }

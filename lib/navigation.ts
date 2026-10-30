@@ -70,7 +70,6 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: Building2,
     items: [
       { href: "/clients", label: "Care Homes & Clients", keywords: "supply care homes sites clients" },
-      { href: "/shifts/requests", label: "Shift Requests", keywords: "supply requests book" },
     ],
   },
   {

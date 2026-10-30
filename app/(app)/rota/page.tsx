@@ -27,15 +27,33 @@ const WEEKDAYS = [
   { value: 0, label: "Sunday" },
 ];
 
-function todayIso(): string {
-  const now = new Date();
-  const m = `${now.getMonth() + 1}`.padStart(2, "0");
-  const d = `${now.getDate()}`.padStart(2, "0");
-  return `${now.getFullYear()}-${m}-${d}`;
+function isoDate(d: Date): string {
+  const m = `${d.getMonth() + 1}`.padStart(2, "0");
+  const day = `${d.getDate()}`.padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
 }
 
-export default async function RotaPage() {
+/**
+ * The Monday of next week. Defaulting to today would offer a week that the
+ * payroll cutoff has already closed, so "Generate" would quietly do nothing.
+ */
+function defaultWeekIso(): string {
+  const d = new Date();
+  const backToMonday = (d.getDay() === 0 ? -6 : 1) - d.getDay();
+  d.setDate(d.getDate() + backToMonday + 7);
+  return isoDate(d);
+}
+
+export default async function RotaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ generated?: string; skipped?: string }>;
+}) {
   const user = await requireOps();
+  const { generated, skipped } = await searchParams;
+  const generatedCount = Number(generated);
+  const skippedCount = Number(skipped);
+  const generatedMessage = Number.isFinite(generatedCount) && generated != null;
 
   const [templates, clients, staff, sites] = await Promise.all([
     prisma.rotaTemplate.findMany({
@@ -73,6 +91,24 @@ export default async function RotaPage() {
         title="Recurring"
         description="Describe your usual week once, then generate it whenever you need it. Lines below the cutoff are skipped so every shift still gets paid."
       />
+
+      {generatedMessage ? (
+        <div
+          className={
+            generatedCount > 0
+              ? "rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700"
+              : "rounded-xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800"
+          }
+        >
+          {generatedCount > 0
+            ? `${generatedCount} shift${generatedCount === 1 ? "" : "s"} generated${
+                skippedCount > 0 ? `, ${skippedCount} skipped as already on the rota or past the cutoff.` : "."
+              }`
+            : `Nothing to generate: every line is already on the rota or past the payroll cutoff. Try a later week.${
+                skippedCount > 0 ? ` (${skippedCount} line${skippedCount === 1 ? "" : "s"} skipped.)` : ""
+              }`}
+        </div>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="p-5">
@@ -282,7 +318,7 @@ export default async function RotaPage() {
                 <input type="hidden" name="templateId" value={template.id} />
                 <div>
                   <label className={labelClass} htmlFor={`weekStart-${template.id}`}>Week of</label>
-                  <input id={`weekStart-${template.id}`} name="weekStart" type="date" defaultValue={todayIso()} className={inputClass} />
+                  <input id={`weekStart-${template.id}`} name="weekStart" type="date" defaultValue={defaultWeekIso()} className={inputClass} />
                 </div>
                 <button type="submit" className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700 hover:underline">
                   <CalendarPlus className="h-4 w-4" /> Generate this week&apos;s shifts
