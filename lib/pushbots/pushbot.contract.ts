@@ -20,6 +20,7 @@ const ROLE = `Pushbot Test ${Date.now()}`;
 const texts: { from: string; to: string; body: string }[] = [];
 const bought: Record<string, string>[] = [];
 let failBuy = false;
+let lastTwilioAuth = "";
 /** Whether Aultrum's UK mobile bundle is approved on the stand-in Twilio account. */
 let bundleApproved = false;
 /** The stand-in model's next tool calls, keyed by the texter's latest words. */
@@ -41,6 +42,7 @@ const read = (req: IncomingMessage) => new Promise<string>((done) => {
 
 before(async () => {
   twilio = createServer(async (req, res) => {
+    lastTwilioAuth = req.headers.authorization ?? "";
     const form = new URLSearchParams(await read(req));
     const url = req.url ?? "";
     res.setHeader("Content-Type", "application/json");
@@ -284,4 +286,18 @@ test("the Pushbot's webhook refuses a text without Twilio's signature, and takes
     POST(new Request(url, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded", "X-Twilio-Signature": signature }, body: new URLSearchParams(fields) }), { params: Promise.resolve({ id: pushbotId }) });
   assert.equal((await post("forged")).status, 403);
   assert.equal((await post(twilioSignature("aultrum-token", url, fields))).status, 200);
+});
+
+test("with a Twilio API key set, requests to Twilio use it; incoming texts are still checked with the auth token", async () => {
+  process.env.TWILIO_API_KEY_SID = "SKtestkey";
+  process.env.TWILIO_API_KEY_SECRET = "key-secret";
+  try {
+    const { sendAndKeep } = await import("@/lib/integrations/sms");
+    const r = await sendAndKeep(agencyId, carer.id, carer.phone, "API key check", "test");
+    assert.ok(r.sent);
+    assert.equal(lastTwilioAuth, `Basic ${Buffer.from("SKtestkey:key-secret").toString("base64")}`);
+  } finally {
+    delete process.env.TWILIO_API_KEY_SID;
+    delete process.env.TWILIO_API_KEY_SECRET;
+  }
 });

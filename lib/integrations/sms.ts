@@ -24,11 +24,19 @@ export interface Sender {
   shared: boolean;
 }
 
-/** Aultrum's Twilio account (TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN), or null if it isn't set. */
+/**
+ * Aultrum's Twilio account, or null if it isn't set. TWILIO_ACCOUNT_SID and
+ * TWILIO_AUTH_TOKEN are needed (the token checks that incoming texts really
+ * come from Twilio). With TWILIO_API_KEY_SID and TWILIO_API_KEY_SECRET too,
+ * everything Pleasant asks of Twilio uses that API key instead of the token.
+ */
 export function aultrumTwilio(): TwilioSecrets | null {
   const accountSid = process.env.TWILIO_ACCOUNT_SID?.trim();
   const authToken = process.env.TWILIO_AUTH_TOKEN?.trim();
-  return accountSid && authToken ? { accountSid, authToken } : null;
+  const apiKeySid = process.env.TWILIO_API_KEY_SID?.trim() || undefined;
+  const apiKeySecret = process.env.TWILIO_API_KEY_SECRET?.trim() || undefined;
+  if (!accountSid || !authToken) return null;
+  return apiKeySid && apiKeySecret ? { accountSid, authToken, apiKeySid, apiKeySecret } : { accountSid, authToken };
 }
 
 /**

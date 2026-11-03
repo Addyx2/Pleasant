@@ -77,6 +77,7 @@ Settings on the deployment (Vercel):
 
 | Setting | What it's for |
 | --- | --- |
+| `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET` | Recommended: a Twilio API key (Console → Account → API keys & tokens → Create API key, Standard). Requests to Twilio use it instead of the auth token, which is then only used to check incoming texts |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | Aultrum's Twilio account: buys each Pushbot's own UK mobile number and sends its texts. The account needs an approved UK mobile regulatory bundle, which Pleasant finds itself |
 | `TWILIO_FROM` | Optional: a shared number (`+44…`) to text from in the seconds before an agency's own number is bought |
 | `TWILIO_BUNDLE_SID`, `TWILIO_ADDRESS_SID` | Optional: only to pick a particular bundle when the account has several |
