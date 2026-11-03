@@ -77,9 +77,9 @@ Settings on the deployment (Vercel):
 
 | Setting | What it's for |
 | --- | --- |
-| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | Aultrum's Twilio account: buys each Pushbot's number and sends its texts |
-| `TWILIO_FROM` | The shared Pushbots number (`+44…`), used while an agency's own number is being set up |
-| `TWILIO_BUNDLE_SID` (and `TWILIO_ADDRESS_SID` if Twilio asks) | Aultrum's approved UK regulatory bundle, needed to buy UK numbers |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | Aultrum's Twilio account: buys each Pushbot's own UK mobile number and sends its texts. The account needs an approved UK mobile regulatory bundle, which Pleasant finds itself |
+| `TWILIO_FROM` | Optional: a shared number (`+44…`) to text from in the seconds before an agency's own number is bought |
+| `TWILIO_BUNDLE_SID`, `TWILIO_ADDRESS_SID` | Optional: only to pick a particular bundle when the account has several |
 | `ANTHROPIC_API_KEY` | Pushbots answering texts in its own words |
 | `APP_URL` | Where Twilio sends replies, and links in texts and emails |
 

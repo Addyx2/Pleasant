@@ -26,7 +26,6 @@ function monthsFromNow(months: number) {
 async function main() {
   const now = new Date();
   const year = now.getFullYear();
-  const month = now.getMonth();
 
 const existing = await prisma.agency.findUnique({ where: { slug: "brightwater-care" } });
 if (existing) {
@@ -471,8 +470,11 @@ if (existing) {
     return Math.round((end.getTime() - start.getTime()) / 60000);
   };
 
+  // Worked shifts sit 6 to 16 days ago whatever today's date is (day 3 → 16
+  // days ago, day 13 → 6 days ago). Pinning them to days of the current month
+  // left them in the future early in a month, with no signed timesheets.
   function seedStart(s: ShiftSeed) {
-    return s.day === null ? daysFromNow(s.daysFromNow, s.startHour) : at(year, month, s.day, s.startHour);
+    return s.day === null ? daysFromNow(s.daysFromNow, s.startHour) : daysFromNow(s.day - 19, s.startHour);
   }
 
   function seedEnd(s: ShiftSeed) {

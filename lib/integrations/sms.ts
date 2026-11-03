@@ -10,7 +10,7 @@ import type { SmsResult } from "./sms-offers";
 
 // Who texts an agency's carers. Each agency's Pushbot texts from a number of
 // its own, bought on Aultrum's Twilio account (lib/pushbots/number.ts); until
-// that's done, from the shared Pushbots number (TWILIO_FROM). An agency that
+// that's done, from the shared Pushbots number (TWILIO_FROM) if one is set. An agency that
 // connected its own Twilio in Settings keeps using that. A Pushbot switched
 // off, or an agency without one, texts nobody: offers still reach the app.
 
@@ -23,13 +23,22 @@ export interface Sender {
   shared: boolean;
 }
 
-/** Aultrum's Twilio account and shared Pushbots number, from the deployment's settings, or null if they aren't set. */
-export function sharedSender(): Omit<Sender, "integration"> | null {
+/** Aultrum's Twilio account (TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN), or null if it isn't set. */
+export function aultrumTwilio(): TwilioSecrets | null {
   const accountSid = process.env.TWILIO_ACCOUNT_SID?.trim();
   const authToken = process.env.TWILIO_AUTH_TOKEN?.trim();
+  return accountSid && authToken ? { accountSid, authToken } : null;
+}
+
+/**
+ * The optional shared Pushbots number (TWILIO_FROM), used only while an
+ * agency's own number is being bought. Not needed: without it, a Pushbot
+ * texts once its own number is ready, usually seconds after it's created.
+ */
+export function sharedSender(): Omit<Sender, "integration"> | null {
+  const secrets = aultrumTwilio();
   const from = (process.env.TWILIO_FROM ?? process.env.TWILIO_PHONE_NUMBER ?? process.env.TWILIO_MESSAGING_SERVICE_SID)?.trim();
-  if (!accountSid || !authToken || !from) return null;
-  return { secrets: { accountSid, authToken }, from, shared: true };
+  return secrets && from ? { secrets, from, shared: true } : null;
 }
 
 export const SHARED_WEBHOOK_PATH = "/api/webhooks/twilio/shared";
@@ -58,9 +67,11 @@ export async function smsSender(agencyId: string): Promise<Sender | null> {
 
   const pushbot = await prisma.pushbot.findUnique({ where: { agencyId }, select: { enabled: true, number: true, numberStatus: true } });
   if (!pushbot?.enabled) return null;
+  const aultrum = aultrumTwilio();
+  if (!aultrum) return null;
+  if (pushbot.numberStatus === "active" && pushbot.number) return { secrets: aultrum, from: pushbot.number, integration: null, shared: false };
   const account = sharedSender();
   if (!account) return null;
-  if (pushbot.numberStatus === "active" && pushbot.number) return { secrets: account.secrets, from: pushbot.number, integration: null, shared: false };
   await ensureSharedWebhook(account).catch((error) => console.error("shared Twilio webhook not set", error));
   return { ...account, integration: null };
 }
