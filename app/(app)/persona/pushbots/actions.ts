@@ -10,7 +10,9 @@ import { prisma } from "@/lib/db";
 import { sendAndKeep } from "@/lib/integrations/sms";
 import { toE164 } from "@/lib/integrations/phone";
 import { cancelCampaign, startCampaign } from "@/lib/pushbots/campaign";
+import { allowanceCheckout } from "@/lib/pushbots/billing";
 import { provisionNumber } from "@/lib/pushbots/number";
+import { absoluteUrl } from "@/lib/url";
 
 const done = () => {
   revalidatePath("/persona/pushbots");
@@ -105,4 +107,16 @@ export async function setOfficeMobileAction(formData: FormData): Promise<void> {
   await recordAudit(user, { action: "pushbot.mobile", summary: `${mobile ? "Registered" : "Removed"} ${member.firstName} ${member.lastName}'s mobile for texting the Pushbot`, targetType: "user", targetId: member.id });
   revalidatePath("/persona/pushbots/settings");
   redirect("/persona/pushbots/settings?saved=1");
+}
+
+/** Buys credits or a plan for the agency's Allowance through Stripe, from Pushbot settings. Admins only. */
+export async function allowanceCheckoutAction(formData: FormData): Promise<void> {
+  const user = await requireOps();
+  if (user.role !== "ADMIN") redirect(`/persona/pushbots/settings?error=${encodeURIComponent("Only an admin can buy credits.")}`);
+  const pack = String(formData.get("pack") ?? "") || undefined;
+  const plan = String(formData.get("plan") ?? "") || undefined;
+  const result = await allowanceCheckout(user.agencyId, { pack, plan }, await absoluteUrl("/persona/pushbots/settings"), user.email);
+  if ("error" in result) redirect(`/persona/pushbots/settings?error=${encodeURIComponent(result.error)}`);
+  await recordAudit(user, { action: "pushbots.allowance_checkout", summary: plan ? `Opened checkout for the ${plan} plan` : `Opened checkout for credits (${pack})` });
+  redirect(result.url);
 }

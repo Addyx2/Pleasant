@@ -3,24 +3,26 @@ import { prisma } from "@/lib/db";
 import { displayPhone } from "@/lib/integrations/phone";
 import { aultrumTwilio, sharedSender } from "@/lib/integrations/sms";
 import { pushbotsAiAvailable } from "@/lib/pushbots/agent";
+import { allowanceView } from "@/lib/pushbots/billing";
 import { Badge, Card, buttonClass, inputClass, labelClass, subtleButtonClass } from "@/components/ui";
 
-import { retryNumberAction, savePushbotAction, setOfficeMobileAction } from "../actions";
+import { allowanceCheckoutAction, retryNumberAction, savePushbotAction, setOfficeMobileAction } from "../actions";
 
 export const metadata = { title: "Pushbot settings" };
 export const dynamic = "force-dynamic";
 
-export default async function PushbotSettingsPage({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string }> }) {
+export default async function PushbotSettingsPage({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string; allowance?: string }> }) {
   const user = await requireOps();
-  const { saved, error } = await searchParams;
+  const { saved, error, allowance: paid } = await searchParams;
   const isAdmin = user.role === "ADMIN";
-  const [pushbot, office] = await Promise.all([
+  const [pushbot, office, allowance] = await Promise.all([
     prisma.pushbot.findUnique({ where: { agencyId: user.agencyId } }),
     prisma.user.findMany({
       where: { agencyId: user.agencyId, role: { in: ["ADMIN", "MANAGER"] }, deactivatedAt: null },
       select: { id: true, firstName: true, lastName: true, role: true, mobile: true },
       orderBy: [{ role: "asc" }, { lastName: "asc" }],
     }),
+    allowanceView(user.agencyId),
   ]);
   const shared = sharedSender();
   const texting = aultrumTwilio() !== null;
@@ -134,6 +136,49 @@ export default async function PushbotSettingsPage({ searchParams }: { searchPara
                   <button type="submit" className={subtleButtonClass}>Try again</button>
                 </form>
               ) : null}
+            </div>
+          )}
+        </Card>
+        <Card className="p-5">
+          <h2 className="text-sm font-semibold text-slate-900">Allowance</h2>
+          {paid === "paid" ? <p role="status" className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">Thank you. Credits appear as soon as the payment is confirmed, usually within a minute.</p> : null}
+          {!allowance ? (
+            <p className="mt-2 text-sm text-slate-500">Your Allowance can&apos;t be shown right now. Pushbots carry on meanwhile.</p>
+          ) : !allowance.enforced ? (
+            <p className="mt-2 text-sm text-slate-500">Pushbots will spend credits from your Allowance (1 credit = 1p) once Aultrum billing starts. Nothing is charged yet.</p>
+          ) : (
+            <div className="mt-2 space-y-3 text-sm">
+              <p className="font-display text-2xl font-bold tracking-tight text-slate-900">{allowance.balance.toLocaleString("en-GB")} <span className="text-sm font-medium text-slate-500">credits</span></p>
+              {!allowance.covered ? (
+                <p className="rounded-lg bg-amber-50 px-3 py-2 text-amber-800">Pushbots needs a plan before it can text. Offers still reach carers&apos; apps.</p>
+              ) : allowance.balance <= 0 ? (
+                <p className="rounded-lg bg-red-50 px-3 py-2 text-red-700">Out of credits: texting and AI replies are paused. Offers still reach carers&apos; apps.</p>
+              ) : null}
+              {isAdmin ? (
+                <div className="space-y-2">
+                  {!allowance.covered ? allowance.plans.map((plan) => (
+                    <form key={plan.key} action={allowanceCheckoutAction}>
+                      <input type="hidden" name="plan" value={plan.key} />
+                      <button type="submit" className={`${buttonClass} w-full`}>{plan.name} plan, £{(plan.pence / 100).toFixed(0)}/month ({plan.credits.toLocaleString("en-GB")} credits)</button>
+                    </form>
+                  )) : null}
+                  <div className="grid grid-cols-2 gap-2">
+                    {allowance.packs.map((pack) => (
+                      <form key={pack.key} action={allowanceCheckoutAction}>
+                        <input type="hidden" name="pack" value={pack.key} />
+                        <button type="submit" className={`${subtleButtonClass} w-full`}>£{(pack.pence / 100).toFixed(0)}: {pack.credits.toLocaleString("en-GB")}</button>
+                      </form>
+                    ))}
+                  </div>
+                </div>
+              ) : <p className="text-xs text-slate-500">An admin can top up.</p>}
+              <details>
+                <summary className="cursor-pointer text-slate-600">What Pushbots costs</summary>
+                <ul className="mt-2 space-y-1 text-slate-600">
+                  {allowance.prices.map((price) => <li key={price.action} className="flex justify-between gap-3"><span>{price.label} <span className="text-slate-400">{price.unit}</span></span><span className="tabular-nums">{price.credits}</span></li>)}
+                </ul>
+              </details>
+              <a href={allowance.manageUrl} className="inline-block text-sm font-medium text-brand-700 hover:text-brand-800">Plan, automatic top-up and invoices in Aultrum Workspace →</a>
             </div>
           )}
         </Card>

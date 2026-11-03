@@ -9,7 +9,7 @@ import { sendOfferSms } from "@/lib/integrations/sms-offers";
 import { absoluteUrl } from "@/lib/url";
 
 import { rankForShift } from "./eligibility";
-import { retryWaitingNumbers } from "./number";
+import { chargeNumbersMonthly, retryWaitingNumbers } from "./number";
 
 // Pushbots fills an open shift by itself: it offers it to the best-placed
 // eligible carers a few at a time (a "wave"), by text and in the app, and
@@ -192,6 +192,7 @@ export async function maybeTickPushbots(now = new Date()): Promise<void> {
     }
     await tickCampaigns(now);
     await retryWaitingNumbers(now);
+    await chargeNumbersMonthly(now);
   } catch (error) {
     console.error("pushbots tick failed", error);
   }

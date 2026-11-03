@@ -6,6 +6,7 @@ import { optOutWord, staffAnywhereByPhone } from "@/lib/integrations/sms";
 import { handleInboundSms } from "@/lib/integrations/sms-offers";
 import { parseOfferReply } from "@/lib/integrations/twilio";
 
+import { chargeAllowance, textParts } from "./billing";
 import { handleOfficeText, officeUserByMobile } from "./office";
 
 // Where a text to a Pushbot number goes. An agency's own Pushbot number
@@ -22,12 +23,25 @@ export async function inboundToPushbot(pushbotId: string, from: string, body: st
   const pushbot = await prisma.pushbot.findUnique({ where: { id: pushbotId } });
   if (!pushbot) return null;
   const phone = toE164(from) ?? from;
+  await received(pushbot.agencyId, providerId);
   const office = await officeUserByMobile(pushbot.agencyId, phone);
   if (office) {
     await handleOfficeText(office, pushbot, phone, body, providerId, later);
     return null;
   }
-  return handleInboundSms({ agencyId: pushbot.agencyId, integration: null }, phone, body, providerId, later);
+  return paidReply(pushbot.agencyId, providerId, await handleInboundSms({ agencyId: pushbot.agencyId, integration: null }, phone, body, providerId, later));
+}
+
+/** A text received on Aultrum's account costs a credit. It's always handled: an offer accepted at zero still counts. */
+async function received(agencyId: string, providerId: string | null) {
+  await chargeAllowance(agencyId, "sms_in", 1, providerId ? `in:${providerId}` : undefined);
+}
+
+/** The reply sent straight back is a text too: sent only if the Allowance pays for it. */
+async function paidReply(agencyId: string, providerId: string | null, reply: string | null): Promise<string | null> {
+  if (!reply) return null;
+  const paid = await chargeAllowance(agencyId, "sms_out", textParts(reply), providerId ? `reply:${providerId}` : undefined);
+  return paid.ok ? reply : null;
 }
 
 /** A text to the shared Pushbots number. */
@@ -49,6 +63,7 @@ export async function inboundToShared(from: string, body: string, providerId: st
 
   const agencyId = await agencyFor(phone, body);
   if (!agencyId) return null; // not anyone we text
+  await received(agencyId, providerId);
   const office = await officeUserByMobile(agencyId, phone);
   if (office) {
     const pushbot = await prisma.pushbot.findUnique({ where: { agencyId } });
@@ -57,7 +72,7 @@ export async function inboundToShared(from: string, body: string, providerId: st
       return null;
     }
   }
-  return handleInboundSms({ agencyId, integration: null }, phone, body, providerId, later);
+  return paidReply(agencyId, providerId, await handleInboundSms({ agencyId, integration: null }, phone, body, providerId, later));
 }
 
 async function agencyFor(phone: string, body: string): Promise<string | null> {

@@ -1,6 +1,7 @@
 import type { Integration } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
+import { chargeAllowance, textParts } from "@/lib/pushbots/billing";
 import { absoluteUrl } from "@/lib/url";
 
 import { toE164 } from "./phone";
@@ -106,6 +107,11 @@ export async function textStaff(agencyId: string, staffId: string, body: string,
 export async function sendAndKeep(agencyId: string, staffId: string | null, phone: string, body: string, label: string, userId?: string): Promise<SmsResult> {
   const sender = await smsSender(agencyId);
   if (!sender) return { sent: false, reason: "Texting is off or isn't set up" };
+  // Texts on Aultrum's account (Pushbots) are paid for from the Allowance; an agency's own Twilio isn't.
+  if (!sender.integration) {
+    const paid = await chargeAllowance(agencyId, "sms_out", textParts(body));
+    if (!paid.ok) return { sent: false, reason: paid.message };
+  }
   try {
     const { sid } = await sendSms(sender.secrets, sender.from, phone, body);
     await prisma.smsMessage.create({ data: { agencyId, staffId, userId, direction: "OUT", phone, body, providerId: sid, status: "SENT" } });
