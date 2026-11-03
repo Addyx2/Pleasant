@@ -1,7 +1,7 @@
 import { requireOps } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { displayPhone } from "@/lib/integrations/phone";
-import { sharedSender } from "@/lib/integrations/sms";
+import { aultrumTwilio, sharedSender } from "@/lib/integrations/sms";
 import { pushbotsAiAvailable } from "@/lib/pushbots/agent";
 import { Badge, Card, buttonClass, inputClass, labelClass, subtleButtonClass } from "@/components/ui";
 
@@ -23,6 +23,7 @@ export default async function PushbotSettingsPage({ searchParams }: { searchPara
     }),
   ]);
   const shared = sharedSender();
+  const texting = aultrumTwilio() !== null;
   const ai = pushbotsAiAvailable();
   const p = pushbot ?? { name: "Pushbot", tone: "friendly", enabled: true, officeTexts: true, waveSize: 5, waveGapMins: 15 };
 
@@ -123,6 +124,8 @@ export default async function PushbotSettingsPage({ searchParams }: { searchPara
               {pushbot.numberError ? <p className="text-slate-600">{pushbot.numberError}</p> : null}
               {shared ? (
                 <p className="text-slate-500">Meanwhile it texts from Aultrum&apos;s shared Pushbots number{shared.from.startsWith("+") ? ` (${displayPhone(shared.from)})` : ""}, so nothing waits.</p>
+              ) : texting ? (
+                <p className="text-slate-500">It starts texting as soon as its number is ready. Offers reach carers&apos; apps meanwhile.</p>
               ) : (
                 <p className="text-slate-500">Texting isn&apos;t available on this deployment yet.</p>
               )}

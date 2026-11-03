@@ -89,6 +89,40 @@ export async function buyUkMobile(
   return { sid: bought.sid, number: bought.phone_number };
 }
 
+const numbersBase = () => (process.env.TWILIO_NUMBERS_API_URL ?? process.env.TWILIO_API_URL ?? "https://numbers.twilio.com").replace(/\/+$/, "");
+
+async function numbersCall<T>(s: TwilioSecrets, path: string): Promise<T> {
+  const res = await fetch(`${numbersBase()}/v2/RegulatoryCompliance${path}`, { headers: { Authorization: auth(s) }, signal: AbortSignal.timeout(15_000) });
+  const json = (await res.json().catch(() => ({}))) as T & { message?: string; code?: number };
+  if (!res.ok) throw new TwilioError(res.status === 401 ? "Twilio rejected the Account SID or Auth Token" : (json.message ?? `Twilio answered ${res.status}`), res.status, json.code);
+  return json;
+}
+
+/**
+ * The account's approved UK mobile regulatory bundle and the address in it,
+ * found through Twilio's API so nobody copies SIDs into settings. Settings
+ * TWILIO_BUNDLE_SID / TWILIO_ADDRESS_SID still win if they're set.
+ * Null when the account has no approved UK mobile bundle yet.
+ */
+export async function ukMobileBundle(s: TwilioSecrets): Promise<{ bundleSid: string; addressSid?: string } | null> {
+  const setBundle = process.env.TWILIO_BUNDLE_SID?.trim();
+  const setAddress = process.env.TWILIO_ADDRESS_SID?.trim() || undefined;
+  if (setBundle) return { bundleSid: setBundle, addressSid: setAddress };
+  const list = await numbersCall<{ results?: { sid: string }[] }>(s, "/Bundles?Status=twilio-approved&IsoCountry=GB&NumberType=mobile&PageSize=20");
+  const bundleSid = list.results?.[0]?.sid;
+  if (!bundleSid) return null;
+  let addressSid = setAddress;
+  if (!addressSid) {
+    const items = await numbersCall<{ results?: { object_sid: string }[] }>(s, `/Bundles/${bundleSid}/ItemAssignments?PageSize=50`).catch(() => ({ results: [] }));
+    addressSid = items.results?.find((i) => i.object_sid.startsWith("AD"))?.object_sid;
+  }
+  if (!addressSid) {
+    const addresses = await call<{ addresses?: { sid: string }[] }>(s, "GET", "/Addresses.json?IsoCountry=GB&PageSize=20").catch(() => ({ addresses: [] }));
+    addressSid = addresses.addresses?.[0]?.sid;
+  }
+  return { bundleSid, addressSid };
+}
+
 /** Points a number Pleasant already owns (by its SID) at a new address. */
 export async function pointNumber(s: TwilioSecrets, numberSid: string, smsUrl: string): Promise<void> {
   await call(s, "POST", `/IncomingPhoneNumbers/${numberSid}.json`, { SmsUrl: smsUrl, SmsMethod: "POST" });

@@ -20,6 +20,8 @@ const ROLE = `Pushbot Test ${Date.now()}`;
 const texts: { from: string; to: string; body: string }[] = [];
 const bought: Record<string, string>[] = [];
 let failBuy = false;
+/** Whether Aultrum's UK mobile bundle is approved on the stand-in Twilio account. */
+let bundleApproved = false;
 /** The stand-in model's next tool calls, keyed by the texter's latest words. */
 const script: Record<string, { name: string; input: Record<string, unknown> }[]> = {};
 const toolResults: { name: string; content: string; isError: boolean }[] = [];
@@ -42,6 +44,11 @@ before(async () => {
     const form = new URLSearchParams(await read(req));
     const url = req.url ?? "";
     res.setHeader("Content-Type", "application/json");
+    if (url.startsWith("/v2/RegulatoryCompliance/Bundles?")) {
+      assert.match(url, /Status=twilio-approved&IsoCountry=GB&NumberType=mobile/);
+      return res.end(JSON.stringify({ results: bundleApproved ? [{ sid: "BUaultrum" }] : [] }));
+    }
+    if (url.startsWith("/v2/RegulatoryCompliance/Bundles/BUaultrum/ItemAssignments")) return res.end(JSON.stringify({ results: [{ object_sid: "ITenduser" }, { object_sid: "ADaultrum" }] }));
     if (url.includes("/AvailablePhoneNumbers/GB/Mobile.json")) return res.end(JSON.stringify({ available_phone_numbers: [{ phone_number: "+447700900555" }] }));
     if (req.method === "POST" && url.endsWith("/IncomingPhoneNumbers.json")) {
       if (failBuy) {
@@ -144,9 +151,17 @@ test("an agency without a Pushbot texts nobody", async () => {
   assert.equal(await smsSender(agencyId), null);
 });
 
-test("if Twilio won't sell a UK number yet, the Pushbot says why and texts from the shared number", async () => {
+test("before Aultrum's UK bundle is approved, the Pushbot says why, and texts only if a shared number is set", async () => {
   const p = await prisma.pushbot.create({ data: { agencyId, name: "Bria" } });
   pushbotId = p.id;
+  bundleApproved = false;
+  const shared = process.env.TWILIO_FROM;
+  delete process.env.TWILIO_FROM;
+  assert.equal((await provisionNumber(p.id)).ok, false);
+  assert.match((await prisma.pushbot.findUniqueOrThrow({ where: { id: p.id } })).numberError!, /UK number approval.*Offers still reach carers' apps/);
+  assert.equal(await smsSender(agencyId), null, "no shared number and no number of its own: it doesn't text");
+  process.env.TWILIO_FROM = shared;
+  bundleApproved = true;
   failBuy = true;
   const r = await provisionNumber(p.id);
   assert.equal(r.ok, false);
@@ -158,10 +173,22 @@ test("if Twilio won't sell a UK number yet, the Pushbot says why and texts from 
   assert.equal(sender?.from, "+447700900000");
 });
 
-test("Pleasant buys the Pushbot a UK number, pointed back at it, and it texts from that number", async () => {
+test("once the bundle is approved, a Pushbot that was waiting gets its number by itself within the hour", async () => {
+  const { retryWaitingNumbers } = await import("./number");
+  failBuy = false;
+  assert.equal(await retryWaitingNumbers(), 0, "not again within the hour");
+  assert.equal(await retryWaitingNumbers(new Date(Date.now() + 2 * 3_600_000)), 1);
+  assert.equal((await prisma.pushbot.findUniqueOrThrow({ where: { id: pushbotId } })).numberStatus, "active");
+  await prisma.pushbot.update({ where: { id: pushbotId }, data: { number: null, numberSid: null, numberStatus: "failed" } });
+});
+
+test("Pleasant finds the approved bundle itself, buys the Pushbot a UK number under it, pointed back at it, and texts from it", async () => {
   failBuy = false;
   const r = await provisionNumber(pushbotId);
   assert.ok(r.ok);
+  assert.equal(bought.at(-1)?.BundleSid, "BUaultrum", "the bundle was found through Twilio's API, not a setting");
+  assert.equal(bought.at(-1)?.AddressSid, "ADaultrum");
+  assert.equal(r.ok && r.number, "+447700900555");
   assert.equal(bought.at(-1)?.SmsUrl, `https://pleasant.test/api/webhooks/twilio/pushbot/${pushbotId}`);
   assert.equal(bought.at(-1)?.FriendlyName.startsWith("Pushbot · "), true);
   assert.equal((await smsSender(agencyId))?.from, "+447700900555");
