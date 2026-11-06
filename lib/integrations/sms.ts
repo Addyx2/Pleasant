@@ -1,6 +1,7 @@
 import type { Integration } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
+import { chargeAllowance, textParts } from "@/lib/pushbots/billing";
 import { absoluteUrl } from "@/lib/url";
 
 import { toE164 } from "./phone";
@@ -23,11 +24,19 @@ export interface Sender {
   shared: boolean;
 }
 
-/** Aultrum's Twilio account (TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN), or null if it isn't set. */
+/**
+ * Aultrum's Twilio account, or null if it isn't set. TWILIO_ACCOUNT_SID and
+ * TWILIO_AUTH_TOKEN are needed (the token checks that incoming texts really
+ * come from Twilio). With TWILIO_API_KEY_SID and TWILIO_API_KEY_SECRET too,
+ * everything Pleasant asks of Twilio uses that API key instead of the token.
+ */
 export function aultrumTwilio(): TwilioSecrets | null {
   const accountSid = process.env.TWILIO_ACCOUNT_SID?.trim();
   const authToken = process.env.TWILIO_AUTH_TOKEN?.trim();
-  return accountSid && authToken ? { accountSid, authToken } : null;
+  const apiKeySid = process.env.TWILIO_API_KEY_SID?.trim() || undefined;
+  const apiKeySecret = process.env.TWILIO_API_KEY_SECRET?.trim() || undefined;
+  if (!accountSid || !authToken) return null;
+  return apiKeySid && apiKeySecret ? { accountSid, authToken, apiKeySid, apiKeySecret } : { accountSid, authToken };
 }
 
 /**
@@ -106,6 +115,11 @@ export async function textStaff(agencyId: string, staffId: string, body: string,
 export async function sendAndKeep(agencyId: string, staffId: string | null, phone: string, body: string, label: string, userId?: string): Promise<SmsResult> {
   const sender = await smsSender(agencyId);
   if (!sender) return { sent: false, reason: "Texting is off or isn't set up" };
+  // Texts on Aultrum's account (Pushbots) are paid for from the Allowance; an agency's own Twilio isn't.
+  if (!sender.integration) {
+    const paid = await chargeAllowance(agencyId, "sms_out", textParts(body));
+    if (!paid.ok) return { sent: false, reason: paid.message };
+  }
   try {
     const { sid } = await sendSms(sender.secrets, sender.from, phone, body);
     await prisma.smsMessage.create({ data: { agencyId, staffId, userId, direction: "OUT", phone, body, providerId: sid, status: "SENT" } });

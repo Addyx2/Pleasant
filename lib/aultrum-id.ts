@@ -198,6 +198,23 @@ async function productApi(method: "PUT" | "POST" | "DELETE", path: string, body:
   }
 }
 
+/** A product API call whose answer is needed. Null when Aultrum ID can't be reached or isn't set up. */
+export async function productApiJson<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<{ status: number; json: T } | null> {
+  if (!aultrumIdConfigured()) return null;
+  try {
+    const res = await fetch(`${issuer()}/api/v1${path}`, {
+      method,
+      headers: { Authorization: basicAuth() ?? `Bearer ${await clientAssertion(`${issuer()}/api/v1`)}`, ...(body ? { "Content-Type": "application/json" } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(6_000),
+    });
+    return { status: res.status, json: (await res.json().catch(() => ({}))) as T };
+  } catch (error) {
+    console.error("aultrum product api failed", path, error);
+    return null;
+  }
+}
+
 const ROLE_LABELS: Record<string, string> = { ADMIN: "Admin", MANAGER: "Manager", STAFF: "Carer" };
 
 /** Tells Workspace this person belongs to this agency in Pleasant. Never throws. */

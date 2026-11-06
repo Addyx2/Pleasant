@@ -8,6 +8,7 @@ import { poolScreen, timesheetsScreen } from "@/lib/carer/screens";
 import { addUnavailability, requestShift } from "@/lib/carer/work";
 import { clientName } from "@/lib/clients";
 import { prisma } from "@/lib/db";
+import { chargeAllowance } from "./billing";
 import { sendEmail } from "@/lib/email";
 import { sendAndKeep } from "@/lib/integrations/sms";
 import { respondToOffer } from "@/lib/offers";
@@ -223,6 +224,7 @@ async function composeReply(ctx: CarerOnPhone): Promise<string | null> {
   const recent = await prisma.smsMessage.count({ where: { agencyId: ctx.agencyId, phone: ctx.phone, direction: "IN", createdAt: { gte: new Date(Date.now() - 3_600_000) } } });
   if (recent > HOURLY_LIMIT) return null;
   if ((await getAllowance(ctx.agencyId)).exhausted) return null;
+  if (!(await chargeAllowance(ctx.agencyId, "ai_reply")).ok) return null;
 
   const client = new Anthropic({ maxRetries: 2, timeout: 25_000 });
   const messages = await history(ctx.agencyId, ctx.phone);

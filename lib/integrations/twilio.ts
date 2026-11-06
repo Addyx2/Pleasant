@@ -4,7 +4,11 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 export interface TwilioSecrets {
   accountSid: string;
+  /** Checks Twilio's signature on incoming texts and calls; also signs requests when there's no API key. */
   authToken: string;
+  /** A Twilio API key (SK...) and its secret: when set, requests to Twilio use it instead of the auth token. */
+  apiKeySid?: string;
+  apiKeySecret?: string;
 }
 
 export interface TwilioConfig {
@@ -20,9 +24,12 @@ export interface TwilioConfig {
 
 const base = () => (process.env.TWILIO_API_URL ?? "https://api.twilio.com").replace(/\/+$/, "");
 
-function auth(s: TwilioSecrets) {
-  return `Basic ${Buffer.from(`${s.accountSid}:${s.authToken}`).toString("base64")}`;
+/** Requests to Twilio sign in with the API key when there is one (revocable, scoped), else the auth token. */
+export function twilioAuthHeader(s: TwilioSecrets) {
+  const [user, pass] = s.apiKeySid && s.apiKeySecret ? [s.apiKeySid, s.apiKeySecret] : [s.accountSid, s.authToken];
+  return `Basic ${Buffer.from(`${user}:${pass}`).toString("base64")}`;
 }
+const auth = twilioAuthHeader;
 
 export class TwilioError extends Error {
   constructor(message: string, readonly status: number, readonly code?: number) {

@@ -12,6 +12,7 @@ import { getAllowance, recordUsage } from "@/lib/assist/usage";
 import { recordAudit } from "@/lib/audit";
 import { clientName } from "@/lib/clients";
 import { prisma } from "@/lib/db";
+import { chargeAllowance } from "./billing";
 import { toE164 } from "@/lib/integrations/phone";
 import { sendAndKeep, textStaff } from "@/lib/integrations/sms";
 import { sendOfferSms } from "@/lib/integrations/sms-offers";
@@ -242,6 +243,7 @@ async function officeTurn(user: OfficeUser, pushbot: Pushbot, phone: string) {
   if (recent > HOURLY_LIMIT) return reply(user, phone, "That's a lot of texts in an hour; please use Pleasant for the rest.");
   if (!(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN)) return reply(user, phone, `${pushbot.name} can't answer texts yet: AI isn't set up for this deployment.`);
   if ((await getAllowance(user.agencyId)).exhausted) return reply(user, phone, "This month's AI allowance is used up. Use Pleasant, or raise the allowance in Settings.");
+  if (!(await chargeAllowance(user.agencyId, "ai_reply")).ok) return;
 
   const reads = officeReadTools(user);
   const tools = [

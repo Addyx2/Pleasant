@@ -5,6 +5,7 @@ import { after } from "next/server";
 
 import { clientName } from "@/lib/clients";
 import { prisma } from "@/lib/db";
+import { chargeAllowance, textParts } from "@/lib/pushbots/billing";
 import { respondToOffer, type OfferOutcome } from "@/lib/offers";
 import { pushbotsAiAvailable, replyToCarer } from "@/lib/pushbots/agent";
 
@@ -71,6 +72,10 @@ export async function sendOfferSms(agencyId: string, offerId: string): Promise<S
       code,
     });
     const log = { integration: sender.integration, agencyId };
+    if (!sender.integration) {
+      const paid = await chargeAllowance(agencyId, "sms_out", textParts(body), `offer:${offerId}:${code}`);
+      if (!paid.ok) return { sent: false, reason: paid.message };
+    }
 
     try {
       const { sid } = await sendSms(sender.secrets, sender.from, phone, body);
