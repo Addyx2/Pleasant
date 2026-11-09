@@ -2,6 +2,10 @@
 // 1. A database made before migrations (by `prisma db push`) is marked as
 //    already at the baseline, once.
 // 2. Every newer migration in prisma/migrations is applied, in order.
+// Neon pauses an idle database; the first connection can time out (P1002)
+// while it wakes, and a preview and a production build sharing one database
+// can wait on each other's migration lock. Both clear within a minute, so
+// the database is woken first and the migration step retried.
 // 3. The live database must then match prisma/schema.prisma exactly; if it
 //    doesn't (a change made by hand, or a migration missing), the deploy stops
 //    here instead of shipping code against the wrong tables.
@@ -24,11 +28,26 @@ if (!process.env.DATABASE_URL) {
 // an executable on Windows, where `npm run db:deploy` is used too.
 const prismaCli = fileURLToPath(new URL("../node_modules/prisma/build/index.js", import.meta.url));
 const prisma = (...args) => execFileSync(process.execPath, [prismaCli, ...args], { stdio: "inherit" });
+const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
+
+/** Runs a step, trying again (up to `tries` times, `waitMs` apart) if it fails. */
+async function withRetries(label, step, tries = 4, waitMs = 15_000) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await step();
+    } catch (error) {
+      if (attempt >= tries) throw error;
+      console.log(`${label} failed (attempt ${attempt} of ${tries}); the database may be waking up or busy. Trying again in ${waitMs / 1000}s.`);
+      await sleep(waitMs);
+    }
+  }
+}
 const baseline = readdirSync("prisma/migrations").filter((d) => /^0_/.test(d)).sort()[0];
 if (!baseline) throw new Error("No baseline migration (prisma/migrations/0_*) found");
 
 prisma("generate");
 const db = new PrismaClient();
+await withRetries("Reaching the database", () => db.$queryRaw`SELECT 1`, 6, 10_000);
 const [{ migrations, tables }] = await db.$queryRaw`
   SELECT to_regclass('public."_prisma_migrations"') IS NOT NULL AS migrations,
          (SELECT count(*)::int FROM information_schema.tables WHERE table_schema = 'public' AND table_name <> '_prisma_migrations') AS tables`;
@@ -52,7 +71,7 @@ for (const { migration_name: name } of failed) {
     process.exit(1);
   }
 }
-prisma("migrate", "deploy");
+await withRetries("Applying migrations", () => prisma("migrate", "deploy"), 3, 20_000);
 
 try {
   execFileSync(

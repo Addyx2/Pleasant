@@ -44,7 +44,10 @@ export async function provisionNumber(pushbotId: string): Promise<{ ok: true; nu
     await chargeAllowance(pushbot.agencyId, "number_month", 1, numberMonthKey(bought.sid));
     return { ok: true, number: bought.number };
   } catch (e) {
-    const raw = e instanceof Error ? e.message : "Twilio didn't sell a number";
+    let raw = e instanceof Error ? e.message : "Twilio didn't sell a number";
+    // The commonest setup slip: an API key's SID (SK...) in TWILIO_ACCOUNT_SID, which must be the account's (AC...).
+    if (!secrets.accountSid.startsWith("AC")) raw += ` (TWILIO_ACCOUNT_SID starts "${secrets.accountSid.slice(0, 2)}"; it must be the Account SID, which starts "AC")`;
+    else if (/rejected/.test(raw)) raw += secrets.apiKeySid ? " (signing in with the API key TWILIO_API_KEY_SID / TWILIO_API_KEY_SECRET)" : " (signing in with TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN)";
     // The agency sees a plain line; Aultrum's logs get Twilio's own words
     // (a missing bundle means Twilio hasn't approved Aultrum's UK mobile bundle yet).
     const meanwhile = process.env.TWILIO_FROM?.trim() ? " It texts from Aultrum's shared Pushbots number meanwhile." : " Offers still reach carers' apps meanwhile.";
