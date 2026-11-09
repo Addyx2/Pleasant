@@ -335,3 +335,37 @@ test("a call to the Pushbot number is put through to the office, charged by the 
     await prisma.agency.update({ where: { id: agencyId }, data: { phone: agency.phone } });
   }
 });
+
+test("a visitor on aultrum.co.uk asks to try the Pushbot: it texts them, answers about Pushbots only, and stops on STOP", async () => {
+  const { requestTrial, TRIAL_OPENING } = await import("./trial");
+  await prisma.pushbot.update({ where: { id: pushbotId }, data: { number: "+447700900555", numberSid: "PNpushbot", numberStatus: "active", enabled: true } });
+  const visitor = `+447709${String(Date.now()).slice(-5)}3`;
+  const ip = `test-${Date.now()}`;
+  try {
+    assert.equal((await requestTrial({ phone: "0117 496 0000", ip })).ok, false, "landlines and other countries are refused");
+
+    const sent = texts.length;
+    const r = await requestTrial({ phone: `0${visitor.slice(3)}`, ip });
+    assert.ok(r.ok, r.message);
+    assert.deepEqual(texts.at(-1), { from: "+447700900555", to: visitor, body: TRIAL_OPENING });
+    assert.ok((await requestTrial({ phone: visitor, ip })).ok, "asking again is fine");
+    assert.equal(texts.length, sent + 1, "but it isn't texted twice in a day");
+
+    const reply = await run((later) => inboundToPushbot(pushbotId, visitor, "How much does it cost?", "SMtrial1", later));
+    assert.equal(reply, null, "the AI reply follows separately");
+    assert.deepEqual(texts.at(-1), { from: "+447700900555", to: visitor, body: "OK." });
+    assert.equal(toolResults.filter((t) => t.content.includes(visitor)).length, 0, "no tools run for a visitor");
+
+    assert.match((await inboundToPushbot(pushbotId, visitor, "STOP", "SMtrial2")) ?? "", /won't get any more/);
+    const before = texts.length;
+    await run((later) => inboundToPushbot(pushbotId, visitor, "hello?", "SMtrial3", later));
+    assert.equal(texts.length, before, "nothing more after STOP");
+
+    const other = `+447709${String(Date.now()).slice(-5)}4`;
+    await requestTrial({ phone: other, ip });
+    await requestTrial({ phone: `+447709${String(Date.now()).slice(-5)}5`, ip });
+    assert.equal((await requestTrial({ phone: `+447709${String(Date.now()).slice(-5)}6`, ip })).ok, false, "a few numbers per visitor per day");
+  } finally {
+    await prisma.pushbotTrial.deleteMany({ where: { pushbotId } });
+  }
+});

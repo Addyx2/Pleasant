@@ -2,12 +2,13 @@ import { after } from "next/server";
 
 import { prisma } from "@/lib/db";
 import { toE164 } from "@/lib/integrations/phone";
-import { optOutWord, staffAnywhereByPhone } from "@/lib/integrations/sms";
+import { optOutWord, staffAnywhereByPhone, staffByPhone } from "@/lib/integrations/sms";
 import { handleInboundSms } from "@/lib/integrations/sms-offers";
 import { parseOfferReply } from "@/lib/integrations/twilio";
 
 import { chargeAllowance, textParts } from "./billing";
 import { handleOfficeText, officeUserByMobile } from "./office";
+import { activeTrial, trialText } from "./trial";
 
 // Where a text to a Pushbot number goes. An agency's own Pushbot number
 // belongs to that agency: office staff's registered mobiles reach the office
@@ -23,6 +24,12 @@ export async function inboundToPushbot(pushbotId: string, from: string, body: st
   const pushbot = await prisma.pushbot.findUnique({ where: { id: pushbotId } });
   if (!pushbot) return null;
   const phone = toE164(from) ?? from;
+  // Someone trying the Pushbot from aultrum.co.uk, who isn't one of the agency's own people:
+  // answered about Pushbots only, on Aultrum rather than the agency's Allowance.
+  const trial = await activeTrial(pushbot.id, phone);
+  if (trial && !(await staffByPhone(pushbot.agencyId, phone)) && !(await officeUserByMobile(pushbot.agencyId, phone))) {
+    return trialText(trial, pushbot, phone, body, providerId, later);
+  }
   await received(pushbot.agencyId, providerId);
   const office = await officeUserByMobile(pushbot.agencyId, phone);
   if (office) {
