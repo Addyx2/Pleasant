@@ -1,20 +1,21 @@
 import type { Metadata } from "next";
-import { DM_Sans, Space_Grotesk } from "next/font/google";
+import localFont from "next/font/local";
 
 import "./globals.css";
 
-const dmSans = DM_Sans({
-  subsets: ["latin"],
+// Self-hosted (app/fonts), so builds never depend on Google Fonts answering.
+const dmSans = localFont({
+  src: "./fonts/dm-sans-latin.woff2",
   variable: "--font-dm",
   display: "swap",
-  weight: ["400", "500", "600", "700"],
+  weight: "100 1000",
 });
 
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
+const spaceGrotesk = localFont({
+  src: "./fonts/space-grotesk-latin.woff2",
   variable: "--font-grotesk",
   display: "swap",
-  weight: ["400", "500", "600", "700"],
+  weight: "300 700",
 });
 
 export const metadata: Metadata = {
