@@ -14,16 +14,18 @@ import { chargeAllowance } from "./billing";
 // shared Pushbots number if TWILIO_FROM is set, and otherwise waits.
 
 export const pushbotWebhookPath = (pushbotId: string) => `/api/webhooks/twilio/pushbot/${pushbotId}`;
+export const pushbotVoicePath = (pushbotId: string) => `/api/webhooks/twilio/pushbot/${pushbotId}/voice`;
 
 export async function provisionNumber(pushbotId: string): Promise<{ ok: true; number: string } | { ok: false; error: string }> {
   const pushbot = await prisma.pushbot.findUnique({ where: { id: pushbotId }, include: { agency: { select: { name: true } } } });
   if (!pushbot) return { ok: false, error: "No such Pushbot" };
   const secrets = aultrumTwilio();
   const smsUrl = await absoluteUrl(pushbotWebhookPath(pushbot.id));
+  const voiceUrl = await absoluteUrl(pushbotVoicePath(pushbot.id));
 
   if (pushbot.numberSid && pushbot.number && secrets) {
     // Already has one: make sure it still points here (e.g. after a domain change).
-    await pointNumber(secrets, pushbot.numberSid, smsUrl).catch(() => undefined);
+    await pointNumber(secrets, pushbot.numberSid, smsUrl, voiceUrl).catch(() => undefined);
     return { ok: true, number: pushbot.number };
   }
   if (!secrets) {
@@ -36,7 +38,7 @@ export async function provisionNumber(pushbotId: string): Promise<{ ok: true; nu
   try {
     const bundle = await ukMobileBundle(secrets);
     if (!bundle) throw new Error("No approved UK mobile regulatory bundle on the account");
-    const bought = await buyUkMobile(secrets, { friendlyName: `Pushbot · ${pushbot.agency.name}`, smsUrl, ...bundle });
+    const bought = await buyUkMobile(secrets, { friendlyName: `Pushbot · ${pushbot.agency.name}`, smsUrl, voiceUrl, ...bundle });
     await prisma.pushbot.update({ where: { id: pushbot.id }, data: { number: bought.number, numberSid: bought.sid, numberStatus: "active", numberError: null } });
     await prisma.agentLog.create({ data: { agencyId: pushbot.agencyId, agentName: "PUSHBOTS", action: "NUMBER_BOUGHT", details: JSON.stringify({ number: bought.number }), status: "SUCCESS" } });
     await chargeAllowance(pushbot.agencyId, "number_month", 1, numberMonthKey(bought.sid));

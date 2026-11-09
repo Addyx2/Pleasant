@@ -51,6 +51,7 @@ export function sharedSender(): Omit<Sender, "integration"> | null {
 }
 
 export const SHARED_WEBHOOK_PATH = "/api/webhooks/twilio/shared";
+export const SHARED_VOICE_PATH = "/api/webhooks/twilio/shared/voice";
 const SHARED_WEBHOOK_KEY = "twilio-shared-webhook";
 
 /**
@@ -60,10 +61,12 @@ const SHARED_WEBHOOK_KEY = "twilio-shared-webhook";
 async function ensureSharedWebhook(sender: Omit<Sender, "integration">): Promise<void> {
   if (!sender.from.startsWith("+")) return; // a Messaging Service is pointed in Twilio's console
   const url = await absoluteUrl(SHARED_WEBHOOK_PATH);
+  const voice = await absoluteUrl(SHARED_VOICE_PATH);
+  const value = `${sender.from} ${url} ${voice}`;
   const done = await prisma.serviceKey.findUnique({ where: { name: SHARED_WEBHOOK_KEY } });
-  if (done?.value === `${sender.from} ${url}`) return;
-  if (await setIncomingWebhook(sender.secrets, sender.from, url).catch(() => false)) {
-    await prisma.serviceKey.upsert({ where: { name: SHARED_WEBHOOK_KEY }, create: { name: SHARED_WEBHOOK_KEY, value: `${sender.from} ${url}` }, update: { value: `${sender.from} ${url}` } });
+  if (done?.value === value) return;
+  if (await setIncomingWebhook(sender.secrets, sender.from, url, voice).catch(() => false)) {
+    await prisma.serviceKey.upsert({ where: { name: SHARED_WEBHOOK_KEY }, create: { name: SHARED_WEBHOOK_KEY, value }, update: { value } });
   }
 }
 

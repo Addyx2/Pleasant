@@ -10,7 +10,7 @@ import { prisma } from "@/lib/db";
 // apps. If Aultrum ID can't be reached, Pushbots carry on rather than leave
 // a shift unfilled, and the miss is logged.
 
-export type PushbotAction = "sms_out" | "sms_in" | "ai_reply" | "number_month";
+export type PushbotAction = "sms_out" | "sms_in" | "ai_reply" | "number_month" | "call_minute";
 export type Charge = { ok: true; enforced: boolean } | { ok: false; reason: "empty" | "no_plan"; message: string };
 
 /** Texts over 160 characters go as several parts, each charged. */

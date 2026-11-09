@@ -190,6 +190,7 @@ test("Pleasant finds the approved bundle itself, buys the Pushbot a UK number un
   assert.ok(r.ok);
   assert.equal(bought.at(-1)?.BundleSid, "BUaultrum", "the bundle was found through Twilio's API, not a setting");
   assert.equal(bought.at(-1)?.AddressSid, "ADaultrum");
+  assert.equal(bought.at(-1)?.VoiceUrl, `https://pleasant.test/api/webhooks/twilio/pushbot/${pushbotId}/voice`, "calls to the number reach Pleasant too");
   assert.equal(r.ok && r.number, "+447700900555");
   assert.equal(bought.at(-1)?.SmsUrl, `https://pleasant.test/api/webhooks/twilio/pushbot/${pushbotId}`);
   assert.equal(bought.at(-1)?.FriendlyName.startsWith("Pushbot · "), true);
@@ -299,5 +300,28 @@ test("with a Twilio API key set, requests to Twilio use it; incoming texts are s
   } finally {
     delete process.env.TWILIO_API_KEY_SID;
     delete process.env.TWILIO_API_KEY_SECRET;
+  }
+});
+
+test("a call to the Pushbot number is put through to the office, charged by the minute; without an office phone it's told to text", async () => {
+  const { answerPushbotCall, afterPushbotCall, spokenPhone } = await import("./voice");
+  const agency = await prisma.agency.findUniqueOrThrow({ where: { id: agencyId } });
+  try {
+    await prisma.agency.update({ where: { id: agencyId }, data: { phone: null } });
+    const noOffice = await answerPushbotCall(pushbotId, "CAvoice1");
+    assert.match(noOffice, /texts only/);
+    assert.doesNotMatch(noOffice, /<Dial/);
+
+    await prisma.agency.update({ where: { id: agencyId }, data: { phone: "0117 496 0000" } });
+    const forwarded = await answerPushbotCall(pushbotId, "CAvoice2");
+    assert.match(forwarded, /<Dial[^>]*timeLimit="1200"[^>]*>\+441174960000<\/Dial>/);
+    assert.match(forwarded, /voice\/done/);
+
+    const unanswered = await afterPushbotCall(pushbotId, { CallSid: "CAvoice2", DialCallStatus: "no-answer", DialCallDuration: "0" });
+    assert.match(unanswered, /nobody .* could answer/);
+    assert.equal(await afterPushbotCall(pushbotId, { CallSid: "CAvoice2", DialCallStatus: "completed", DialCallDuration: "130" }), "<Hangup/>");
+    assert.equal(spokenPhone("+447700900123"), "0 7 7 0 0, 9 0 0 1 2 3");
+  } finally {
+    await prisma.agency.update({ where: { id: agencyId }, data: { phone: agency.phone } });
   }
 });
