@@ -10,6 +10,8 @@ import { allowanceCheckoutAction, retryNumberAction, savePushbotAction, setOffic
 
 export const metadata = { title: "Pushbot settings" };
 export const dynamic = "force-dynamic";
+// Try again buys a number from Twilio in the request: give it room.
+export const maxDuration = 60;
 
 export default async function PushbotSettingsPage({ searchParams }: { searchParams: Promise<{ saved?: string; error?: string; allowance?: string }> }) {
   const user = await requireOps();

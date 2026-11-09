@@ -84,9 +84,19 @@ export async function retryNumberAction(): Promise<void> {
   const user = await requireOps();
   if (user.role !== "ADMIN") redirect("/persona/pushbots/settings");
   const pushbot = await prisma.pushbot.findUnique({ where: { agencyId: user.agencyId } });
-  if (pushbot) await provisionNumber(pushbot.id);
+  let failed = false;
+  if (pushbot) {
+    try {
+      await provisionNumber(pushbot.id);
+    } catch (error) {
+      // provisionNumber records Twilio's refusals itself; anything else (the
+      // database blinking, say) mustn't put the admin on an error page.
+      console.error(JSON.stringify({ event: "pushbot_number_retry_failed", agencyId: user.agencyId, error: error instanceof Error ? error.message : String(error) }));
+      failed = true;
+    }
+  }
   revalidatePath("/persona/pushbots/settings");
-  redirect("/persona/pushbots/settings");
+  redirect(failed ? `/persona/pushbots/settings?error=${encodeURIComponent("Its number couldn't be set up just now. Try again in a minute.")}` : "/persona/pushbots/settings");
 }
 
 /** An admin registers (or clears) an office member's mobile: texts from it reach the Pushbot as them. */

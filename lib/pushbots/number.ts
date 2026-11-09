@@ -16,6 +16,9 @@ import { chargeAllowance } from "./billing";
 export const pushbotWebhookPath = (pushbotId: string) => `/api/webhooks/twilio/pushbot/${pushbotId}`;
 export const pushbotVoicePath = (pushbotId: string) => `/api/webhooks/twilio/pushbot/${pushbotId}/voice`;
 
+/** How long a purchase may run before another attempt can take over (e.g. if the first one's function was stopped). */
+const BUYING_FOR = 10 * 60_000;
+
 export async function provisionNumber(pushbotId: string): Promise<{ ok: true; number: string } | { ok: false; error: string }> {
   const pushbot = await prisma.pushbot.findUnique({ where: { id: pushbotId }, include: { agency: { select: { name: true } } } });
   if (!pushbot) return { ok: false, error: "No such Pushbot" };
@@ -35,6 +38,13 @@ export async function provisionNumber(pushbotId: string): Promise<{ ok: true; nu
     await prisma.pushbot.update({ where: { id: pushbot.id }, data: { numberStatus: "failed", numberError: error } });
     return { ok: false, error };
   }
+  // One purchase at a time: a double click on Try again, a Save and the
+  // hourly retry can all land at once, and each would otherwise buy a number.
+  const claimed = await prisma.pushbot.updateMany({
+    where: { id: pushbot.id, number: null, OR: [{ numberStatus: { not: "buying" } }, { updatedAt: { lt: new Date(Date.now() - BUYING_FOR) } }] },
+    data: { numberStatus: "buying", numberError: null },
+  });
+  if (claimed.count === 0) return { ok: false, error: "Its number is being set up; refresh in a moment." };
   try {
     const bundle = await ukMobileBundle(secrets);
     if (!bundle) throw new Error("No approved UK mobile regulatory bundle on the account");
@@ -66,7 +76,7 @@ export async function provisionNumber(pushbotId: string): Promise<{ ok: true; nu
  */
 export async function retryWaitingNumbers(now = new Date()): Promise<number> {
   if (!aultrumTwilio()) return 0;
-  const waiting = await prisma.pushbot.findMany({ where: { enabled: true, numberStatus: "failed", updatedAt: { lt: new Date(now.getTime() - 3_600_000) } }, select: { id: true }, take: 20 });
+  const waiting = await prisma.pushbot.findMany({ where: { enabled: true, OR: [{ numberStatus: "failed", updatedAt: { lt: new Date(now.getTime() - 3_600_000) } }, { numberStatus: "buying", updatedAt: { lt: new Date(now.getTime() - BUYING_FOR) } }] }, select: { id: true }, take: 20 });
   let got = 0;
   for (const p of waiting) if ((await provisionNumber(p.id)).ok) got++;
   return got;

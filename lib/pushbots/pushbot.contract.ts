@@ -184,6 +184,16 @@ test("once the bundle is approved, a Pushbot that was waiting gets its number by
   await prisma.pushbot.update({ where: { id: pushbotId }, data: { number: null, numberSid: null, numberStatus: "failed" } });
 });
 
+test("two attempts at once (a double click, or Try again during the hourly retry) buy one number", async () => {
+  failBuy = false;
+  const before = bought.length;
+  const [a, b] = await Promise.all([provisionNumber(pushbotId), provisionNumber(pushbotId)]);
+  assert.equal(bought.length - before, 1, "Twilio was asked for one number");
+  assert.equal([a.ok, b.ok].filter(Boolean).length, 1);
+  assert.equal((await prisma.pushbot.findUniqueOrThrow({ where: { id: pushbotId } })).numberStatus, "active");
+  await prisma.pushbot.update({ where: { id: pushbotId }, data: { number: null, numberSid: null, numberStatus: "failed" } });
+});
+
 test("Pleasant finds the approved bundle itself, buys the Pushbot a UK number under it, pointed back at it, and texts from it", async () => {
   failBuy = false;
   const r = await provisionNumber(pushbotId);
