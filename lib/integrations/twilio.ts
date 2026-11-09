@@ -31,6 +31,25 @@ export function twilioAuthHeader(s: TwilioSecrets) {
 }
 const auth = twilioAuthHeader;
 
+/**
+ * What a refused sign-in used, without the secret: which identifier (its
+ * first two letters and length) and how long the secret is, and whether it
+ * holds spaces or quotes, which survive copy-paste and can't be seen.
+ */
+export function describeSignIn(s: TwilioSecrets): string {
+  const viaKey = !!(s.apiKeySid && s.apiKeySecret);
+  const user = viaKey ? s.apiKeySid! : s.accountSid;
+  const secret = viaKey ? s.apiKeySecret! : s.authToken;
+  const odd = /[\s"'`]/.test(user + secret) ? "; contains spaces or quotes" : "";
+  return `signed in with ${viaKey ? "API key" : "Account SID"} ${user.slice(0, 2)}… (${user.length} chars) and a ${secret.length}-char ${viaKey ? "secret" : "auth token"}${odd}`;
+}
+
+/** Twilio's own words for a refusal, with what was used, so a log says exactly why. */
+function refusal(res: Response, json: { message?: string; code?: number }, s: TwilioSecrets, where: string): string {
+  if (res.status !== 401 && res.status !== 403) return json.message ?? `Twilio answered ${res.status}`;
+  return `Twilio rejected the sign-in to ${where} (HTTP ${res.status}${json.code ? `, code ${json.code}` : ""}${json.message ? `: ${json.message}` : ""}; ${describeSignIn(s)})`;
+}
+
 export class TwilioError extends Error {
   constructor(message: string, readonly status: number, readonly code?: number) {
     super(message);
@@ -46,7 +65,7 @@ async function call<T>(s: TwilioSecrets, method: "GET" | "POST", path: string, f
   });
   const json = (await res.json().catch(() => ({}))) as T & { message?: string; code?: number };
   if (!res.ok) {
-    const reason = res.status === 401 ? "Twilio rejected the Account SID or Auth Token" : (json.message ?? `Twilio answered ${res.status}`);
+    const reason = refusal(res, json, s, "its messaging API");
     throw new TwilioError(reason, res.status, json.code);
   }
   return json;
@@ -102,7 +121,7 @@ const numbersBase = () => (process.env.TWILIO_NUMBERS_API_URL ?? process.env.TWI
 async function numbersCall<T>(s: TwilioSecrets, path: string): Promise<T> {
   const res = await fetch(`${numbersBase()}/v2/RegulatoryCompliance${path}`, { headers: { Authorization: auth(s) }, signal: AbortSignal.timeout(15_000) });
   const json = (await res.json().catch(() => ({}))) as T & { message?: string; code?: number };
-  if (!res.ok) throw new TwilioError(res.status === 401 ? "Twilio rejected the Account SID or Auth Token" : (json.message ?? `Twilio answered ${res.status}`), res.status, json.code);
+  if (!res.ok) throw new TwilioError(refusal(res, json, s, "its numbers API (regulatory bundles)"), res.status, json.code);
   return json;
 }
 
