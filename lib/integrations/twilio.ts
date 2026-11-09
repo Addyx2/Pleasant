@@ -76,12 +76,12 @@ export async function sendSms(s: TwilioSecrets, from: string, to: string, body: 
  */
 export async function buyUkMobile(
   s: TwilioSecrets,
-  opts: { friendlyName: string; smsUrl: string; bundleSid?: string; addressSid?: string },
+  opts: { friendlyName: string; smsUrl: string; voiceUrl?: string; bundleSid?: string; addressSid?: string },
 ): Promise<{ sid: string; number: string }> {
   const found = await call<{ available_phone_numbers?: { phone_number: string }[] }>(
     s,
     "GET",
-    "/AvailablePhoneNumbers/GB/Mobile.json?SmsEnabled=true&PageSize=5",
+    "/AvailablePhoneNumbers/GB/Mobile.json?SmsEnabled=true&VoiceEnabled=true&PageSize=5",
   );
   const number = found.available_phone_numbers?.[0]?.phone_number;
   if (!number) throw new TwilioError("Twilio has no UK mobile numbers available to buy right now", 404);
@@ -90,6 +90,7 @@ export async function buyUkMobile(
     FriendlyName: opts.friendlyName.slice(0, 64),
     SmsUrl: opts.smsUrl,
     SmsMethod: "POST",
+    ...(opts.voiceUrl ? { VoiceUrl: opts.voiceUrl, VoiceMethod: "POST" } : {}),
     ...(opts.bundleSid ? { BundleSid: opts.bundleSid } : {}),
     ...(opts.addressSid ? { AddressSid: opts.addressSid } : {}),
   });
@@ -130,16 +131,16 @@ export async function ukMobileBundle(s: TwilioSecrets): Promise<{ bundleSid: str
   return { bundleSid, addressSid };
 }
 
-/** Points a number Pleasant already owns (by its SID) at a new address. */
-export async function pointNumber(s: TwilioSecrets, numberSid: string, smsUrl: string): Promise<void> {
-  await call(s, "POST", `/IncomingPhoneNumbers/${numberSid}.json`, { SmsUrl: smsUrl, SmsMethod: "POST" });
+/** Points a number Pleasant already owns (by its SID) at a new address: its texts, and its calls if given. */
+export async function pointNumber(s: TwilioSecrets, numberSid: string, smsUrl: string, voiceUrl?: string): Promise<void> {
+  await call(s, "POST", `/IncomingPhoneNumbers/${numberSid}.json`, { SmsUrl: smsUrl, SmsMethod: "POST", ...(voiceUrl ? { VoiceUrl: voiceUrl, VoiceMethod: "POST" } : {}) });
 }
 
 /**
  * Points the sending number's incoming messages at Pleasant, so replies reach
  * the app. Returns false when the sender isn't a number on this account.
  */
-export async function setIncomingWebhook(s: TwilioSecrets, number: string, url: string): Promise<boolean> {
+export async function setIncomingWebhook(s: TwilioSecrets, number: string, url: string, voiceUrl?: string): Promise<boolean> {
   if (!number.startsWith("+")) return false;
   const list = await call<{ incoming_phone_numbers?: { sid: string }[] }>(
     s,
@@ -148,7 +149,7 @@ export async function setIncomingWebhook(s: TwilioSecrets, number: string, url: 
   );
   const sid = list.incoming_phone_numbers?.[0]?.sid;
   if (!sid) return false;
-  await call(s, "POST", `/IncomingPhoneNumbers/${sid}.json`, { SmsUrl: url, SmsMethod: "POST" });
+  await call(s, "POST", `/IncomingPhoneNumbers/${sid}.json`, { SmsUrl: url, SmsMethod: "POST", ...(voiceUrl ? { VoiceUrl: voiceUrl, VoiceMethod: "POST" } : {}) });
   return true;
 }
 
@@ -193,3 +194,16 @@ export function twiml(message?: string): Response {
   const body = `<?xml version="1.0" encoding="UTF-8"?><Response>${escaped ? `<Message>${escaped}</Message>` : ""}</Response>`;
   return new Response(body, { headers: { "Content-Type": "text/xml; charset=utf-8" } });
 }
+
+const xml = (text: string) => text.replace(/[<>&'"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" })[c]!);
+
+/** Spoken words for a call, in a British voice. */
+export const say = (text: string) => `<Say voice="Polly.Amy-Neural" language="en-GB">${xml(text)}</Say>`;
+
+/** A TwiML answer to a call. */
+export function voiceTwiml(inner: string): Response {
+  return new Response(`<?xml version="1.0" encoding="UTF-8"?><Response>${inner}</Response>`, { headers: { "Content-Type": "text/xml; charset=utf-8" } });
+}
+
+export const dialTwiml = (to: string, opts: { action: string; timeLimitSecs: number }) =>
+  `<Dial timeout="25" timeLimit="${opts.timeLimitSecs}" action="${xml(opts.action)}" method="POST">${xml(to)}</Dial>`;
