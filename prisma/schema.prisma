@@ -1338,3 +1338,21 @@ model PushbotAction {
 
   @@index([userId, status])
 }
+
+/// Someone who asked, on aultrum.co.uk, to try a Pushbot by text. They get an
+/// opening text from the trial Pushbot's number and can text back; replies are
+/// about Pushbots only and never touch that agency's data.
+model PushbotTrial {
+  id        String    @id @default(cuid())
+  pushbotId String
+  phone     String
+  /// SHA-256 of the requester's IP address, only to limit requests per visitor.
+  ipHash    String
+  replies   Int       @default(0)
+  stoppedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([phone, createdAt])
+  @@index([ipHash, createdAt])
+  @@index([createdAt])
+}
