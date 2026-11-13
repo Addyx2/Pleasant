@@ -288,6 +288,16 @@ export async function ActionCentre({ agencyId, isAdmin }: { agencyId: string; is
         fix: call ?? <FixLink href="/addons/gateway" severity="warning">Open Gateway</FixLink>,
         secondary: done,
       });
+    } else if (ev.type === "gateway.absence.reported") {
+      const cover = (data.cover ?? null) as { note?: string; shifts?: { shiftId: string }[] } | null;
+      const first = cover?.shifts?.[0]?.shiftId;
+      items.push({
+        key: `el-${ev.id}`, severity: ev.urgent ? "critical" : "warning", icon: PhoneCall,
+        title: `${who} can't make a shift`,
+        detail: [s("when"), s("reason"), cover?.note ?? "Finding the shift…", `via Gateway ${ago}`].filter(Boolean).join(" · "),
+        fix: <FixLink href={first ? `/shifts/${first}` : "/shifts/unattended"} severity={ev.urgent ? "critical" : "warning"}>{first ? "Open shift" : "Check the rota"}</FixLink>,
+        secondary: done,
+      });
     } else if (ev.type === "gateway.handover.requested") {
       items.push({
         key: `el-${ev.id}`, severity: ev.urgent ? "critical" : "warning", icon: Headset,
