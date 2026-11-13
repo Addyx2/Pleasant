@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 
+import { coverAbsence } from "@/lib/absence";
 import { prisma } from "@/lib/db";
 
 // What Pleasant does with each event the Elements console sends.
@@ -18,6 +19,7 @@ function attention(event: ElementsWebhook): { needsAttention: boolean; urgent: b
   switch (event.type) {
     case "gateway.enquiry.received":
     case "gateway.message.left":
+    case "gateway.absence.reported":
       return { needsAttention: true, urgent: false };
     case "gateway.handover.requested":
       return { needsAttention: true, urgent: event.data.urgent === true };
@@ -80,6 +82,20 @@ export async function handleElementsWebhook(event: ElementsWebhook): Promise<Han
     // The same event delivered twice: already handled.
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return { ok: true, duplicate: true };
     throw error;
+  }
+
+  // A carer can't make a shift: free it and start finding cover, then say what was done.
+  if (event.type === "gateway.absence.reported") {
+    try {
+      const cover = await coverAbsence(agencyId, { staffId: str(event.data.personId) ?? null, date: str(event.data.date) ?? null });
+      await prisma.elementsEvent.update({
+        where: { eventId: event.id },
+        data: { data: { ...event.data, cover: cover as unknown as Prisma.InputJsonValue }, urgent: cover.shifts.length === 0 || cover.shifts.some((s) => !s.covering) },
+      });
+    } catch (error) {
+      console.error(JSON.stringify({ event: "absence_cover_failed", agencyId, error: error instanceof Error ? error.message : String(error) }));
+      await prisma.elementsEvent.update({ where: { eventId: event.id }, data: { urgent: true } }).catch(() => undefined);
+    }
   }
   return { ok: true };
 }
